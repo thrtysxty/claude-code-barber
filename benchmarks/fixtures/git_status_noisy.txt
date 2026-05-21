@@ -1,0 +1,21 @@
+hint: Using 'master' as the name for the initial branch.
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. To configure the initial branch name to use in all
+hint: of your new repositories, which will suppress this warning, call:
+hint:
+hint:     git config --global init.defaultBranch <name>
+
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+        modified:   src/main.rs
+        modified:   src/cli.rs
+
+Untracked files:
+  (use "git add" to track)
+        target/
+
+no changes added to commit (use "git add" and/or "git commit -a")

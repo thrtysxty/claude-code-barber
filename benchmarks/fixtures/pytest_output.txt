@@ -1,0 +1,20 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.9, pytest-8.1.0, pluggy-1.4.0
+rootdir: /Users/dadmin/Projects/copernicus
+configfile: pytest.ini
+collected 47 items
+
+backend/tests/test_api.py .......                                        [ 14%]
+backend/tests/test_cors.py ..                                            [ 18%]
+backend/tests/test_db.py ....                                            [ 27%]
+backend/tests/test_errors.py ...                                         [ 33%]
+backend/tests/test_health.py .                                           [ 36%]
+backend/tests/test_hmac_verify.py ....                                   [ 44%]
+backend/tests/test_path_guard.py .....                                   [ 55%]
+backend/tests/test_providers.py .......                                  [ 70%]
+backend/tests/test_rate_limit.py ...                                     [ 76%]
+backend/tests/test_replay_cache.py ....                                  [ 85%]
+backend/tests/test_security.py ..                                        [ 89%]
+backend/tests/test_validation.py .....                                   [100%]
+
+============================== 47 passed in 2.34s ==============================
