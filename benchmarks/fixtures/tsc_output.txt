@@ -1,4 +1,158 @@
-src/renderer/components/ChatPanel.tsx(42,7): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
-src/renderer/hooks/useIpc.ts(18,3): error TS2322: Type 'unknown' is not assignable to type 'IpcResult<T>'.
-
-Found 2 errors in 2 files.
+electron/ipc/app-handlers.test.ts(214,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(221,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(221,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(251,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(251,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(260,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(294,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(301,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(340,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(413,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(443,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(443,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(452,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(476,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(476,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(499,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/app-handlers.test.ts(499,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(63,7): error TS2740: Type '{ send: Mock<[channel: string, ...args: any[]], void>; }' is missing the following properties from type 'WebContents': on, off, once, addListener, and 137 more.
+electron/ipc/auth-handlers.test.ts(150,30): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(150,30): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(167,30): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(167,30): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(222,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(229,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(237,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(245,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(245,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(254,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(254,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(263,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(263,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(273,30): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(273,30): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(288,30): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(288,30): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(310,30): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(310,30): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(328,30): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(328,30): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(340,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(400,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(414,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(427,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(427,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(442,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(442,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(458,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(458,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(470,13): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(481,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(481,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(492,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(492,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(501,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(501,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(513,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(513,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(531,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(531,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(551,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(551,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(571,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/auth-handlers.test.ts(571,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/chat-handlers.test.ts(17,40): error TS6133: 'argsOrNothing' is declared but its value is never read.
+electron/ipc/chat-handlers.test.ts(139,9): error TS2739: Type '{ id: string; supportsVision: false; }' is missing the following properties from type 'ModelConfig': name, provider, contextWindow
+electron/ipc/git-handlers.test.ts(112,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(112,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(128,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(128,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(146,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(146,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(162,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(162,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(180,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(180,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(196,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(196,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(214,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(214,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(231,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(231,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(248,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/git-handlers.test.ts(248,28): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/memory-handlers.test.ts(53,58): error TS2345: Argument of type '{ id: string; }' is not assignable to parameter of type 'string'.
+electron/ipc/memory-handlers.test.ts(68,62): error TS2345: Argument of type '{ id: string; content: string; }[]' is not assignable to parameter of type 'MemoryRow[]'.
+  Type '{ id: string; content: string; }' is missing the following properties from type 'MemoryRow': projectId, bankId, eventType, importance, and 2 more.
+electron/ipc/memory-handlers.test.ts(94,56): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'Promise<void>'.
+electron/ipc/memory-handlers.test.ts(108,56): error TS2345: Argument of type '{ id: string; }' is not assignable to parameter of type 'string'.
+electron/ipc/memory-handlers.test.ts(123,59): error TS2345: Argument of type '{ id: string; work: string; duration: number; }[]' is not assignable to parameter of type 'WorkLogRow[]'.
+  Type '{ id: string; work: string; duration: number; }' is missing the following properties from type 'WorkLogRow': projectId, bankId, eventType, meta, ts
+electron/ipc/project-handlers.test.ts(81,61): error TS2345: Argument of type '{ id: string; path: string; target_device: string; }' is not assignable to parameter of type 'ProjectRecord'.
+  Property 'billing_mode' is missing in type '{ id: string; path: string; target_device: string; }' but required in type 'ProjectRecord'.
+electron/ipc/project-handlers.test.ts(102,7): error TS2322: Type 'null' is not assignable to type 'string | undefined'.
+electron/ipc/register-all-handlers.test.ts(2,19): error TS6133: 'app' is declared but its value is never read.
+electron/ipc/register-all-handlers.test.ts(3,1): error TS6133: 'path' is declared but its value is never read.
+electron/ipc/register-all-handlers.test.ts(32,40): error TS6133: 'argsOrNothing' is declared but its value is never read.
+electron/ipc/security-handlers.test.ts(89,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(89,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(103,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(103,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(121,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(121,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(144,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(144,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(168,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(168,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(188,11): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(197,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/security-handlers.test.ts(197,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-agent-handlers.test.ts(12,40): error TS6133: 'argsOrNothing' is declared but its value is never read.
+electron/ipc/terminal-agent-handlers.test.ts(76,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-agent-handlers.test.ts(76,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-agent-handlers.test.ts(90,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-agent-handlers.test.ts(90,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-agent-handlers.test.ts(106,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-agent-handlers.test.ts(106,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(16,40): error TS6133: 'argsOrNothing' is declared but its value is never read.
+electron/ipc/terminal-handlers.test.ts(90,46): error TS2345: Argument of type '(channel: string, handler: (event: IpcMainEvent, ...args: any[]) => void) => void' is not assignable to parameter of type '(channel: string, listener: (event: IpcMainEvent, ...args: any[]) => void) => IpcMain'.
+  Type 'void' is not assignable to type 'IpcMain'.
+electron/ipc/terminal-handlers.test.ts(110,5): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(124,5): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(138,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(138,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(153,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(153,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(168,5): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(182,5): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(196,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(196,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(211,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(211,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(234,5): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(236,12): error TS2532: Object is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(253,7): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(262,5): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(281,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(281,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(296,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(296,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(317,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(317,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(332,26): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+electron/ipc/terminal-handlers.test.ts(332,26): error TS18048: 'handler' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(221,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(222,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(223,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(228,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(229,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(230,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(231,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(236,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(237,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(238,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/env-sanitizer.test.ts(239,14): error TS18048: 'pattern' is possibly 'undefined'.
+electron/security/__tests__/git-guard.test.ts(2,42): error TS6133: 'GitPushRequest' is declared but its value is never read.
+electron/security/__tests__/index.test.ts(1,48): error TS6133: 'afterEach' is declared but its value is never read.
+electron/security/__tests__/SecurityScorer.test.ts(60,33): error TS2345: Argument of type 'EventEmitter<any> & { detect: Mock<any[], unknown>; }' is not assignable to parameter of type 'PatternDetector'.
+  Type 'EventEmitter<any> & { detect: Mock<any[], unknown>; }' is missing the following properties from type 'PatternDetector': logFile, logAlert

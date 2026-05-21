@@ -1,0 +1,120 @@
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.45
+   Compiling unicode-ident v1.0.24
+   Compiling serde_core v1.0.228
+   Compiling serde v1.0.228
+   Compiling once_cell v1.21.4
+   Compiling utf8parse v0.2.2
+   Compiling zmij v1.0.21
+   Compiling autocfg v1.5.0
+   Compiling libc v0.2.186
+   Compiling tracing-core v0.1.36
+   Compiling num-traits v0.2.19
+   Compiling anstyle-parse v1.0.0
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling colorchoice v1.0.5
+   Compiling hashbrown v0.17.1
+   Compiling anstyle v1.0.14
+   Compiling anstyle-query v1.1.5
+   Compiling serde_json v1.0.149
+   Compiling regex-syntax v0.8.10
+   Compiling equivalent v1.0.2
+   Compiling indexmap v2.14.0
+   Compiling anstream v1.0.0
+   Compiling winnow v0.7.15
+   Compiling regex-automata v0.4.14
+   Compiling itoa v1.0.18
+   Compiling clap_lex v1.1.0
+   Compiling syn v2.0.117
+   Compiling anyhow v1.0.102
+   Compiling heck v0.5.0
+   Compiling core-foundation-sys v0.8.7
+   Compiling strsim v0.11.1
+   Compiling option-ext v0.2.0
+   Compiling log v0.4.29
+   Compiling toml_write v0.1.2
+   Compiling memchr v2.8.0
+   Compiling cfg-if v1.0.4
+   Compiling lazy_static v1.5.0
+   Compiling pin-project-lite v0.2.17
+   Compiling sharded-slab v0.1.7
+   Compiling thread_local v1.1.9
+   Compiling tracing-log v0.2.0
+   Compiling clap_builder v4.6.0
+   Compiling iana-time-zone v0.1.65
+   Compiling dirs-sys v0.4.1
+   Compiling nu-ansi-term v0.50.3
+   Compiling smallvec v1.15.1
+   Compiling dirs v5.0.1
+   Compiling matchers v0.2.0
+   Compiling serde_derive v1.0.228
+   Compiling tracing-attributes v0.1.31
+   Compiling clap_derive v4.6.1
+   Compiling tracing v0.1.44
+   Compiling clap v4.6.1
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling tracing-serde v0.2.0
+   Compiling chrono v0.4.44
+   Compiling tracing-subscriber v0.3.23
+   Compiling toml_edit v0.22.27
+   Compiling toml v0.8.23
+   Compiling ccb v0.1.0 (/Users/dadmin/Projects/claude-code-barber)
+warning: unused import: `TrimArgs`
+ --> src/features/cut.rs:3:18
+  |
+3 | use crate::cli::{TrimArgs, ContextCmd};
+  |                  ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused attribute `allow`
+  --> src/main.rs:42:5
+   |
+42 |     #[allow(unreachable_code)]
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: the built-in attribute `allow` will be ignored, since it's applied to the macro invocation `anyhow::bail`
+  --> src/main.rs:43:5
+   |
+43 |     anyhow::bail!("ccb built without 'trim'. Rebuild: cargo build --features trim")
+   |     ^^^^^^^^^^^^
+   = note: `#[warn(unused_attributes)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused attribute `allow`
+  --> src/main.rs:49:5
+   |
+49 |     #[allow(unreachable_code)]
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: the built-in attribute `allow` will be ignored, since it's applied to the macro invocation `anyhow::bail`
+  --> src/main.rs:50:5
+   |
+50 |     anyhow::bail!("ccb built without 'fade'. Rebuild: cargo build --features fade")
+   |     ^^^^^^^^^^^^
+
+warning: unreachable expression
+  --> src/main.rs:43:5
+   |
+41 |     return features::trim::run(_args);
+   |     --------------------------------- any code following this expression is unreachable
+42 |     #[allow(unreachable_code)]
+43 |     anyhow::bail!("ccb built without 'trim'. Rebuild: cargo build --features trim")
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable expression
+   |
+   = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+   = note: this warning originates in the macro `anyhow::bail` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unreachable expression
+  --> src/main.rs:50:5
+   |
+48 |     return features::fade::run(_args);
+   |     --------------------------------- any code following this expression is unreachable
+49 |     #[allow(unreachable_code)]
+50 |     anyhow::bail!("ccb built without 'fade'. Rebuild: cargo build --features fade")
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable expression
+   |
+   = note: this warning originates in the macro `anyhow::bail` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: `ccb` (bin "ccb") generated 5 warnings (run `cargo fix --bin "ccb" -p ccb` to apply 3 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.00s

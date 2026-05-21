@@ -1,0 +1,19 @@
+Collecting flask==3.0.3
+  Downloading flask-3.0.3-py3-none-any.whl (101 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 101.7/101.7 kB 2.1 MB/s eta 0:00:00
+Collecting werkzeug>=3.0.0 (from flask==3.0.3)
+  Downloading werkzeug-3.0.3-py3-none-any.whl (227 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 227.3/227.3 kB 4.8 MB/s eta 0:00:00
+Collecting jinja2>=3.1.2 (from flask==3.0.3)
+  Downloading Jinja2-3.1.4-py3-none-any.whl (185 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 185.3/185.3 kB 5.2 MB/s eta 0:00:00
+Collecting click>=8.1.3 (from flask==3.0.3)
+  Downloading click-8.1.7-py3-none-any.whl (97 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 97.9/97.9 kB 3.1 MB/s eta 0:00:00
+Requirement already satisfied: itsdangerous>=2.1.2 in ./venv/lib/python3.11/site-packages (from flask==3.0.3) (2.2.0)
+Requirement already satisfied: blinker>=1.6.2 in ./venv/lib/python3.11/site-packages (from flask==3.0.3) (1.8.2)
+Requirement already satisfied: MarkupSafe>=2.0 in ./venv/lib/python3.11/site-packages (from jinja2>=3.1.2->flask==3.0.3) (2.1.5)
+Using cached werkzeug-3.0.3-py3-none-any.whl (already downloaded)
+Using cached Jinja2-3.1.4-py3-none-any.whl (already downloaded)
+Installing collected packages: click, werkzeug, jinja2, flask
+Successfully installed click-8.1.7 flask-3.0.3 jinja2-3.1.4 werkzeug-3.0.3

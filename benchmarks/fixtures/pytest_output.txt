@@ -1,20 +1,170 @@
 ============================= test session starts ==============================
-platform darwin -- Python 3.11.9, pytest-8.1.0, pluggy-1.4.0
+platform darwin -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- /Users/dadmin/Projects/copernicus/backend/venv/bin/python3
+cachedir: .pytest_cache
 rootdir: /Users/dadmin/Projects/copernicus
-configfile: pytest.ini
-collected 47 items
+plugins: anyio-4.12.1, mock-3.15.1
+collecting ... collected 131 items
 
-backend/tests/test_api.py .......                                        [ 14%]
-backend/tests/test_cors.py ..                                            [ 18%]
-backend/tests/test_db.py ....                                            [ 27%]
-backend/tests/test_errors.py ...                                         [ 33%]
-backend/tests/test_health.py .                                           [ 36%]
-backend/tests/test_hmac_verify.py ....                                   [ 44%]
-backend/tests/test_path_guard.py .....                                   [ 55%]
-backend/tests/test_providers.py .......                                  [ 70%]
-backend/tests/test_rate_limit.py ...                                     [ 76%]
-backend/tests/test_replay_cache.py ....                                  [ 85%]
-backend/tests/test_security.py ..                                        [ 89%]
-backend/tests/test_validation.py .....                                   [100%]
+backend/tests/test_api.py::test_health PASSED                            [  0%]
+backend/tests/test_api.py::test_stories_crud PASSED                      [  1%]
+backend/tests/test_api.py::test_agents_api SKIPPED (routes /agents/s...) [  2%]
+backend/tests/test_api.py::test_settings_api PASSED                      [  3%]
+backend/tests/test_api.py::test_auth_middleware PASSED                   [  3%]
+backend/tests/test_context_manager.py::TestContextManager::test_concurrent_adds PASSED [  4%]
+backend/tests/test_context_manager.py::TestContextManager::test_max_sessions_eviction PASSED [  5%]
+backend/tests/test_cors.py::test_valid_origin_allowed PASSED             [  6%]
+backend/tests/test_cors.py::test_unknown_origin_rejected PASSED          [  6%]
+backend/tests/test_cors.py::test_env_sanitizer_rejects_bad_value PASSED  [  7%]
+backend/tests/test_db.py::test_fk_constraint_enforced PASSED             [  8%]
+backend/tests/test_docs.py::test_visual_audit_placeholder PASSED         [  9%]
+backend/tests/test_errors.py::TestAppError::test_app_error_init_defaults PASSED [  9%]
+backend/tests/test_errors.py::TestAppError::test_app_error_init_custom PASSED [ 10%]
+backend/tests/test_errors.py::TestAppError::test_to_dict_basic PASSED    [ 11%]
+backend/tests/test_errors.py::TestAppError::test_to_dict_with_detail PASSED [ 12%]
+backend/tests/test_errors.py::TestAppError::test_handle_app_error PASSED [ 12%]
+backend/tests/test_health.py::test_health_check_success PASSED           [ 13%]
+backend/tests/test_health.py::test_health_check_timestamp PASSED         [ 14%]
+backend/tests/test_health.py::test_health_check_unsupported_method PASSED [ 15%]
+backend/tests/test_hmac_verify.py::test_verify_hmac_signature_valid PASSED [ 16%]
+backend/tests/test_hmac_verify.py::test_verify_hmac_signature_with_prefix PASSED [ 16%]
+backend/tests/test_hmac_verify.py::test_verify_hmac_signature_invalid PASSED [ 17%]
+backend/tests/test_hmac_verify.py::test_verify_hmac_signature_empty_payload PASSED [ 18%]
+backend/tests/test_hmac_verify.py::test_verify_hmac_signature_empty_signature PASSED [ 19%]
+backend/tests/test_hmac_verify.py::test_verify_hmac_signature_empty_secret PASSED [ 19%]
+backend/tests/test_hmac_verify.py::test_verify_hmac_signature_none_inputs PASSED [ 20%]
+backend/tests/test_path_guard.py::test_assert_safe_path_inside_allowed_root PASSED [ 21%]
+backend/tests/test_path_guard.py::test_assert_safe_path_outside_allowed_root PASSED [ 22%]
+backend/tests/test_path_guard.py::test_assert_safe_path_with_path_traversal FAILED [ 22%]
+backend/tests/test_path_guard.py::test_assert_safe_path_with_symlink_outside_roots PASSED [ 23%]
+backend/tests/test_path_guard.py::test_assert_safe_path_with_symlink_inside_roots PASSED [ 24%]
+backend/tests/test_providers.py::TestProviders::test_abstract_instantiation PASSED [ 25%]
+backend/tests/test_providers.py::TestProviders::test_base_provider_chat PASSED [ 25%]
+backend/tests/test_rate_limit.py::test_research_rate_limit PASSED        [ 26%]
+backend/tests/test_rate_limit.py::test_chat_rate_limit PASSED            [ 27%]
+backend/tests/test_registry.py::test_models_endpoint_returns_list PASSED [ 28%]
+backend/tests/test_registry.py::test_persona_lookup_by_alias PASSED      [ 29%]
+backend/tests/test_registry.py::test_model_lookup_by_id PASSED           [ 29%]
+backend/tests/test_registry.py::test_model_not_found PASSED              [ 30%]
+backend/tests/test_registry.py::test_persona_not_found PASSED            [ 31%]
+backend/tests/test_registry.py::test_reload_hot_swaps_data PASSED        [ 32%]
+backend/tests/test_replay_cache.py::test_check_and_add_new PASSED        [ 32%]
+backend/tests/test_replay_cache.py::test_check_and_add_replay PASSED     [ 33%]
+backend/tests/test_replay_cache.py::test_expired_ttl PASSED              [ 34%]
+backend/tests/test_replay_cache.py::test_cleanup PASSED                  [ 35%]
+backend/tests/test_security.py::TestAuthMiddleware::test_missing_api_key_returns_401 FAILED [ 35%]
+backend/tests/test_security.py::TestAuthMiddleware::test_wrong_api_key_returns_401 FAILED [ 36%]
+backend/tests/test_security.py::TestAuthMiddleware::test_empty_string_key_returns_401 FAILED [ 37%]
+backend/tests/test_security.py::TestAuthMiddleware::test_valid_api_key_proceeds PASSED [ 38%]
+backend/tests/test_security.py::TestAuthMiddleware::test_dev_mode_no_key_env_bypass PASSED [ 38%]
+backend/tests/test_security.py::TestAuthMiddleware::test_decorator_applied_to_function FAILED [ 39%]
+backend/tests/test_security.py::TestHmacVerification::test_valid_signature PASSED [ 40%]
+backend/tests/test_security.py::TestHmacVerification::test_valid_signature_with_sha256_prefix PASSED [ 41%]
+backend/tests/test_security.py::TestHmacVerification::test_invalid_signature PASSED [ 41%]
+backend/tests/test_security.py::TestHmacVerification::test_tampered_payload_detection PASSED [ 42%]
+backend/tests/test_security.py::TestHmacVerification::test_empty_payload_handling FAILED [ 43%]
+backend/tests/test_security.py::TestHmacVerification::test_empty_signature_input PASSED [ 44%]
+backend/tests/test_security.py::TestHmacVerification::test_empty_secret_input PASSED [ 45%]
+backend/tests/test_security.py::TestHmacVerification::test_different_secrets PASSED [ 45%]
+backend/tests/test_security.py::TestHmacVerification::test_case_sensitivity PASSED [ 46%]
+backend/tests/test_security.py::TestHmacVerification::test_special_characters_in_secret PASSED [ 47%]
+backend/tests/test_security.py::TestHmacVerification::test_unicode_in_payload_and_secret PASSED [ 48%]
+backend/tests/test_security.py::TestWebhookSecurity::test_valid_github_webhook PASSED [ 48%]
+backend/tests/test_security.py::TestWebhookSecurity::test_missing_signature_header PASSED [ 49%]
+backend/tests/test_security.py::TestWebhookSecurity::test_missing_delivery_header PASSED [ 50%]
+backend/tests/test_security.py::TestWebhookSecurity::test_invalid_signature PASSED [ 51%]
+backend/tests/test_security.py::TestWebhookSecurity::test_missing_secret_env PASSED [ 51%]
+backend/tests/test_security.py::TestWebhookSecurity::test_replay_attack_prevention PASSED [ 52%]
+backend/tests/test_security.py::TestWebhookSecurity::test_replay_attack_different_payload_same_delivery PASSED [ 53%]
+backend/tests/test_security.py::TestWebhookSecurity::test_valid_signature_with_prefix_variations PASSED [ 54%]
+backend/tests/test_security.py::TestWebhookSecurity::test_empty_payload_handling PASSED [ 54%]
+backend/tests/test_security.py::TestReplayCache::test_first_seen_allowed PASSED [ 55%]
+backend/tests/test_security.py::TestReplayCache::test_duplicate_same_id_rejected PASSED [ 56%]
+backend/tests/test_security.py::TestReplayCache::test_expired_ttl_allows_new PASSED [ 57%]
+backend/tests/test_security.py::TestReplayCache::test_concurrent_access_thread_safety PASSED [ 58%]
+backend/tests/test_security.py::TestReplayCache::test_cleanup_removes_expired PASSED [ 58%]
+backend/tests/test_security.py::TestReplayCache::test_cleanup_on_check_and_add PASSED [ 59%]
+backend/tests/test_security.py::TestReplayCache::test_different_ids_independent FAILED [ 60%]
+backend/tests/test_security.py::TestReplayCache::test_empty_cache FAILED [ 61%]
+backend/tests/test_security.py::TestPathGuard::test_absolute_path_inside_allowed_root FAILED [ 61%]
+backend/tests/test_security.py::TestPathGuard::test_absolute_path_outside_allowed_root PASSED [ 62%]
+backend/tests/test_security.py::TestPathGuard::test_path_traversal_with_dotdot PASSED [ 63%]
+backend/tests/test_security.py::TestPathGuard::test_path_traversal_with_multiple_dots PASSED [ 64%]
+backend/tests/test_security.py::TestPathGuard::test_symlink_outside_allowed_root PASSED [ 64%]
+backend/tests/test_security.py::TestPathGuard::test_symlink_inside_allowed_root FAILED [ 65%]
+backend/tests/test_security.py::TestPathGuard::test_relative_path_valid FAILED [ 66%]
+backend/tests/test_security.py::TestPathGuard::test_relative_path_traversal FAILED [ 67%]
+backend/tests/test_security.py::TestPathGuard::test_empty_path PASSED    [ 67%]
+backend/tests/test_security.py::TestPathGuard::test_none_path FAILED     [ 68%]
+backend/tests/test_security.py::TestPathGuard::test_custom_roots_parameter FAILED [ 69%]
+backend/tests/test_security.py::TestPathGuard::test_case_sensitivity_unix FAILED [ 70%]
+backend/tests/test_security.py::TestIntegration::test_webhook_with_invalid_hmac_and_missing_delivery PASSED [ 70%]
+backend/tests/test_security.py::TestIntegration::test_webhook_replay_with_valid_signature PASSED [ 71%]
+backend/tests/test_sql_safety.py::test_sql_injection_update_story_id FAILED [ 72%]
+backend/tests/test_sql_safety.py::test_sql_injection_update_title FAILED [ 73%]
+backend/tests/test_sql_safety.py::test_sql_injection_create_story_id FAILED [ 74%]
+backend/tests/test_validation.py::test_path_rejection[/etc/passwd-True] PASSED [ 74%]
+backend/tests/test_validation.py::test_path_rejection[C:\\Users\\temp-True] PASSED [ 75%]
+backend/tests/test_validation.py::test_path_rejection[folder/../file-True] PASSED [ 76%]
+backend/tests/test_validation.py::test_path_rejection[./secret-True] PASSED [ 77%]
+backend/tests/test_validation.py::test_path_rejection[.hidden-True] PASSED [ 77%]
+backend/tests/test_validation.py::test_path_rejection[foo/bar/.git/config-True] PASSED [ 78%]
+backend/tests/test_validation.py::test_path_rejection[normal-path-False] PASSED [ 79%]
+backend/tests/test_validation.py::test_path_rejection[foo/bar-False] PASSED [ 80%]
+backend/tests/test_validation.py::test_path_rejection[-False] PASSED     [ 80%]
+backend/tests/test_validation.py::test_path_rejection[123-False] PASSED  [ 81%]
+backend/tests/test_validation.py::TestAgents::test_context_handoff_valid PASSED [ 82%]
+backend/tests/test_validation.py::TestAgents::test_context_handoff_standalone_story_id PASSED [ 83%]
+backend/tests/test_validation.py::TestAgents::test_context_handoff_fails_without_id PASSED [ 83%]
+backend/tests/test_validation.py::TestAgents::test_agent_run_default_persona PASSED [ 84%]
+backend/tests/test_validation.py::TestAgents::test_agent_run_custom_model PASSED [ 85%]
+backend/tests/test_validation.py::TestAgents::test_agent_run_invalid_model PASSED [ 86%]
+backend/tests/test_validation.py::TestAgents::test_reset_context_valid PASSED [ 87%]
+backend/tests/test_validation.py::TestStories::test_story_create_required PASSED [ 87%]
+backend/tests/test_validation.py::TestStories::test_story_create_with_path PASSED [ 88%]
+backend/tests/test_validation.py::TestStories::test_story_update_optional PASSED [ 89%]
+backend/tests/test_validation.py::TestStories::test_story_update_allowed_status PASSED [ 90%]
+backend/tests/test_validation.py::TestLLM::test_chat_request_valid PASSED [ 90%]
+backend/tests/test_validation.py::TestLLM::test_chat_request_system_prompt_with_path PASSED [ 91%]
+backend/tests/test_validation.py::TestOrchestration::test_model_switch_valid PASSED [ 92%]
+backend/tests/test_validation.py::TestOrchestration::test_resolve_confirmation PASSED [ 93%]
+backend/tests/test_validation.py::TestSettings::test_update_settings PASSED [ 93%]
+backend/tests/test_validation.py::TestDocs::test_generate_docs PASSED    [ 94%]
+backend/tests/test_validation.py::TestDocs::test_generate_docs_path_violation PASSED [ 95%]
+backend/tests/test_webhook.py::test_github_webhook_missing_secret PASSED [ 96%]
+backend/tests/test_webhook.py::test_github_webhook_missing_signature PASSED [ 96%]
+backend/tests/test_webhook.py::test_github_webhook_missing_delivery_id PASSED [ 97%]
+backend/tests/test_webhook.py::test_github_webhook_invalid_signature PASSED [ 98%]
+backend/tests/test_webhook.py::test_github_webhook_valid_signature PASSED [ 99%]
+backend/tests/test_webhook.py::test_github_webhook_replay_attack FAILED  [100%]
 
-============================== 47 passed in 2.34s ==============================
+=============================== warnings summary ===============================
+backend/venv/lib/python3.14/site-packages/google/genai/types.py:42
+  /Users/dadmin/Projects/copernicus/backend/venv/lib/python3.14/site-packages/google/genai/types.py:42: DeprecationWarning: '_UnionGenericAlias' is deprecated and slated for removal in Python 3.17
+    VersionedUnionType = Union[builtin_types.UnionType, _UnionGenericAlias]
+
+backend/venv/lib/python3.14/site-packages/flask_limiter/_extension.py:364
+  /Users/dadmin/Projects/copernicus/backend/venv/lib/python3.14/site-packages/flask_limiter/_extension.py:364: UserWarning: Using the in-memory storage for tracking rate limits as no storage was explicitly specified. This is not recommended for production use. See: https://flask-limiter.readthedocs.io#configuring-a-storage-backend for documentation about configuring the storage backend.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_path_guard.py::test_assert_safe_path_with_path_traversal
+FAILED backend/tests/test_security.py::TestAuthMiddleware::test_missing_api_key_returns_401
+FAILED backend/tests/test_security.py::TestAuthMiddleware::test_wrong_api_key_returns_401
+FAILED backend/tests/test_security.py::TestAuthMiddleware::test_empty_string_key_returns_401
+FAILED backend/tests/test_security.py::TestAuthMiddleware::test_decorator_applied_to_function
+FAILED backend/tests/test_security.py::TestHmacVerification::test_empty_payload_handling
+FAILED backend/tests/test_security.py::TestReplayCache::test_different_ids_independent
+FAILED backend/tests/test_security.py::TestReplayCache::test_empty_cache - As...
+FAILED backend/tests/test_security.py::TestPathGuard::test_absolute_path_inside_allowed_root
+FAILED backend/tests/test_security.py::TestPathGuard::test_symlink_inside_allowed_root
+FAILED backend/tests/test_security.py::TestPathGuard::test_relative_path_valid
+FAILED backend/tests/test_security.py::TestPathGuard::test_relative_path_traversal
+FAILED backend/tests/test_security.py::TestPathGuard::test_none_path - TypeEr...
+FAILED backend/tests/test_security.py::TestPathGuard::test_custom_roots_parameter
+FAILED backend/tests/test_security.py::TestPathGuard::test_case_sensitivity_unix
+FAILED backend/tests/test_sql_safety.py::test_sql_injection_update_story_id
+FAILED backend/tests/test_sql_safety.py::test_sql_injection_update_title - as...
+FAILED backend/tests/test_sql_safety.py::test_sql_injection_create_story_id
+FAILED backend/tests/test_webhook.py::test_github_webhook_replay_attack - ass...
+============ 19 failed, 111 passed, 1 skipped, 2 warnings in 5.96s =============
