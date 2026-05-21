@@ -5,6 +5,9 @@ mod log;
 
 pub mod features {
     pub mod context;
+    pub mod lineup;
+    pub mod cut;
+    pub mod buzz;
     #[cfg(feature = "trim")] pub mod trim;
     #[cfg(feature = "fade")] pub mod fade;
     pub mod index;
@@ -24,11 +27,11 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Trim(args)  => trim_cmd(args),
         Command::Fade(args)  => fade_cmd(args),
-        Command::Cut         => { println!("cut: coming soon"); Ok(()) }
-        Command::Lineup      => { println!("lineup: coming soon"); Ok(()) }
+        Command::Cut         => features::cut::run(),
+        Command::Lineup      => features::lineup::run(),
         Command::Style(s)    => style_cmd(s.cmd),
-        Command::Context(c) => features::context::run(c.cmd),
-        Command::Buzz        => { println!("buzz: coming soon"); Ok(()) }
+        Command::Context(c)  => features::context::run(c.cmd),
+        Command::Buzz        => features::buzz::run(),
         Command::Gain        => analytics::gain(),
     }
 }

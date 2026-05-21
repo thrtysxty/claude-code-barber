@@ -1,0 +1,26 @@
+{
+  "_comment": "Add this block to your ~/.claude/settings.json hooks section",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": {"tool_name": "Skill"},
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/skill_loader.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/context_monitor.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
