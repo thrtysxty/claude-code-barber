@@ -1,16 +1,21 @@
+mod analytics;
 mod cli;
 mod config;
-mod analytics;
 mod log;
+mod utils;
 
 pub mod features {
-    pub mod context;
-    pub mod lineup;
-    pub mod cut;
     pub mod buzz;
-    #[cfg(feature = "trim")] pub mod trim;
-    #[cfg(feature = "fade")] pub mod fade;
+    pub mod context;
+    pub mod cut;
+    #[cfg(feature = "fade")]
+    pub mod fade;
+    #[cfg(feature = "graph")]
+    pub mod graph;
     pub mod index;
+    pub mod lineup;
+    #[cfg(feature = "trim")]
+    pub mod trim;
 }
 
 use clap::Parser;
@@ -25,35 +30,36 @@ fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     match cli.command {
-        Command::Trim(args)  => trim_cmd(args),
-        Command::Fade(args)  => fade_cmd(args),
-        Command::Cut         => features::cut::run(),
-        Command::Lineup      => features::lineup::run(),
-        Command::Style(s)    => style_cmd(s.cmd),
-        Command::Context(c)  => features::context::run(c.cmd),
-        Command::Buzz        => features::buzz::run(),
-        Command::Gain        => analytics::gain(),
+        Command::Trim(args) => trim_cmd(args),
+        Command::Fade(args) => fade_cmd(args),
+        Command::Cut => features::cut::run(),
+        Command::Lineup => features::lineup::run(),
+        Command::Style(s) => style_cmd(s.cmd),
+        Command::Context(c) => features::context::run(c.cmd),
+        Command::Buzz => features::buzz::run(),
+        Command::Gain => analytics::gain(),
+        #[cfg(feature = "graph")]
+        Command::Graph(args) => graph_cmd(args),
     }
 }
 
 fn trim_cmd(_args: cli::TrimArgs) -> anyhow::Result<()> {
     #[cfg(feature = "trim")]
     return features::trim::run(_args);
-    #[allow(unreachable_code)]
-    anyhow::bail!("ccb built without 'trim'. Rebuild: cargo build --features trim")
 }
 
 fn fade_cmd(_args: cli::FadeArgs) -> anyhow::Result<()> {
     #[cfg(feature = "fade")]
     return features::fade::run(_args);
-    #[allow(unreachable_code)]
-    anyhow::bail!("ccb built without 'fade'. Rebuild: cargo build --features fade")
 }
 
 fn style_cmd(cmd: StyleCmd) -> anyhow::Result<()> {
     match cmd {
         StyleCmd::IndexBuild => {
-            let skills_dir = dirs::home_dir().unwrap_or_default().join(".claude").join("skills");
+            let skills_dir = dirs::home_dir()
+                .unwrap_or_default()
+                .join(".claude")
+                .join("skills");
             let path = features::index::write(&skills_dir)?;
             println!("INDEX.md written to {}", path.display());
         }
@@ -63,4 +69,20 @@ fn style_cmd(cmd: StyleCmd) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(feature = "graph")]
+fn graph_cmd(_args: cli::GraphArgs) -> anyhow::Result<()> {
+    use cli::{GraphCmd, OutputFormatArg};
+    use features::graph::OutputFormat;
+    let fmt = |f: &OutputFormatArg| match f {
+        OutputFormatArg::Human => OutputFormat::Human,
+        OutputFormatArg::Json => OutputFormat::Json,
+    };
+    match _args.cmd {
+        GraphCmd::Index { path } => features::graph::index(&path),
+        GraphCmd::Search { pattern, format } => features::graph::search(&pattern, fmt(&format)),
+        GraphCmd::Show { file, format } => features::graph::show(&file, fmt(&format)),
+        GraphCmd::Stats { format } => features::graph::stats(fmt(&format)),
+    }
 }

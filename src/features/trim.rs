@@ -1,14 +1,13 @@
 use crate::cli::TrimArgs;
-use crate::log::{CompressionEvent, estimate_tokens};
+use crate::log::{estimate_tokens, CompressionEvent};
 use std::process::Command;
 
 pub fn run(args: TrimArgs) -> anyhow::Result<()> {
     if args.cmd.is_empty() {
         anyhow::bail!("usage: ccb trim <command> [args...]");
     }
-    let out = Command::new(&args.cmd[0])
-        .args(&args.cmd[1..])
-        .output()?;
+    let out = Command::new(&args.cmd[0]).args(&args.cmd[1..]).output()
+        .map_err(|e| anyhow::anyhow!("ccb trim: command not found: {}: {}", &args.cmd[0], e))?;
 
     // merge stderr — most build tools write noise to stderr
     let stdout = String::from_utf8_lossy(&out.stdout);
@@ -31,16 +30,17 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
         tokens_out: estimate_tokens(&compressed),
         bytes_in: combined.len(),
         bytes_out: compressed.len(),
-    }.record();
+    }
+    .record();
 
     print!("{}", compressed);
+    // NOTE: exit code is intentionally swallowed — trim is a context-optimization
+    // pass, not a gate. The compressed output (or lack of it) is the signal.
     Ok(())
 }
 
 pub fn compress_str(input: &str) -> String {
-    let lines: Vec<&str> = input.lines()
-        .filter(|l| !is_boilerplate(l))
-        .collect();
+    let lines: Vec<&str> = input.lines().filter(|l| !is_boilerplate(l)).collect();
 
     // deduplicate consecutive identical lines
     let mut deduped: Vec<&str> = Vec::with_capacity(lines.len());
@@ -58,7 +58,6 @@ pub fn is_boilerplate(line: &str) -> bool {
     // ── Rust / Cargo ──────────────────────────────────────────────────────────
     // Strip progress/status lines — pure noise, never actionable
     if t.starts_with("Compiling ")
-        
         || t.starts_with("Checking ")
         || t.starts_with("Finished")
         || t.starts_with("Downloading ")
@@ -96,7 +95,7 @@ pub fn is_boilerplate(line: &str) -> bool {
         || t.starts_with("plugins:")
         || t.starts_with("collecting ...")
         || (t.starts_with("platform ") && t.contains(" -- Python "))
-        || t == "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
+        || t == "-- Docs: https://docs.pytest.org/en/latest/how-to/capture-warnings.html"
     {
         return true;
     }
@@ -183,53 +182,167 @@ mod tests {
     // ── is_boilerplate ────────────────────────────────────────────────────────
 
     // Rust / Cargo
-    #[test] fn cargo_compiling() { assert!(is_boilerplate("Compiling foo v1.0.0")); }
-    #[test] fn cargo_compiling_indented() { assert!(is_boilerplate("   Compiling foo")); }
-    #[test] fn cargo_checking() { assert!(is_boilerplate("    Checking mylib v0.1.0")); }
-    #[test] fn cargo_finished() { assert!(is_boilerplate("Finished release [optimized]")); }
-    #[test] fn cargo_downloading() { assert!(is_boilerplate("   Downloading crate foo")); }
-    #[test] fn cargo_updating() { assert!(is_boilerplate("    Updating crates.io index")); }
-    #[test] fn cargo_warning_summary() { assert!(is_boilerplate("warning: `ccb` generated 3 warnings")); }
-    #[test] fn cargo_note_warn_default() { assert!(is_boilerplate("= note: `#[warn(unused_variables)]` on by default")); }
-    #[test] fn cargo_hint() { assert!(is_boilerplate("hint: use --verbose for more info")); }
-    #[test] fn cargo_help_fix() { assert!(is_boilerplate("= help: run `cargo fix` to apply suggestion")); }
+    #[test]
+    fn cargo_compiling() {
+        assert!(is_boilerplate("Compiling foo v1.0.0"));
+    }
+    #[test]
+    fn cargo_compiling_indented() {
+        assert!(is_boilerplate("   Compiling foo"));
+    }
+    #[test]
+    fn cargo_checking() {
+        assert!(is_boilerplate("    Checking mylib v0.1.0"));
+    }
+    #[test]
+    fn cargo_finished() {
+        assert!(is_boilerplate("Finished release [optimized]"));
+    }
+    #[test]
+    fn cargo_downloading() {
+        assert!(is_boilerplate("   Downloading crate foo"));
+    }
+    #[test]
+    fn cargo_updating() {
+        assert!(is_boilerplate("    Updating crates.io index"));
+    }
+    #[test]
+    fn cargo_warning_summary() {
+        assert!(is_boilerplate("warning: `ccb` generated 3 warnings"));
+    }
+    #[test]
+    fn cargo_note_warn_default() {
+        assert!(is_boilerplate(
+            "= note: `#[warn(unused_variables)]` on by default"
+        ));
+    }
+    #[test]
+    fn cargo_hint() {
+        assert!(is_boilerplate("hint: use --verbose for more info"));
+    }
+    #[test]
+    fn cargo_help_fix() {
+        assert!(is_boilerplate(
+            "= help: run `cargo fix` to apply suggestion"
+        ));
+    }
 
     // Errors and real signal — must NOT be filtered
-    #[test] fn cargo_error_kept() { assert!(!is_boilerplate("error[E0382]: use of moved value")); }
-    #[test] fn cargo_file_line_kept() { assert!(!is_boilerplate("src/main.rs:10:5")); }
-    #[test] fn empty_line_kept() { assert!(!is_boilerplate("")); }
-    #[test] fn whitespace_only_kept() { assert!(!is_boilerplate("  ")); }
+    #[test]
+    fn cargo_error_kept() {
+        assert!(!is_boilerplate("error[E0382]: use of moved value"));
+    }
+    #[test]
+    fn cargo_file_line_kept() {
+        assert!(!is_boilerplate("src/main.rs:10:5"));
+    }
+    #[test]
+    fn empty_line_kept() {
+        assert!(!is_boilerplate(""));
+    }
+    #[test]
+    fn whitespace_only_kept() {
+        assert!(!is_boilerplate("  "));
+    }
 
     // Python / pytest
-    #[test] fn pytest_cachedir() { assert!(is_boilerplate("cachedir: .pytest_cache")); }
-    #[test] fn pytest_rootdir() { assert!(is_boilerplate("rootdir: /home/user/project")); }
-    #[test] fn pytest_platform() { assert!(is_boilerplate("platform linux -- Python 3.11.2")); }
-    #[test] fn pytest_collecting() { assert!(is_boilerplate("collecting ...")); }
-    #[test] fn pytest_site_packages() { assert!(is_boilerplate("/usr/lib/python3/site-packages/foo.py:12")); }
-    #[test] fn pytest_site_packages_with_failed_kept() { assert!(!is_boilerplate("/site-packages/bar.py: FAILED")); }
+    #[test]
+    fn pytest_cachedir() {
+        assert!(is_boilerplate("cachedir: .pytest_cache"));
+    }
+    #[test]
+    fn pytest_rootdir() {
+        assert!(is_boilerplate("rootdir: /home/user/project"));
+    }
+    #[test]
+    fn pytest_platform() {
+        assert!(is_boilerplate("platform linux -- Python 3.11.2"));
+    }
+    #[test]
+    fn pytest_collecting() {
+        assert!(is_boilerplate("collecting ..."));
+    }
+    #[test]
+    fn pytest_site_packages() {
+        assert!(is_boilerplate("/usr/lib/python3/site-packages/foo.py:12"));
+    }
+    #[test]
+    fn pytest_site_packages_with_failed_kept() {
+        assert!(!is_boilerplate("/site-packages/bar.py: FAILED"));
+    }
 
-    #[test] fn pytest_session_header() { assert!(is_boilerplate("============================= test session starts ==============================")); }
-    #[test] fn pytest_session_header_kept_if_results() { assert!(!is_boilerplate("============================== 2 failed, 45 passed in 1.23s ==============================")); }
-    #[test] fn pytest_collected_items() { assert!(is_boilerplate("collected 47 items")); }
-    #[test] fn pytest_collected_one_item() { assert!(is_boilerplate("collected 1 item")); }
+    #[test]
+    fn pytest_session_header() {
+        assert!(is_boilerplate(
+            "============================= test session starts =============================="
+        ));
+    }
+    #[test]
+    fn pytest_session_header_kept_if_results() {
+        assert!(!is_boilerplate("============================== 2 failed, 45 passed in 1.23s =============================="));
+    }
+    #[test]
+    fn pytest_collected_items() {
+        assert!(is_boilerplate("collected 47 items"));
+    }
+    #[test]
+    fn pytest_collected_one_item() {
+        assert!(is_boilerplate("collected 1 item"));
+    }
 
     // npm / Node
-    #[test] fn npm_warn_deprecated() { assert!(is_boilerplate("npm warn deprecated lodash@4.0.0")); }
-    #[test] fn npm_notice() { assert!(is_boilerplate("npm notice created a lockfile")); }
-    #[test] fn npm_audited() { assert!(is_boilerplate("added 120 packages, audited 300 packages")); }
-    #[test] fn npm_up_to_date() { assert!(is_boilerplate("up to date, audited 120 packages in 1s")); }
-    #[test] fn npm_funding() { assert!(is_boilerplate("153 packages are looking for funding")); }
+    #[test]
+    fn npm_warn_deprecated() {
+        assert!(is_boilerplate("npm warn deprecated lodash@4.0.0"));
+    }
+    #[test]
+    fn npm_notice() {
+        assert!(is_boilerplate("npm notice created a lockfile"));
+    }
+    #[test]
+    fn npm_audited() {
+        assert!(is_boilerplate("added 120 packages, audited 300 packages"));
+    }
+    #[test]
+    fn npm_up_to_date() {
+        assert!(is_boilerplate("up to date, audited 120 packages in 1s"));
+    }
+    #[test]
+    fn npm_funding() {
+        assert!(is_boilerplate("153 packages are looking for funding"));
+    }
 
     // Git
-    #[test] fn git_counting() { assert!(is_boilerplate("remote: Counting objects: 5, done.")); }
-    #[test] fn git_compressing() { assert!(is_boilerplate("remote: Compressing objects: 100%")); }
-    #[test] fn git_receiving() { assert!(is_boilerplate("Receiving objects: 100% (5/5)")); }
-    #[test] fn git_resolving() { assert!(is_boilerplate("Resolving deltas: 100% (2/2)")); }
+    #[test]
+    fn git_counting() {
+        assert!(is_boilerplate("remote: Counting objects: 5, done."));
+    }
+    #[test]
+    fn git_compressing() {
+        assert!(is_boilerplate("remote: Compressing objects: 100%"));
+    }
+    #[test]
+    fn git_receiving() {
+        assert!(is_boilerplate("Receiving objects: 100% (5/5)"));
+    }
+    #[test]
+    fn git_resolving() {
+        assert!(is_boilerplate("Resolving deltas: 100% (2/2)"));
+    }
 
     // Docker
-    #[test] fn docker_removing_container() { assert!(is_boilerplate("Removing intermediate container abc123")); }
-    #[test] fn docker_running_in() { assert!(is_boilerplate(" ---> Running in def456")); }
-    #[test] fn docker_step() { assert!(is_boilerplate("Step 3/10 : RUN apt-get install")); }
+    #[test]
+    fn docker_removing_container() {
+        assert!(is_boilerplate("Removing intermediate container abc123"));
+    }
+    #[test]
+    fn docker_running_in() {
+        assert!(is_boilerplate(" ---> Running in def456"));
+    }
+    #[test]
+    fn docker_step() {
+        assert!(is_boilerplate("Step 3/10 : RUN apt-get install"));
+    }
 
     // ── compress_str ──────────────────────────────────────────────────────────
 
@@ -280,8 +393,7 @@ mod fixture_tests {
    Compiling ccb v0.1.0 (/home/user/ccb)\n\
 error[E0308]: mismatched types\n\
  --> src/main.rs:42:18\n\
-  |\n\
-42|     let x: u32 = \"hello\";\n\
+  |\n42|     let x: u32 = \"hello\";\n\
   |            ---   ^^^^^^^ expected `u32`, found `&str`\n\
 error: aborting due to 1 previous error\n\
    Finished dev [unoptimized + debuginfo] target(s) in 3.14s";
@@ -289,14 +401,13 @@ error: aborting due to 1 previous error\n\
         let expected = "\
 error[E0308]: mismatched types\n\
  --> src/main.rs:42:18\n\
-  |\n\
-42|     let x: u32 = \"hello\";\n\
+  |\n42|     let x: u32 = \"hello\";\n\
   |            ---   ^^^^^^^ expected `u32`, found `&str`\n\
 error: aborting due to 1 previous error";
 
         let output = compress_str(input);
         assert_eq!(output, expected);
-        assert_eq!(estimate_tokens(input), 90);   // before
+        assert_eq!(estimate_tokens(input), 90); // before
         assert_eq!(estimate_tokens(&output), 45); // after — 50% reduction
     }
 
@@ -315,8 +426,8 @@ found 0 vulnerabilities";
 
         let output = compress_str(input);
         assert_eq!(output, expected);
-        assert_eq!(estimate_tokens(input), 92);   // before
-        assert_eq!(estimate_tokens(&output), 6);  // after — 94% reduction
+        assert_eq!(estimate_tokens(input), 92); // before
+        assert_eq!(estimate_tokens(&output), 6); // after — 94% reduction
     }
 
     #[test]
@@ -343,7 +454,7 @@ FAILED tests/test_api.py::test_update_story - AssertionError: 500\n\
 
         let output = compress_str(input);
         assert_eq!(output, expected);
-        assert_eq!(estimate_tokens(input), 122);  // before
+        assert_eq!(estimate_tokens(input), 122); // before
         assert_eq!(estimate_tokens(&output), 56); // after — 54% reduction
     }
 }

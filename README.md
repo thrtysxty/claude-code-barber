@@ -35,7 +35,7 @@ cp target/release/ccb ~/.local/bin/
 # Default — trim + fade enabled
 cargo build --release
 
-# All features
+# All features (see Optional Features below)
 cargo build --release --features full
 
 # Minimal — context awareness and analytics only
@@ -195,6 +195,35 @@ Evidence is also written to `~/.claude/ccb_log.jsonl` — one JSON line per oper
 {"timestamp":"2026-05-21T14:23:01Z","feature":"trim","command":"git status","tokens_in":840,"tokens_out":142,"bytes_in":3360,"bytes_out":568}
 ```
 
+## Optional Features
+
+```bash
+cargo build --release --features graph   # code symbol graph (SQLite)
+cargo build --release --features route   # model router proxy binary
+cargo build --release --features full    # everything
+```
+
+### Code Graph `[experimental]`
+
+Builds a SQLite-backed symbol index across Rust, Python, TypeScript, and JavaScript files:
+
+```bash
+ccb graph index ./src          # index a directory
+ccb graph search "compress"    # find symbols by name
+ccb graph show src/main.rs     # show all symbols in a file
+ccb graph stats                # aggregate counts by language
+```
+
+### Model Router `[experimental]`
+
+Routes Claude API calls across multiple backends (aibox, Ollama, Anthropic) based on model tier. Binary: `ccb-route`.
+
+```bash
+cargo build --release --features route
+./target/release/ccb-route
+# listens on :9001 by default
+```
+
 ## Why not just RTK?
 
 [RTK](https://github.com/reachingforthejack/rtk) is great at one thing: compressing command output. ccb is the full barber shop:
@@ -210,6 +239,44 @@ Evidence is also written to `~/.claude/ccb_log.jsonl` — one JSON line per oper
 | Build without unused features | — | ✓ (feature flags) |
 
 If you only want output compression, `ccb trim` is a drop-in replacement. If you want the rest, it is already here.
+
+## How It Works
+
+```
+your command → ccb trim → filtered output → Claude Code context
+```
+
+`trim` runs your command, merges stdout + stderr, filters boilerplate, deduplicates consecutive identical lines, then prints the compressed result. Every operation is logged to `~/.claude/ccb_log.jsonl` as a `CompressionEvent` with before/after token counts, so `ccb gain` can report cumulative savings.
+
+`fade` reads the skill index table, resolves the file path, and prints the content — letting you inject domain knowledge (style guides, patterns, prompts) without pre-loading everything.
+
+## Token Estimation
+
+CCB estimates tokens as `ceil(bytes / 4)` — the standard approximation for English text with subword tokenization. This is used for logging and the `lineup` budget display, not for any correctness-critical path.
+
+## Project Structure
+
+```
+src/
+├── main.rs            # entry point, command dispatch
+├── cli.rs             # clap definitions
+├── config.rs          # ccb.toml loading
+├── log.rs             # token estimation, CompressionEvent, JSONL logging
+├── analytics.rs       # ccb gain — aggregate savings from log
+├── utils.rs           # shared utilities (progress bar)
+└── features/
+    ├── trim.rs        # command output compression + tests
+    ├── fade.rs        # lazy skill loading + index lookup
+    ├── context.rs     # context window monitoring
+    ├── lineup.rs      # context budget report
+    ├── buzz.rs        # nuclear mode cleanup + tests
+    ├── cut.rs         # all-in-one compression
+    ├── index.rs       # skills index generator
+    └── graph.rs       # code symbol graph (--features graph)
+hooks/
+├── skill_loader.sh    # PreToolUse hook for /skill
+└── context_monitor.sh # PostToolUse hook for context checks
+```
 
 ## Configuration
 

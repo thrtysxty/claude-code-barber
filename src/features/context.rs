@@ -2,11 +2,12 @@
 //! Designed to run as a PostToolUse hook: reads usage % from env, advises action.
 
 use crate::cli::ContextCmd;
+use crate::utils::progress_bar;
 
 pub fn run(cmd: ContextCmd) -> anyhow::Result<()> {
     match cmd {
-        ContextCmd::Show        => show(),
-        ContextCmd::Clear   { threshold } => advise(threshold, "clear"),
+        ContextCmd::Show => show(),
+        ContextCmd::Clear { threshold } => advise(threshold, "clear"),
         ContextCmd::Compact { threshold } => advise(threshold, "compact"),
     }
 }
@@ -17,8 +18,12 @@ fn current_pct() -> Option<u8> {
     if let Ok(val) = std::env::var("CCB_CONTEXT_PCT") {
         return val.parse().ok();
     }
-    let tokens: Option<u64> = std::env::var("CCB_CTX_TOKENS").ok().and_then(|v| v.parse().ok());
-    let max: Option<u64>    = std::env::var("CCB_CTX_MAX").ok().and_then(|v| v.parse().ok());
+    let tokens: Option<u64> = std::env::var("CCB_CTX_TOKENS")
+        .ok()
+        .and_then(|v| v.parse().ok());
+    let max: Option<u64> = std::env::var("CCB_CTX_MAX")
+        .ok()
+        .and_then(|v| v.parse().ok());
     match (tokens, max) {
         (Some(t), Some(m)) if m > 0 => Some(((t * 100) / m) as u8),
         _ => None,
@@ -28,7 +33,7 @@ fn current_pct() -> Option<u8> {
 fn show() -> anyhow::Result<()> {
     match current_pct() {
         Some(pct) => {
-            let bar = progress_bar(pct);
+            let bar = progress_bar(pct, 20);
             println!("context: {}% {}", pct, bar);
             tracing::info!(pct, "context: usage");
         }
@@ -55,11 +60,4 @@ fn advise(threshold: u8, action: &str) -> anyhow::Result<()> {
         tracing::warn!(pct, threshold, action, "context: threshold exceeded");
     }
     Ok(())
-}
-
-fn progress_bar(pct: u8) -> String {
-    let filled = (pct as usize * 20) / 100;
-    let empty  = 20usize.saturating_sub(filled);
-    let color  = if pct >= 80 { "🔴" } else if pct >= 60 { "🟡" } else { "🟢" };
-    format!("[{}{}] {}", "█".repeat(filled), "░".repeat(empty), color)
 }

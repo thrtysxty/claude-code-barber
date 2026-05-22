@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use crate::utils::progress_bar;
+
 pub fn run() -> anyhow::Result<()> {
     let home = dirs::home_dir().unwrap_or_default();
     let claude_dir = home.join(".claude");
@@ -11,7 +13,7 @@ pub fn run() -> anyhow::Result<()> {
     let pct = context_pct();
     match pct {
         Some(p) => {
-            let bar = progress_bar(p);
+            let bar = progress_bar(p, 10);
             println!(
                 "│  window  {} {}%{pad}│",
                 bar,
@@ -131,12 +133,6 @@ fn context_pct() -> Option<u8> {
         (Some(t), Some(m)) if m > 0 => Some(((t * 100) / m) as u8),
         _ => None,
     }
-}
-
-fn progress_bar(pct: u8) -> String {
-    let filled = (pct as usize * 10) / 100;
-    let empty = 10usize.saturating_sub(filled);
-    format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
 }
 
 fn truncate(s: &str, max: usize) -> &str {
