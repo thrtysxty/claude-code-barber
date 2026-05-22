@@ -14,7 +14,9 @@ pub struct CompressionEvent {
 
 impl CompressionEvent {
     pub fn reduction_pct(&self) -> f64 {
-        if self.tokens_in == 0 { return 0.0; }
+        if self.tokens_in == 0 {
+            return 0.0;
+        }
         (1.0 - self.tokens_out as f64 / self.tokens_in as f64) * 100.0
     }
 
@@ -34,7 +36,7 @@ impl CompressionEvent {
 }
 
 pub fn estimate_tokens(s: &str) -> usize {
-    (s.len() + 3) / 4
+    s.len().div_ceil(4)
 }
 
 fn log_path() -> anyhow::Result<PathBuf> {
@@ -46,7 +48,11 @@ fn log_path() -> anyhow::Result<PathBuf> {
 
 fn append_jsonl<T: Serialize>(path: &PathBuf, event: &T) {
     use std::io::Write;
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
         if let Ok(line) = serde_json::to_string(event) {
             let _ = writeln!(f, "{}", line);
         }

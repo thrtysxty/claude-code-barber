@@ -12,7 +12,12 @@ pub fn run() -> anyhow::Result<()> {
     match pct {
         Some(p) => {
             let bar = progress_bar(p);
-            println!("│  window  {} {}%{pad}│", bar, p, pad = " ".repeat(16usize.saturating_sub(format!("{}", p).len())));
+            println!(
+                "│  window  {} {}%{pad}│",
+                bar,
+                p,
+                pad = " ".repeat(16usize.saturating_sub(format!("{}", p).len()))
+            );
         }
         None => println!("│  window  unknown (set CCB_CONTEXT_PCT in hook)       │"),
     }
@@ -26,7 +31,8 @@ pub fn run() -> anyhow::Result<()> {
     let index_path = claude_dir.join("skills").join("INDEX.md");
     if index_path.exists() {
         let content = std::fs::read_to_string(&index_path).unwrap_or_default();
-        let skill_count = content.lines()
+        let skill_count = content
+            .lines()
             .filter(|l| l.starts_with('|') && !l.contains("name") && !l.contains("---"))
             .count();
         rows.push((
@@ -38,8 +44,11 @@ pub fn run() -> anyhow::Result<()> {
 
     let claude_md = claude_dir.join("CLAUDE.md");
     if claude_md.exists() {
-        rows.push(("CLAUDE.md".to_string(), estimate_file_tokens(&claude_md),
-            "~/.claude/CLAUDE.md".to_string()));
+        rows.push((
+            "CLAUDE.md".to_string(),
+            estimate_file_tokens(&claude_md),
+            "~/.claude/CLAUDE.md".to_string(),
+        ));
     }
 
     let rules_dir = claude_dir.join("rules");
@@ -55,8 +64,11 @@ pub fn run() -> anyhow::Result<()> {
             }
         }
         if rule_count > 0 {
-            rows.push((format!("rules ({} files)", rule_count), rule_tokens,
-                "~/.claude/rules/".to_string()));
+            rows.push((
+                format!("rules ({} files)", rule_count),
+                rule_tokens,
+                "~/.claude/rules/".to_string(),
+            ));
         }
     }
 
@@ -65,8 +77,11 @@ pub fn run() -> anyhow::Result<()> {
         let events = std::fs::read_to_string(&log_path)
             .map(|c| c.lines().count())
             .unwrap_or(0);
-        rows.push((format!("ccb_log ({} events)", events), 0,
-            "~/.claude/ccb_log.jsonl".to_string()));
+        rows.push((
+            format!("ccb_log ({} events)", events),
+            0,
+            "~/.claude/ccb_log.jsonl".to_string(),
+        ));
     }
 
     let total: usize = rows.iter().map(|(_, t, _)| t).sum();
@@ -74,9 +89,18 @@ pub fn run() -> anyhow::Result<()> {
     for (name, tokens, path) in &rows {
         let short_path: String = path.chars().take(21).collect();
         if *tokens > 0 {
-            println!("│ {:<16} │ {:>7} │ {:<21} │", truncate(name, 16), tokens, short_path);
+            println!(
+                "│ {:<16} │ {:>7} │ {:<21} │",
+                truncate(name, 16),
+                tokens,
+                short_path
+            );
         } else {
-            println!("│ {:<16} │    —    │ {:<21} │", truncate(name, 16), short_path);
+            println!(
+                "│ {:<16} │    —    │ {:<21} │",
+                truncate(name, 16),
+                short_path
+            );
         }
     }
 
@@ -89,7 +113,7 @@ pub fn run() -> anyhow::Result<()> {
 
 fn estimate_file_tokens(path: &PathBuf) -> usize {
     std::fs::read_to_string(path)
-        .map(|s| (s.len() + 3) / 4)
+        .map(|s| s.len().div_ceil(4))
         .unwrap_or(0)
 }
 
@@ -97,8 +121,12 @@ fn context_pct() -> Option<u8> {
     if let Ok(val) = std::env::var("CCB_CONTEXT_PCT") {
         return val.parse().ok();
     }
-    let tokens: Option<u64> = std::env::var("CCB_CTX_TOKENS").ok().and_then(|v| v.parse().ok());
-    let max: Option<u64>    = std::env::var("CCB_CTX_MAX").ok().and_then(|v| v.parse().ok());
+    let tokens: Option<u64> = std::env::var("CCB_CTX_TOKENS")
+        .ok()
+        .and_then(|v| v.parse().ok());
+    let max: Option<u64> = std::env::var("CCB_CTX_MAX")
+        .ok()
+        .and_then(|v| v.parse().ok());
     match (tokens, max) {
         (Some(t), Some(m)) if m > 0 => Some(((t * 100) / m) as u8),
         _ => None,
@@ -107,14 +135,11 @@ fn context_pct() -> Option<u8> {
 
 fn progress_bar(pct: u8) -> String {
     let filled = (pct as usize * 10) / 100;
-    let empty  = 10usize.saturating_sub(filled);
+    let empty = 10usize.saturating_sub(filled);
     format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
 }
 
 fn truncate(s: &str, max: usize) -> &str {
-    let end = s.char_indices()
-        .nth(max)
-        .map(|(i, _)| i)
-        .unwrap_or(s.len());
+    let end = s.char_indices().nth(max).map(|(i, _)| i).unwrap_or(s.len());
     &s[..end]
 }
