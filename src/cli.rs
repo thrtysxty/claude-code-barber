@@ -1,7 +1,11 @@
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "ccb", about = "Claude Code Barber — your AI's context, styled.", version)]
+#[command(
+    name = "ccb",
+    about = "Claude Code Barber — your AI's context, styled.",
+    version
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -25,6 +29,9 @@ pub enum Command {
     Buzz,
     /// Show token savings analytics
     Gain,
+    /// Build and query a code symbol graph (requires --features graph)
+    #[cfg(feature = "graph")]
+    Graph(GraphArgs),
 }
 
 #[derive(Args)]
@@ -71,4 +78,47 @@ pub struct TrimArgs {
 #[derive(Args)]
 pub struct FadeArgs {
     pub resource: Option<String>,
+}
+
+/// Build and query a code symbol graph (requires --features graph)
+#[cfg(feature = "graph")]
+#[derive(Subcommand)]
+pub enum GraphCmd {
+    /// Index a directory into the code graph
+    Index {
+        #[arg(default_value = ".")]
+        path: std::path::PathBuf,
+    },
+    /// Search symbols by name pattern
+    Search {
+        pattern: String,
+        #[arg(long, value_enum, default_value = "human")]
+        format: OutputFormatArg,
+    },
+    /// Show all symbols in a file
+    Show {
+        file: std::path::PathBuf,
+        #[arg(long, value_enum, default_value = "human")]
+        format: OutputFormatArg,
+    },
+    /// Print graph statistics
+    Stats {
+        #[arg(long, value_enum, default_value = "human")]
+        format: OutputFormatArg,
+    },
+}
+
+/// Build and query a code symbol graph (requires --features graph)
+#[cfg(feature = "graph")]
+#[derive(Args)]
+pub struct GraphArgs {
+    #[command(subcommand)]
+    pub cmd: GraphCmd,
+}
+
+#[cfg(feature = "graph")]
+#[derive(clap::ValueEnum, Clone)]
+pub enum OutputFormatArg {
+    Human,
+    Json,
 }

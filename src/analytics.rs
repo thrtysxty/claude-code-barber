@@ -21,10 +21,14 @@ pub fn gain() -> anyhow::Result<()> {
         entry.2 += 1;
     }
 
-    let total_in: usize  = events.iter().map(|e| e.tokens_in).sum();
+    let total_in: usize = events.iter().map(|e| e.tokens_in).sum();
     let total_out: usize = events.iter().map(|e| e.tokens_out).sum();
     let saved = total_in.saturating_sub(total_out);
-    let pct = if total_in > 0 { saved * 100 / total_in } else { 0 };
+    let pct = if total_in > 0 {
+        saved * 100 / total_in
+    } else {
+        0
+    };
 
     println!("╭──────────────────────────────────────────────────╮");
     println!("│               CCB — Token Savings                │");
@@ -37,14 +41,18 @@ pub fn gain() -> anyhow::Result<()> {
     for (feat, (tin, tout, ops)) in &rows {
         let s = tin.saturating_sub(*tout);
         let p = if *tin > 0 { s * 100 / tin } else { 0 };
-        println!("│ {:<12} │ {:>8} │ {:>8} │ {:>7}  {}%  │",
-            feat, tin, tout, s, p);
+        println!(
+            "│ {:<12} │ {:>8} │ {:>8} │ {:>7}  {}%  │",
+            feat, tin, tout, s, p
+        );
         let _ = ops;
     }
 
     println!("├──────────────┼──────────┼──────────┼────────────┤");
-    println!("│ {:<12} │ {:>8} │ {:>8} │ {:>7}  {}%  │",
-        "TOTAL", total_in, total_out, saved, pct);
+    println!(
+        "│ {:<12} │ {:>8} │ {:>8} │ {:>7}  {}%  │",
+        "TOTAL", total_in, total_out, saved, pct
+    );
     println!("╰──────────────┴──────────┴──────────┴────────────╯");
     println!("  {} operations logged", events.len());
 
@@ -57,9 +65,12 @@ fn load_events() -> Vec<CompressionEvent> {
         .join(".claude")
         .join("ccb_log.jsonl");
 
-    let Ok(content) = std::fs::read_to_string(path) else { return vec![] };
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return vec![];
+    };
 
-    content.lines()
+    content
+        .lines()
         .filter_map(|l| serde_json::from_str(l).ok())
         .collect()
 }

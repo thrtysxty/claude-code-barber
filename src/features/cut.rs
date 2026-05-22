@@ -1,6 +1,6 @@
 //! cut — run all active features at maximum compression
 
-use crate::cli::{TrimArgs, ContextCmd};
+use crate::cli::ContextCmd;
 
 pub fn run() -> anyhow::Result<()> {
     println!("─── ccb cut: maximum compression ───");
