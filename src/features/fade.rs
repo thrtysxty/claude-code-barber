@@ -47,9 +47,77 @@ fn lookup(index: &str, name: &str) -> Option<PathBuf> {
         if !line.starts_with('|') { continue; }
         let cols: Vec<&str> = line.split('|').map(str::trim).collect();
         if cols.len() < 5 || cols[1] != name { continue; }
-        let rel = cols[4];
+        let rel = cols[5];
         if rel.is_empty() { continue; }
         return Some(dirs::home_dir().unwrap_or_default().join(".claude").join(rel));
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lookup_finds_exact_name() {
+        let index = "| name | type | description | tags | path |
+|------|------|-------------|------|------|
+| trim | fade | trim feature | fade | skills/trim.md |
+";
+        let expected = PathBuf::from("/Users/dadmin/.claude/skills/trim.md");
+        assert_eq!(lookup(index, "trim"), Some(expected));
+    }
+
+    #[test]
+    fn lookup_returns_none_for_missing_name() {
+        let index = "| name | type | description | tags | path |
+|------|------|-------------|------|------|
+| trim | fade | trim feature | fade | skills/trim.md |
+";
+        assert_eq!(lookup(index, "fade"), None);
+    }
+
+    #[test]
+    fn lookup_skips_non_table_lines() {
+        let index = "# INDEX.md
+| name | type | description | tags | path |
+|------|------|-------------|------|------|
+| trim | fade | trim feature | fade | skills/trim.md |
+";
+        assert_eq!(lookup(index, "trim"), Some(PathBuf::from("/Users/dadmin/.claude/skills/trim.md")));
+    }
+
+    #[test]
+    fn lookup_returns_none_on_empty_path_col() {
+        let index = "| name | type | description | tags | path |
+|------|------|-------------|------|------|
+| trim | fade | trim feature | fade | |
+";
+        assert_eq!(lookup(index, "trim"), None);
+    }
+
+    #[test]
+    fn lookup_separator_row_skipped() {
+        let index = "| name | type | description | tags | path |
+|------|------|-------------|------|------|
+| --- | --- | ----------- | ------| ------ |
+| trim | fade | trim feature | fade | skills/trim.md |
+";
+        assert_eq!(lookup(index, "trim"), Some(PathBuf::from("/Users/dadmin/.claude/skills/trim.md")));
+    }
+
+    #[test]
+    fn lookup_partial_name_no_match() {
+        let index = "| name | type | description | tags | path |
+|------|------|-------------|------|------|
+| trim | fade | trim feature | fade | skills/trim.md |
+";
+        assert_eq!(lookup(index, "tri"), None);
+    }
+
+    #[test]
+    fn index_path_ends_with_skills_index() {
+        let path = index_path();
+        assert!(path.to_string_lossy().ends_with(".claude/skills/INDEX.md"));
+    }
 }
