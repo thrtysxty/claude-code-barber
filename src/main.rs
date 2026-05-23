@@ -50,11 +50,15 @@ fn main() -> anyhow::Result<()> {
 fn trim_cmd(_args: cli::TrimArgs) -> anyhow::Result<()> {
     #[cfg(feature = "trim")]
     return features::trim::run(_args);
+    #[cfg(not(feature = "trim"))]
+    anyhow::bail!("ccb was built without the 'trim' feature")
 }
 
 fn fade_cmd(_args: cli::FadeArgs) -> anyhow::Result<()> {
     #[cfg(feature = "fade")]
     return features::fade::run(_args);
+    #[cfg(not(feature = "fade"))]
+    anyhow::bail!("ccb was built without the 'fade' feature")
 }
 
 fn style_cmd(cmd: StyleCmd) -> anyhow::Result<()> {
