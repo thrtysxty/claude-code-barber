@@ -84,13 +84,13 @@ fn extract_python_symbols(path: &Path) -> Result<Vec<(String, String, i64)>> {
 
         if let Some(colon_pos) = trimmed.find(':') {
             let before_colon = trimmed[..colon_pos].trim();
-            if before_colon.starts_with("def ") {
-                let name = before_colon[4..].trim();
+            if let Some(rest) = before_colon.strip_prefix("def ") {
+                let name = rest.trim();
                 if !name.is_empty() {
                     symbols.push((name.to_string(), "def".to_string(), idx as i64));
                 }
-            } else if before_colon.starts_with("class ") {
-                let name = before_colon[6..].trim();
+            } else if let Some(rest) = before_colon.strip_prefix("class ") {
+                let name = rest.trim();
                 if !name.is_empty() {
                     symbols.push((name.to_string(), "class".to_string(), idx as i64));
                 }
@@ -215,9 +215,12 @@ pub fn search(pattern: &str, format: OutputFormat) -> Result<()> {
 
 pub fn show(file: &Path, format: OutputFormat) -> Result<()> {
     let conn = db()?;
+    // Canonicalize to handle both absolute (from CLI) and relative (from index) paths
+    let canonical = file.canonicalize().unwrap_or_else(|_| file.to_path_buf());
+    let canonical_str = canonical.display().to_string();
     let exists = conn.query_row(
         "SELECT COUNT(*) FROM files WHERE path = ?",
-        params![file.display().to_string()],
+        params![canonical_str],
         |row| row.get(0),
     ) == Ok(0);
 
@@ -230,7 +233,7 @@ pub fn show(file: &Path, format: OutputFormat) -> Result<()> {
         "SELECT name, kind, line FROM symbols WHERE file_id = (SELECT id FROM files WHERE path = ?) ORDER BY line"
     )?;
 
-    let rows = stmt.query(params![file.display().to_string()])?;
+    let rows = stmt.query(params![canonical_str.to_string()])?;
     let symbols: Vec<(String, String, i64)> = rows
         .mapped(|row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
         .collect::<rusqlite::Result<Vec<_>>>()?;

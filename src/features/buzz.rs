@@ -2,7 +2,7 @@
 
 use crate::log::{estimate_tokens, CompressionEvent};
 
-fn strip_index(content: &str) -> String {
+pub(crate) fn strip_index(content: &str) -> String {
     content
         .lines()
         .filter(|l| l.starts_with('|') || l.starts_with("# Skills"))
@@ -11,8 +11,11 @@ fn strip_index(content: &str) -> String {
         + "\n"
 }
 
-fn prune_log(content: &str, keep: usize) -> String {
+pub(crate) fn prune_log(content: &str, keep: usize) -> String {
     let lines: Vec<&str> = content.lines().collect();
+    if keep == 0 || lines.is_empty() {
+        return String::new();
+    }
     if lines.len() <= keep {
         return content.to_string();
     }
@@ -159,5 +162,20 @@ mod tests {
         let content: String = lines.join("\n") + "\n";
         let out = prune_log(&content, 500);
         assert_eq!(out.lines().count(), 500);
+    }
+
+    #[test]
+    fn prune_log_empty_input() {
+        let out = prune_log("", 500);
+        assert_eq!(out, "");
+    }
+
+    #[test]
+    fn prune_log_keep_zero() {
+        let content = "# log entry 1
+# log entry 2
+";
+        let out = prune_log(content, 0);
+        assert_eq!(out, "");
     }
 }

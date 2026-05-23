@@ -98,6 +98,7 @@ fn load_key() -> String {
         for line in src.lines() {
             let l = line.trim();
             if l.starts_with("ANTHROPIC_API_KEY=") && !l.to_lowercase().contains("router") {
+                #[allow(clippy::manual_split_once)]
                 return l
                     .splitn(2, '=')
                     .nth(1)
@@ -300,7 +301,10 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                         .to_string();
                     let stream = resp
                         .bytes_stream()
-                        .map(|r| r.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)));
+                        .map(|r| {
+                            #[allow(clippy::redundant_closure)]
+                            r.map_err(|e| std::io::Error::other(e))
+                        });
                     Response::builder()
                         .status(status)
                         .header("content-type", ct)

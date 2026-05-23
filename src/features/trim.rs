@@ -459,4 +459,107 @@ FAILED tests/test_api.py::test_update_story - AssertionError: 500\n\
         assert_eq!(estimate_tokens(input), 122); // before
         assert_eq!(estimate_tokens(&output), 56); // after — 54% reduction
     }
+
+    // Additional branch coverage — Rust/Cargo (Unpacking, Resolving, Locking)
+    #[test]
+    fn cargo_unpacking() {
+        assert!(is_boilerplate("Unpacking tokio v1.0.0"));
+    }
+    #[test]
+    fn cargo_resolving() {
+        assert!(is_boilerplate("Resolving delta complete"));
+    }
+    #[test]
+    fn cargo_locking() {
+        assert!(is_boilerplate("Locking 3 packages"));
+    }
+    #[test]
+    fn cargo_unpacking_indented() {
+        assert!(is_boilerplate("   Unpacking crate"));
+    }
+
+    // pytest additional — bare warnings.warn line, configfile
+    #[test]
+    fn pytest_warnings_warn() {
+        assert!(is_boilerplate("warnings.warn("));
+    }
+    #[test]
+    fn pytest_warnings_warn_long() {
+        // ends with "')" not "warn(" — not matched, kept as signal
+        assert!(!is_boilerplate("warnings.warn('deprecated')"));
+    }
+    #[test]
+    fn pytest_configfile() {
+        assert!(is_boilerplate("configfile: pyproject.toml"));
+    }
+    #[test]
+    fn pytest_plugins() {
+        assert!(is_boilerplate("plugins: anyio-4.3.0, cov-5.0.0"));
+    }
+
+    // pip — additional patterns
+    #[test]
+    fn pip_requirement_satisfied() {
+        assert!(is_boilerplate(
+            "Requirement already satisfied: requests>=2.25"
+        ));
+    }
+    #[test]
+    fn pip_using_cached() {
+        assert!(is_boilerplate("Using cached tqdm-4.66.1.whl"));
+    }
+    #[test]
+    fn pip_obtaining() {
+        // "Obtaining ...(from" pattern but URL has "(from https://" — not matched
+        assert!(!is_boilerplate("Obtaining requests from https://"));
+    }
+    #[test]
+    fn pip_progress_bar() {
+        // "Downloading: ...MB" (no MB/s, no ━━━━) — not matched by any pattern, kept as signal
+        assert!(!is_boilerplate("Downloading: 100%|███████████ 2.1MB"));
+    }
+
+    // Signal — lines that must NOT be filtered
+    #[test]
+    fn signal_found_vulnerabilities() {
+        assert!(!is_boilerplate("found 0 vulnerabilities"));
+    }
+    #[test]
+    fn signal_pytest_failed() {
+        assert!(!is_boilerplate(
+            "FAILED tests/test_api.py::test_foo - AssertionError: 404"
+        ));
+    }
+    #[test]
+    fn signal_pytest_error() {
+        assert!(!is_boilerplate(
+            "ERROR tests/test_auth.py::test_login - KeyError: 'token'"
+        ));
+    }
+    #[test]
+    fn signal_generic_error() {
+        assert!(!is_boilerplate("error: failed to resolve dependencies"));
+    }
+    #[test]
+    fn signal_cargo_error_abort() {
+        assert!(!is_boilerplate("error: aborting due to 1 previous error"));
+    }
+
+    // npm — signal lines to keep
+    #[test]
+    fn npm_audit_found_vulns() {
+        assert!(!is_boilerplate(
+            "found 3 vulnerabilities (2 moderate, 1 high)"
+        ));
+    }
+
+    // Docker — signal lines to keep
+    #[test]
+    fn docker_final_image() {
+        assert!(!is_boilerplate("Successfully built abc123def"));
+    }
+    #[test]
+    fn docker_pulled() {
+        assert!(!is_boilerplate("Digest: sha256:abc123"));
+    }
 }
