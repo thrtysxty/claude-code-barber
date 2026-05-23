@@ -28,6 +28,8 @@
 - [Usage](#usage)
 - [Hook Integration](#hook-integration)
 - [Optional Features](#optional-features)
+  - [Code Graph](#code-graph)
+  - [Expert Personas & Knowledge Graph](#expert-personas--knowledge-graph)
 - [Benchmarks](#benchmarks)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
@@ -96,6 +98,9 @@ cargo build --release --no-default-features
 | `ccb gain` | Token savings analytics from `~/.claude/ccb_log.jsonl` |
 | `ccb style index-build` | Scan `~/.claude/skills/` and regenerate `INDEX.md` |
 | `ccb style show` | Print current config (`~/.claude/ccb.toml`) |
+| `ccb install` | Wire context monitor + skill loader hooks into `~/.claude/settings.json` |
+| `ccb install --auto` | Same, no interactive prompt |
+| `ccb install --dry-run` | Show what would be installed without writing anything |
 
 ---
 
@@ -313,23 +318,108 @@ cargo build --release --features full     # everything
 Builds a SQLite-backed symbol index across Rust, Python, TypeScript, and JavaScript files:
 
 ```bash
-ccb graph index ./src          # index a directory
+ccb graph index ./src          # index a directory (default: .)
 ccb graph search "compress"    # find symbols by name
 ccb graph show src/main.rs     # show all symbols in a file
 ccb graph stats                # aggregate counts by language
 ```
 
-### Knowledge Graph (Expert System)
+### Expert Personas & Knowledge Graph
 
-A unified graph of all knowledge — skills, tools, MCPs, personas, domain rules, code symbols. Traversed before tool execution to surface relevant context without pre-loading anything.
+Define domain experts in a YAML dataset — security rules, coding patterns, architecture principles, or any knowledge you want surfaced at tool time. Experts activate on demand and inject context without pre-loading files.
+
+#### Quick start
 
 ```bash
-ccb expert list                          # list all nodes by kind
-ccb expert activate backend-developer    # set active persona
-ccb graph walk "fix auth validation"     # traverse graph, print activated nodes
+# 1. Build with the expert feature
+cargo build --release --features expert
+cp target/release/ccb ~/.local/bin/
+
+# 2. Ingest a dataset (bundled sentinel dataset or your own)
+ccb expert ingest --dataset datasets/sentinel.yaml
+
+# 3. Activate a persona
+ccb expert activate sentinel
+
+# 4. Traverse the graph — see what it surfaces for a given task
+ccb expert walk "validate user input before SQL query"
+
+# 5. Wire to Claude Code (done automatically by ccb install)
+ccb install --features expert
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
+#### Commands
+
+```bash
+ccb expert ingest --dataset <file.yaml>   # load a YAML dataset into the graph
+ccb expert build <name> --dataset <file>  # same as ingest, names the expert explicitly
+ccb expert list                           # list registered experts + active status
+ccb expert activate <name>                # set active persona (persists across sessions)
+ccb expert deactivate                     # clear active persona
+ccb expert walk "<task description>"      # traverse graph, print matched nodes
+ccb expert query [--tool <name>]          # hook-facing: emit context for active persona
+```
+
+#### Dataset format
+
+A dataset is a YAML file with one or more `personas`. Each persona has `domains`, and each domain has `patterns` — the atomic knowledge nodes.
+
+```yaml
+personas:
+  - name: my-expert              # used in: ccb expert activate my-expert
+    description: One line — what this expert knows about
+    domains:
+      - name: auth               # logical grouping
+        category: security       # free-form tag (security | architecture | style | ...)
+        patterns:
+          - id: AUTH-001         # unique ID — any string
+            name: Session token storage
+            mitigations:
+              - Store session tokens in httpOnly cookies, never localStorage
+              - Rotate tokens on privilege escalation
+              - Set Secure + SameSite=Strict on all auth cookies
+          - id: AUTH-002
+            name: Password hashing
+            mitigations:
+              - Use bcrypt (cost ≥12), Argon2id, or scrypt — never MD5/SHA1
+              - Hash on the server; never accept pre-hashed passwords from clients
+      - name: input-validation
+        category: security
+        patterns:
+          - id: VALID-001
+            name: SQL injection prevention
+            mitigations:
+              - Use parameterised queries — never string concatenation
+              - Apply allowlist validation on all user inputs
+```
+
+**Required fields per pattern:** `id`, `name`, `mitigations` (array of strings).
+`category` and domain `name` are free-form — use whatever taxonomy makes sense for your knowledge.
+
+#### Bundled dataset: sentinel
+
+`datasets/sentinel.yaml` ships with the repo — a security expert covering OWASP Top 10 patterns (SQLi, XSS, path traversal, SSRF, and more):
+
+```bash
+ccb expert ingest --dataset datasets/sentinel.yaml
+ccb expert activate sentinel
+ccb expert walk "user uploads a file to the server"
+# → surfaces: path traversal, file type validation, upload size limits
+```
+
+#### Writing your own persona
+
+Good expert datasets are **narrow and opinionated**:
+
+| Good | Avoid |
+|------|-------|
+| 8–15 patterns per domain | 100-pattern dumps |
+| Concrete mitigations ("use X", "never Y") | Abstract advice ("be careful") |
+| Specific to your stack | Generic best-practices lists |
+
+A 40-pattern dataset with precise mitigations beats a 400-pattern dataset with vague ones. The traversal surfaces the top matches — depth beats breadth.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the graph traversal design.
 
 ### Model Router
 
