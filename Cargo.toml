@@ -32,13 +32,13 @@ graph   = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-python",
            "dep:rusqlite", "dep:walkdir", "dep:ignore"]
 route   = ["dep:tokio", "dep:axum", "dep:reqwest", "dep:bytes", "dep:futures-util", "dep:uuid"]
 full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert"]
-# expert feature deps
-expert  = ["dep:rusqlite"]
+expert  = ["dep:rusqlite", "dep:serde_yaml"]
 
 [dependencies]
 clap               = { version = "4", features = ["derive", "color"] }
 serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
+serde_yaml         = { version = "0.9", optional = true }
 toml               = "0.8"
 anyhow             = "1"
 dirs               = "5"

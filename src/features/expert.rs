@@ -419,6 +419,103 @@ pub fn walk(task: &str, threshold: f64) -> Result<()> {
 }
 
 // ---------------------------------------------------------------------------
+
+
+/// Ingest a YAML dataset file into the knowledge graph.
+/// The file must contain a top-level "personas" list.
+/// Each persona has {name, description, domains: [{name, category, patterns: [{id, name, mitigations}]}]}.
+pub fn ingest(dataset_path: &std::path::Path) -> Result<()> {
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct YamlPattern {
+        id: String,
+        name: String,
+        mitigations: Vec<String>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct YamlDomain {
+        name: String,
+        category: String,
+        patterns: Vec<YamlPattern>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct YamlPersona {
+        name: String,
+        description: String,
+        domains: Vec<YamlDomain>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct YamlDataset {
+        personas: Vec<YamlPersona>,
+    }
+
+    let data = std::fs::read_to_string(dataset_path)
+        .with_context(|| format!("reading dataset {path}", path = dataset_path.display()))?;
+    let ds: YamlDataset = serde_yaml::from_str(&data)
+        .with_context(|| "parsing YAML dataset")?;
+
+    let conn = db()?;
+    let mut total_domains = 0;
+    let mut total_patterns = 0;
+
+    for persona in &ds.personas {
+        conn.execute(
+            "INSERT INTO personas (name, description) VALUES (?, ?)
+             ON CONFLICT(name) DO UPDATE SET description = excluded.description",
+            params![&persona.name, &persona.description],
+        )?;
+        let persona_id: i64 = conn.query_row(
+            "SELECT id FROM personas WHERE name = ?",
+            params![&persona.name],
+            |row| row.get(0),
+        )?;
+
+        for domain in &persona.domains {
+            conn.execute(
+                "INSERT INTO domains (name, category) VALUES (?, ?)
+                 ON CONFLICT(name) DO UPDATE SET category = excluded.category",
+                params![&domain.name, &domain.category],
+            )?;
+            let domain_id: i64 = conn.query_row(
+                "SELECT id FROM domains WHERE name = ?",
+                params![&domain.name],
+                |row| row.get(0),
+            )?;
+            conn.execute(
+                "INSERT INTO persona_domains (persona_id, domain_id, weight) VALUES (?, ?, 1.0)
+                 ON CONFLICT(persona_id, domain_id) DO NOTHING",
+                params![persona_id, domain_id],
+            )?;
+
+            total_domains += 1;
+            for pattern in &domain.patterns {
+                let mitigations_json =
+                    serde_json::to_string(&pattern.mitigations).context("serialising mitigations")?;
+                conn.execute(
+                    "INSERT INTO patterns (domain_id, pattern_id, name, mitigations) VALUES (?, ?, ?, ?)
+                     ON CONFLICT(domain_id, pattern_id) DO UPDATE SET
+                       name = excluded.name, mitigations = excluded.mitigations",
+                    params![domain_id, &pattern.id, &pattern.name, &mitigations_json],
+                )?;
+                total_patterns += 1;
+            }
+        }
+    }
+
+    println!(
+        "Ingested {} persona(s), {} domain(s), {} pattern(s)",
+        ds.personas.len(),
+        total_domains,
+        total_patterns
+    );
+    Ok(())
+}
+
+
 // Tests
 // ---------------------------------------------------------------------------
 

@@ -105,6 +105,7 @@ fn expert_cmd(_args: cli::ExpertArgs) -> anyhow::Result<()> {
     };
     match _args.cmd {
         ExpertCmd::Build { name, dataset } => features::expert::build(&name, &dataset),
+        ExpertCmd::Ingest { dataset } => features::expert::ingest(&dataset),
         ExpertCmd::Activate { name } => features::expert::activate(&name),
         ExpertCmd::Deactivate => features::expert::deactivate(),
         ExpertCmd::List => features::expert::list(),

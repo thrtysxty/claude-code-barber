@@ -140,6 +140,11 @@ pub enum ExpertCmd {
         #[arg(long)]
         dataset: std::path::PathBuf,
     },
+    /// Ingest YAML dataset file into the knowledge graph
+    Ingest {
+        #[arg(long)]
+        dataset: std::path::PathBuf,
+    },
     /// Activate a persona — makes it available to hooks
     Activate { name: String },
     /// Deactivate the current persona
