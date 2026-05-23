@@ -29,6 +29,9 @@ pub enum Command {
     Buzz,
     /// Show token savings analytics
     Gain,
+    /// Manage expert personas and the knowledge graph (requires --features expert)
+    #[cfg(feature = "expert")]
+    Expert(ExpertArgs),
     /// Build and query a code symbol graph (requires --features graph)
     #[cfg(feature = "graph")]
     Graph(GraphArgs),
@@ -121,4 +124,40 @@ pub struct GraphArgs {
 pub enum OutputFormatArg {
     Human,
     Json,
+}
+
+// ---------------------------------------------------------------------------
+// Expert / knowledge graph commands
+// ---------------------------------------------------------------------------
+
+/// Manage expert personas and the knowledge graph (requires --features expert)
+#[cfg(feature = "expert")]
+#[derive(Subcommand)]
+pub enum ExpertCmd {
+    /// Build knowledge graph from a dataset file
+    Build {
+        name: String,
+        #[arg(long)]
+        dataset: std::path::PathBuf,
+    },
+    /// Activate a persona — makes it available to hooks
+    Activate {
+        name: String,
+    },
+    /// Deactivate the current persona
+    Deactivate,
+    /// List all registered experts and active status
+    List,
+    /// Traverse the graph from a task description
+    Walk {
+        task: String,
+    },
+}
+
+/// Manage expert personas and the knowledge graph (requires --features expert)
+#[cfg(feature = "expert")]
+#[derive(Args)]
+pub struct ExpertArgs {
+    #[command(subcommand)]
+    pub cmd: ExpertCmd,
 }

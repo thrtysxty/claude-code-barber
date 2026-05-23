@@ -42,6 +42,8 @@ fn main() -> anyhow::Result<()> {
         Command::Gain => analytics::gain(),
         #[cfg(feature = "graph")]
         Command::Graph(args) => graph_cmd(args),
+        #[cfg(feature = "expert")]
+        Command::Expert(args) => expert_cmd(args),
     }
 }
 
@@ -86,5 +88,17 @@ fn graph_cmd(_args: cli::GraphArgs) -> anyhow::Result<()> {
         GraphCmd::Search { pattern, format } => features::graph::search(&pattern, fmt(&format)),
         GraphCmd::Show { file, format } => features::graph::show(&file, fmt(&format)),
         GraphCmd::Stats { format } => features::graph::stats(fmt(&format)),
+    }
+}
+
+#[cfg(feature = "expert")]
+fn expert_cmd(_args: cli::ExpertArgs) -> anyhow::Result<()> {
+    use cli::ExpertCmd;
+    match _args.cmd {
+        ExpertCmd::Build { name, dataset } => features::expert::build(&name, &dataset),
+        ExpertCmd::Activate { name } => features::expert::activate(&name),
+        ExpertCmd::Deactivate => features::expert::deactivate(),
+        ExpertCmd::List => features::expert::list(),
+        ExpertCmd::Walk { task } => features::expert::walk(&task, 0.5),
     }
 }

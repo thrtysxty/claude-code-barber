@@ -190,7 +190,7 @@ pub fn list() -> Result<()> {
     let mut stmt = conn.prepare(
         "SELECT p.id, p.name, p.description,
                 (SELECT COUNT(*) FROM persona_domains pd WHERE pd.persona_id = p.id) AS domain_count,
-                (SELECT ap.persona_id = p.id FROM active_persona ap) AS is_active
+                EXISTS(SELECT 1 FROM active_persona ap WHERE ap.persona_id = p.id) AS is_active
          FROM personas p
          ORDER BY p.name"
     )?;
