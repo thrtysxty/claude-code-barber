@@ -31,7 +31,9 @@ graph   = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-python",
            "dep:tree-sitter-typescript", "dep:tree-sitter-javascript",
            "dep:rusqlite", "dep:walkdir", "dep:ignore"]
 route   = ["dep:tokio", "dep:axum", "dep:reqwest", "dep:bytes", "dep:futures-util", "dep:uuid"]
-full    = ["trim", "fade", "sandbox", "terse", "graph", "route"]
+full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert"]
+# expert feature deps
+expert  = ["dep:rusqlite"]
 
 [dependencies]
 clap               = { version = "4", features = ["derive", "color"] }
