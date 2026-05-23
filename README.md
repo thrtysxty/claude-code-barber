@@ -66,6 +66,12 @@ git clone https://github.com/thrtysxty/claude-code-barber
 cd claude-code-barber
 cargo build --release
 cp target/release/ccb ~/.local/bin/
+
+# macOS only: ad-hoc codesign required for Cargo-compiled binaries
+codesign --sign - ~/.local/bin/ccb
+
+# Wire hooks into Claude Code (context monitor + skill loader)
+ccb install
 ```
 
 ### Build options
