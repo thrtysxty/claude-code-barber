@@ -132,9 +132,21 @@ pub fn index(path: &Path) -> Result<()> {
     let start = SystemTime::now();
     let db = db()?;
 
+    const SKIP_DIRS: &[&str] = &[
+        "node_modules", "dist-electron", "dist", ".git", "target",
+        "__pycache__", ".venv", "build", "coverage", "e2e/test-results",
+    ];
+
     let walker = walkdir::WalkDir::new(path)
-        .follow_links(true)
+        .follow_links(false)
         .into_iter()
+        .filter_entry(|e| {
+            if e.file_type().is_dir() {
+                let name = e.file_name().to_string_lossy();
+                return !SKIP_DIRS.iter().any(|skip| name == *skip);
+            }
+            true
+        })
         .filter_map(|e| e.ok());
 
     let mut indexed_count = 0;
