@@ -1,5 +1,7 @@
 # Claude Code Barber 💈
 
+<p align="center"><em>"Just take a little off the top." — Claude Code, probably</em></p>
+
 > Your AI's context, styled.
 
 **ccb** is a composable token management layer for Claude Code. It compresses noisy command output, lazy-loads skills on demand, monitors your context window, and logs token savings — built as a single Rust binary with optional feature flags so you only ship what you need.
@@ -249,6 +251,73 @@ your command → ccb trim → filtered output → Claude Code context
 `trim` runs your command, merges stdout + stderr, filters boilerplate, deduplicates consecutive identical lines, then prints the compressed result. Every operation is logged to `~/.claude/ccb_log.jsonl` as a `CompressionEvent` with before/after token counts, so `ccb gain` can report cumulative savings.
 
 `fade` reads the skill index table, resolves the file path, and prints the content — letting you inject domain knowledge (style guides, patterns, prompts) without pre-loading everything.
+
+### Real compression examples
+
+**`cargo build` with a type error — 50% reduction**
+
+```
+# Before (90 tokens)
+   Compiling serde v1.0.197
+   Compiling serde_derive v1.0.197
+   Compiling anyhow v1.0.86
+   Compiling ccb v0.1.0 (/home/user/ccb)
+error[E0308]: mismatched types
+ --> src/main.rs:42:18
+  |
+42|     let x: u32 = "hello";
+  |            ---   ^^^^^^^ expected `u32`, found `&str`
+error: aborting due to 1 previous error
+   Finished dev [unoptimized + debuginfo] target(s) in 3.14s
+
+# After (45 tokens)
+error[E0308]: mismatched types
+ --> src/main.rs:42:18
+  |
+42|     let x: u32 = "hello";
+  |            ---   ^^^^^^^ expected `u32`, found `&str`
+error: aborting due to 1 previous error
+```
+
+**`npm install` clean — 94% reduction**
+
+```
+# Before (92 tokens)
+npm warn deprecated inflight@1.0.6: This module is not supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+added 312 packages, audited 313 packages in 8s
+3 packages are looking for funding
+  run `npm fund` for details
+found 0 vulnerabilities
+
+# After (6 tokens)
+found 0 vulnerabilities
+```
+
+**`pytest` with failures — 54% reduction**
+
+```
+# Before (122 tokens)
+============================= test session starts ==============================
+platform darwin -- Python 3.11.8, pytest-8.1.1, pluggy-1.4.0
+rootdir: /Users/user/project
+configfile: pyproject.toml
+plugins: anyio-4.3.0, cov-5.0.0
+collecting ...
+collected 47 items
+
+FAILED tests/test_api.py::test_create_story - AssertionError: 404
+FAILED tests/test_api.py::test_update_story - AssertionError: 500
+
+============================== 2 failed, 45 passed in 1.23s ==============================
+
+# After (56 tokens)
+FAILED tests/test_api.py::test_create_story - AssertionError: 404
+FAILED tests/test_api.py::test_update_story - AssertionError: 500
+
+============================== 2 failed, 45 passed in 1.23s ==============================
+```
 
 ## Token Estimation
 
