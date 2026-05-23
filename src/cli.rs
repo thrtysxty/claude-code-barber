@@ -29,6 +29,8 @@ pub enum Command {
     Buzz,
     /// Show token savings analytics
     Gain,
+    /// Wire ccb hooks into ~/.claude/settings.json (use --auto to apply without prompting)
+    Install(InstallArgs),
     /// Manage expert personas and the knowledge graph (requires --features expert)
     #[cfg(feature = "expert")]
     Expert(ExpertArgs),
@@ -176,4 +178,14 @@ pub enum ExpertOutputFormatArg {
 pub struct ExpertArgs {
     #[command(subcommand)]
     pub cmd: ExpertCmd,
+}
+
+#[derive(Args)]
+pub struct InstallArgs {
+    /// Apply changes without interactive confirmation
+    #[arg(long)]
+    pub auto: bool,
+    /// Dry run: show what would be installed without applying
+    #[arg(long)]
+    pub dry_run: bool,
 }

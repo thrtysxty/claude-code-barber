@@ -18,6 +18,7 @@ pub mod features {
     pub mod lineup;
     #[cfg(feature = "trim")]
     pub mod trim;
+    pub mod install;
 }
 
 use clap::Parser;
@@ -40,6 +41,7 @@ fn main() -> anyhow::Result<()> {
         Command::Context(c) => features::context::run(c.cmd),
         Command::Buzz => features::buzz::run(),
         Command::Gain => analytics::gain(),
+        Command::Install(args) => features::install::run(args.auto, args.dry_run),
         #[cfg(feature = "graph")]
         Command::Graph(args) => graph_cmd(args),
         #[cfg(feature = "expert")]
