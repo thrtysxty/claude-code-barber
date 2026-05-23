@@ -1,12 +1,18 @@
-# Claude Code Barber 💈
+<div align="center">
 
-<p align="center"><em>"Just take a little off the top." — Claude Code, probably</em></p>
+# Claude Code Barber
 
-<p align="center">
+<img src="docs/barber-pole.svg" width="120" alt="Animated barber pole"/>
+
+<em>"Just take a little off the top." — Claude Code, probably</em>
+
+<p>
   <a href="https://github.com/thrtysxty/claude-code-barber/actions"><img src="https://github.com/thrtysxty/claude-code-barber/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-2021-orange.svg" alt="Rust 2021"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
 </p>
+
+</div>
 
 > Your AI's context, styled.
 
