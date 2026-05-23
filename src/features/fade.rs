@@ -90,7 +90,7 @@ mod tests {
 |------|------|-------------|------|------|
 | trim | fade | trim feature | fade | skills/trim.md |
 ";
-        let expected = PathBuf::from("/Users/dadmin/.claude/skills/trim.md");
+        let expected = dirs::home_dir().unwrap().join(".claude/skills/trim.md");
         assert_eq!(lookup(index, "trim"), Some(expected));
     }
 
@@ -112,7 +112,7 @@ mod tests {
 ";
         assert_eq!(
             lookup(index, "trim"),
-            Some(PathBuf::from("/Users/dadmin/.claude/skills/trim.md"))
+            Some(dirs::home_dir().unwrap().join(".claude/skills/trim.md"))
         );
     }
 
@@ -134,7 +134,7 @@ mod tests {
 ";
         assert_eq!(
             lookup(index, "trim"),
-            Some(PathBuf::from("/Users/dadmin/.claude/skills/trim.md"))
+            Some(dirs::home_dir().unwrap().join(".claude/skills/trim.md"))
         );
     }
 
