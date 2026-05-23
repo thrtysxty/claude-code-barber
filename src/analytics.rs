@@ -24,11 +24,7 @@ pub fn gain() -> anyhow::Result<()> {
     let total_in: usize = events.iter().map(|e| e.tokens_in).sum();
     let total_out: usize = events.iter().map(|e| e.tokens_out).sum();
     let saved = total_in.saturating_sub(total_out);
-    let pct = if total_in > 0 {
-        saved * 100 / total_in
-    } else {
-        0
-    };
+    let pct = (saved * 100).checked_div(total_in).unwrap_or(0);
 
     println!("╭──────────────────────────────────────────────────╮");
     println!("│               CCB — Token Savings                │");
