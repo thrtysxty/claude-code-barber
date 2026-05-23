@@ -21,6 +21,16 @@ required-features = ["route"]
 name = "compression"
 harness = false
 
+[[test]]
+name = "graph_integration"
+path = "tests/graph_integration.rs"
+required-features = ["graph"]
+
+[[test]]
+name = "expert_integration"
+path = "tests/expert_integration.rs"
+required-features = ["expert"]
+
 [features]
 default = ["trim", "fade"]
 trim    = []
