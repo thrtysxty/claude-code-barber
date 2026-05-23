@@ -2,7 +2,7 @@
 
 # Claude Code Barber
 
-<img src="docs/barber-pole.svg" width="120" alt="Animated barber pole"/>
+<h1>💈</h1>
 
 <em>"Just take a little off the top." — Claude Code, probably</em>
 
