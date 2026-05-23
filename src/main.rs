@@ -93,12 +93,18 @@ fn graph_cmd(_args: cli::GraphArgs) -> anyhow::Result<()> {
 
 #[cfg(feature = "expert")]
 fn expert_cmd(_args: cli::ExpertArgs) -> anyhow::Result<()> {
-    use cli::ExpertCmd;
+    use cli::{ExpertCmd, ExpertOutputFormatArg};
+    use features::expert::OutputFormat;
+    let fmt = |f: &ExpertOutputFormatArg| match f {
+        ExpertOutputFormatArg::Human => OutputFormat::Human,
+        ExpertOutputFormatArg::Json => OutputFormat::Json,
+    };
     match _args.cmd {
         ExpertCmd::Build { name, dataset } => features::expert::build(&name, &dataset),
         ExpertCmd::Activate { name } => features::expert::activate(&name),
         ExpertCmd::Deactivate => features::expert::deactivate(),
         ExpertCmd::List => features::expert::list(),
         ExpertCmd::Walk { task } => features::expert::walk(&task, 0.5),
+        ExpertCmd::Query { tool: _, format } => features::expert::query_active(fmt(&format)),
     }
 }

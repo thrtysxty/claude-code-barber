@@ -152,6 +152,21 @@ pub enum ExpertCmd {
     Walk {
         task: String,
     },
+    /// Query active persona — for hook consumption
+    Query {
+        #[arg(long)]
+        tool: Option<String>,
+        #[arg(long, value_enum, default_value = "json")]
+        format: ExpertOutputFormatArg,
+    },
+}
+
+/// Output format for expert commands
+#[cfg(feature = "expert")]
+#[derive(clap::ValueEnum, Clone)]
+pub enum ExpertOutputFormatArg {
+    Human,
+    Json,
 }
 
 /// Manage expert personas and the knowledge graph (requires --features expert)
