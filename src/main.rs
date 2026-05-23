@@ -12,6 +12,8 @@ pub mod features {
     pub mod fade;
     #[cfg(feature = "graph")]
     pub mod graph;
+    #[cfg(feature = "expert")]
+    pub mod expert;
     pub mod index;
     pub mod lineup;
     #[cfg(feature = "trim")]
