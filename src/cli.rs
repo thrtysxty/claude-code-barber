@@ -141,17 +141,13 @@ pub enum ExpertCmd {
         dataset: std::path::PathBuf,
     },
     /// Activate a persona — makes it available to hooks
-    Activate {
-        name: String,
-    },
+    Activate { name: String },
     /// Deactivate the current persona
     Deactivate,
     /// List all registered experts and active status
     List,
     /// Traverse the graph from a task description
-    Walk {
-        task: String,
-    },
+    Walk { task: String },
     /// Query active persona — for hook consumption
     Query {
         #[arg(long)]

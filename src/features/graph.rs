@@ -203,8 +203,12 @@ pub fn search(pattern: &str, format: OutputFormat) -> Result<()> {
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
     match format {
-        OutputFormat::Human => { print_human_search(&results, pattern); }
-        OutputFormat::Json => { print_json_search(&results, pattern); }
+        OutputFormat::Human => {
+            print_human_search(&results, pattern);
+        }
+        OutputFormat::Json => {
+            print_json_search(&results, pattern);
+        }
     }
     Ok(())
 }
@@ -232,8 +236,12 @@ pub fn show(file: &Path, format: OutputFormat) -> Result<()> {
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
     match format {
-        OutputFormat::Human => { print_human_show(&symbols, file.display().to_string()); }
-        OutputFormat::Json => { print_json_show(&symbols, file.display().to_string()); }
+        OutputFormat::Human => {
+            print_human_show(&symbols, file.display().to_string());
+        }
+        OutputFormat::Json => {
+            print_json_show(&symbols, file.display().to_string());
+        }
     }
     Ok(())
 }
@@ -324,9 +332,7 @@ pub fn stats(format: OutputFormat) -> Result<()> {
                         .duration_since(UNIX_EPOCH)
                         .ok()
                 })
-                .and_then(|d| {
-                    chrono::DateTime::from_timestamp(d.as_secs() as i64, 0)
-                })
+                .and_then(|d| chrono::DateTime::from_timestamp(d.as_secs() as i64, 0))
                 .map(|dt| dt.to_rfc3339());
 
             let output = serde_json::json!({

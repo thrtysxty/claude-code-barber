@@ -22,8 +22,8 @@ pub enum OutputFormat {
 /// Open the shared CCB database, creating the Layer 3 schema if absent.
 fn db() -> Result<Connection> {
     let path = std::env::var("HOME").unwrap_or_else(|_| "/".to_string()) + DB_PATH;
-    let conn = Connection::open(&path)
-        .with_context(|| format!("failed to open graph.db at {path}"))?;
+    let conn =
+        Connection::open(&path).with_context(|| format!("failed to open graph.db at {path}"))?;
 
     conn.execute_batch(
         r#"
@@ -62,7 +62,7 @@ fn db() -> Result<Connection> {
 
         CREATE INDEX IF NOT EXISTS idx_persona_domains ON persona_domains(persona_id);
         CREATE INDEX IF NOT EXISTS idx_patterns_domain  ON patterns(domain_id);
-        "#
+        "#,
     )?;
 
     Ok(conn)
@@ -102,8 +102,9 @@ struct PatternSpec {
 pub fn build(_name: &str, dataset_path: &std::path::Path) -> Result<()> {
     let data = std::fs::read_to_string(dataset_path)
         .with_context(|| format!("reading dataset {path}", path = dataset_path.display()))?;
-    let ds: PersonaDataset = serde_json::from_str(&data)
-        .with_context(|| "parsing dataset JSON — expected {persona, description, domains[]} shape")?;
+    let ds: PersonaDataset = serde_json::from_str(&data).with_context(|| {
+        "parsing dataset JSON — expected {persona, description, domains[]} shape"
+    })?;
 
     let conn = db()?;
 
@@ -151,7 +152,11 @@ pub fn build(_name: &str, dataset_path: &std::path::Path) -> Result<()> {
         }
     }
 
-    println!("Built persona '{}' with {} domain(s)", ds.persona, ds.domains.len());
+    println!(
+        "Built persona '{}' with {} domain(s)",
+        ds.persona,
+        ds.domains.len()
+    );
     Ok(())
 }
 
@@ -205,8 +210,7 @@ pub fn list() -> Result<()> {
         })
     })?;
 
-    let personas: Vec<PersonaRow> = rows
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let personas: Vec<PersonaRow> = rows.collect::<rusqlite::Result<Vec<_>>>()?;
 
     if personas.is_empty() {
         println!("No personas registered. Run 'ccb expert build' first.");
@@ -242,7 +246,9 @@ pub fn query_active(format: OutputFormat) -> Result<()> {
     let conn = db()?;
 
     let active: Option<i64> = conn
-        .query_row("SELECT persona_id FROM active_persona", [], |row| row.get(0))
+        .query_row("SELECT persona_id FROM active_persona", [], |row| {
+            row.get(0)
+        })
         .ok();
 
     let Some(persona_id) = active else {
@@ -261,7 +267,7 @@ pub fn query_active(format: OutputFormat) -> Result<()> {
         "SELECT d.name FROM domains d
          JOIN persona_domains pd ON pd.domain_id = d.id
          WHERE pd.persona_id = ?
-         ORDER BY d.name"
+         ORDER BY d.name",
     )?;
     let domains: Vec<String> = stmt
         .query_map(params![persona_id], |row| row.get(0))?
@@ -274,7 +280,7 @@ pub fn query_active(format: OutputFormat) -> Result<()> {
          JOIN domains d ON d.id = p.domain_id
          JOIN persona_domains pd ON pd.domain_id = d.id
          WHERE pd.persona_id = ?
-         ORDER BY p.pattern_id"
+         ORDER BY p.pattern_id",
     )?;
     let patterns: Vec<PatternRow> = stmt
         .query_map(params![persona_id], |row| {
@@ -337,7 +343,9 @@ pub fn walk(task: &str, threshold: f64) -> Result<()> {
     let conn = db()?;
 
     let active: Option<i64> = conn
-        .query_row("SELECT persona_id FROM active_persona", [], |row| row.get(0))
+        .query_row("SELECT persona_id FROM active_persona", [], |row| {
+            row.get(0)
+        })
         .ok();
 
     let Some(persona_id) = active else {
@@ -362,7 +370,7 @@ pub fn walk(task: &str, threshold: f64) -> Result<()> {
          FROM persona_domains pd
          JOIN domains d ON d.id = pd.domain_id
          WHERE pd.persona_id = ? AND pd.weight >= ?
-         ORDER BY pd.weight DESC"
+         ORDER BY pd.weight DESC",
     )?;
 
     let domains: Vec<(String, String, f64)> = stmt
@@ -396,7 +404,7 @@ pub fn walk(task: &str, threshold: f64) -> Result<()> {
         let Some(domain_id) = domain_id else { continue };
 
         let mut stmt = conn.prepare(
-            "SELECT pattern_id, name FROM patterns WHERE domain_id = ? ORDER BY pattern_id"
+            "SELECT pattern_id, name FROM patterns WHERE domain_id = ? ORDER BY pattern_id",
         )?;
         let patterns: Vec<(String, String)> = stmt
             .query_map(params![domain_id], |row| Ok((row.get(0)?, row.get(1)?)))?
@@ -461,11 +469,15 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         init_schema(&conn);
 
-        conn.execute_batch("SELECT 1 FROM personas LIMIT 1").unwrap();
+        conn.execute_batch("SELECT 1 FROM personas LIMIT 1")
+            .unwrap();
         conn.execute_batch("SELECT 1 FROM domains LIMIT 1").unwrap();
-        conn.execute_batch("SELECT 1 FROM persona_domains LIMIT 1").unwrap();
-        conn.execute_batch("SELECT 1 FROM patterns LIMIT 1").unwrap();
-        conn.execute_batch("SELECT 1 FROM active_persona LIMIT 1").unwrap();
+        conn.execute_batch("SELECT 1 FROM persona_domains LIMIT 1")
+            .unwrap();
+        conn.execute_batch("SELECT 1 FROM patterns LIMIT 1")
+            .unwrap();
+        conn.execute_batch("SELECT 1 FROM active_persona LIMIT 1")
+            .unwrap();
     }
 
     #[test]
@@ -489,7 +501,9 @@ mod tests {
         init_schema(&conn);
 
         let active: Option<i64> = conn
-            .query_row("SELECT persona_id FROM active_persona", [], |row| row.get(0))
+            .query_row("SELECT persona_id FROM active_persona", [], |row| {
+                row.get(0)
+            })
             .ok();
         assert!(active.is_none());
     }
@@ -507,9 +521,11 @@ mod tests {
         .unwrap();
 
         let id: i64 = conn
-            .query_row("SELECT id FROM personas WHERE name = ?", params!["test-persona"], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT id FROM personas WHERE name = ?",
+                params!["test-persona"],
+                |row| row.get(0),
+            )
             .unwrap();
 
         // Activate
@@ -521,14 +537,18 @@ mod tests {
         .unwrap();
 
         let active: Option<i64> = conn
-            .query_row("SELECT persona_id FROM active_persona", [], |row| row.get(0))
+            .query_row("SELECT persona_id FROM active_persona", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert_eq!(active, Some(id));
 
         // Deactivate
         conn.execute("DELETE FROM active_persona", []).unwrap();
         let active: Option<i64> = conn
-            .query_row("SELECT persona_id FROM active_persona", [], |row| row.get(0))
+            .query_row("SELECT persona_id FROM active_persona", [], |row| {
+                row.get(0)
+            })
             .ok();
         assert!(active.is_none());
     }
@@ -544,7 +564,9 @@ mod tests {
         )
         .unwrap();
         let pid: i64 = conn
-            .query_row("SELECT id FROM personas WHERE name = 'sec'", [], |row| row.get(0))
+            .query_row("SELECT id FROM personas WHERE name = 'sec'", [], |row| {
+                row.get(0)
+            })
             .unwrap();
 
         conn.execute(
@@ -570,7 +592,12 @@ mod tests {
         conn.execute(
             "INSERT INTO patterns (domain_id, pattern_id, name, mitigations) VALUES (?, ?, ?, ?)
              ON CONFLICT(domain_id, pattern_id) DO UPDATE SET mitigations = excluded.mitigations",
-            params![did, "CWE-22", "Path Traversal", r#"["validate input","resolve then check root"]"#],
+            params![
+                did,
+                "CWE-22",
+                "Path Traversal",
+                r#"["validate input","resolve then check root"]"#
+            ],
         )
         .unwrap();
 
@@ -595,7 +622,9 @@ mod tests {
         )
         .unwrap();
         let pid: i64 = conn
-            .query_row("SELECT id FROM personas WHERE name = 'test'", [], |row| row.get(0))
+            .query_row("SELECT id FROM personas WHERE name = 'test'", [], |row| {
+                row.get(0)
+            })
             .unwrap();
 
         conn.execute(
@@ -604,10 +633,14 @@ mod tests {
         )
         .unwrap();
         let hid: i64 = conn
-            .query_row("SELECT id FROM domains WHERE name = 'high'", [], |row| row.get(0))
+            .query_row("SELECT id FROM domains WHERE name = 'high'", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         let lid: i64 = conn
-            .query_row("SELECT id FROM domains WHERE name = 'low'", [], |row| row.get(0))
+            .query_row("SELECT id FROM domains WHERE name = 'low'", [], |row| {
+                row.get(0)
+            })
             .unwrap();
 
         conn.execute(

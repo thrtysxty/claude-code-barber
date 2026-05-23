@@ -6,7 +6,9 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
     if args.cmd.is_empty() {
         anyhow::bail!("usage: ccb trim <command> [args...]");
     }
-    let out = Command::new(&args.cmd[0]).args(&args.cmd[1..]).output()
+    let out = Command::new(&args.cmd[0])
+        .args(&args.cmd[1..])
+        .output()
         .map_err(|e| anyhow::anyhow!("ccb trim: command not found: {}: {}", &args.cmd[0], e))?;
 
     // merge stderr — most build tools write noise to stderr

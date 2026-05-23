@@ -8,12 +8,12 @@ pub mod features {
     pub mod buzz;
     pub mod context;
     pub mod cut;
+    #[cfg(feature = "expert")]
+    pub mod expert;
     #[cfg(feature = "fade")]
     pub mod fade;
     #[cfg(feature = "graph")]
     pub mod graph;
-    #[cfg(feature = "expert")]
-    pub mod expert;
     pub mod index;
     pub mod lineup;
     #[cfg(feature = "trim")]
