@@ -217,7 +217,7 @@ pub fn list() -> Result<()> {
         return Ok(());
     }
 
-    println!("{:<20} {:>6}  {}", "PERSONA", "DOMAINS", "STATUS");
+    println!("{:<20} {:>6}  STATUS", "PERSONA", "DOMAINS");
     println!("{}", "-".repeat(48));
     for p in &personas {
         let status = if p.is_active { "ACTIVE" } else { "" };
