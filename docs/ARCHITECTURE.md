@@ -1,16 +1,113 @@
 # CCB Architecture
 
-*May 21, 2026*
+*May 22, 2026*
 
 CCB is a three-layer system. Each layer builds on the one below it. All three layers share a single SQLite database.
 
 ---
 
+## The core problem
+
+Models have tools. They don't have knowledge.
+
+A model can read a file, write code, run a test. It has hands. What it lacks is the structured understanding that tells it *why* this line is wrong, *what* pattern it should follow, *how* this function relates to the three others it will break. It acts on syntax. It needs to reason on semantics.
+
+The Scarecrow's problem. Plenty of capability. No brain.
+
+CCB is the brain. Not injected into context — wired into the reasoning path before any tool fires. The model doesn't *read* the knowledge, it *has* it, the way a senior engineer doesn't look up why you validate input before a DB write. They just know.
+
+---
+
+## One graph
+
+CCB maintains a single unified knowledge graph. Not separate expert graphs, not a skills index, not a tools registry — one graph with typed nodes and typed edges.
+
+Every kind of knowledge is a node:
+
+| NodeKind | Examples |
+|----------|---------|
+| `CodeSymbol` | `stories.py:route_create`, `terminal-handlers.ts:manage_container` |
+| `Skill` | `flask-route-testing`, `tdd-pattern`, `read-then-write` |
+| `Tool` | `pytest`, `cargo`, `tsc`, `npx` |
+| `MCP` | `coverage`, `playwright`, `filesystem` |
+| `Persona` | `backend-developer`, `security-reviewer`, `ios-engineer` |
+| `Domain` | `owasp-a03-injection`, `sql-parameterization`, `jwt-auth` |
+| `Pattern` | `validate-before-insert`, `fail-fast-config`, `typed-ipc` |
+
+Every relationship is a typed edge:
+
+```
+REQUIRES, USES, SERVES, PREFERS, VIOLATES, IMPLEMENTS,
+INFORMED_BY, RELATED_TO, BLOCKS, FIXES, AUTHORED_BY
+```
+
+The edge types encode semantics. The graph topology encodes understanding.
+
+---
+
+## The repo is the root
+
+Layer 2 tree-sitter indexing feeds directly into the unified graph. Every symbol, every call site, every import from every repo is a node. Typed edges connect code to knowledge:
+
+```
+stories.py:route_create
+  ├── [CALLS] db.execute()
+  │     └── [IMPLEMENTS] sql-parameterization
+  │           └── [SHOULD_FOLLOW] domain:owasp-a03-injection
+  │                 └── [FIX_SKETCH] pattern:validate-before-insert
+  ├── [IN_FILE] stories.py
+  │     └── [BLUEPRINT] flask:stories_bp
+  │           └── [SKILL] flask-route-testing
+  └── [AUTHORED_BY] persona:backend-developer
+        └── [PREFERS] pytest + explicit assertions
+```
+
+OWASP rule A03 isn't abstract. It's attached to `stories.py:23`. The domain knowledge is specific to *this codebase*, *this line*, *this developer*.
+
+---
+
+## Traversal and threshold
+
+When a tool is about to fire, CCB walks the graph from the current task context:
+
+1. Identify the root nodes — current file, current symbol, task description
+2. Traverse typed edges outward, accumulating node relevance scores
+3. Apply threshold — nodes above threshold are activated, below are dormant
+4. Activated nodes are injected into the model's reasoning path **before** the tool executes
+
+The model doesn't receive a file. It doesn't receive a prompt. It receives a small, precise subgraph of everything relevant to the decision it's about to make.
+
+Token cost: near zero. Reasoning quality: shaped by the full accumulated knowledge of the graph.
+
+---
+
+## Context limitation as the design constraint
+
+The graph solves context pressure by design. The question is never "what do I pre-load?" — it's "what does this task walk to?" The threshold is the dial. Tighten it and the model gets only the highest-confidence knowledge. Loosen it and it gets broader context. The user never manages this manually.
+
+`lineup` becomes a live view of what the graph activated for the current session — not a static inventory of what's loaded, but a real-time readout of what the brain surfaced.
+
+---
+
+## Self-pruning
+
+The graph starts fully populated. Every node has a `relevance_weight`. When a node activates and the outcome is rated good, its weight rises. When it never activates, its weight decays.
+
+The pruning mechanism is disuse. No algorithm decides what's relevant. The graph converges toward what this user, doing this work, in this codebase, actually needs — automatically, without configuration.
+
+Two developers on the same codebase end up with different graphs. A backend developer's graph is thick with Flask patterns, pytest conventions, and SQL rules. An iOS developer's graph is thick with SwiftUI patterns, Keychain usage, and Core ML integration. Neither configured this. It emerged from use.
+
+The variation is not a side effect. It is the point.
+
+---
+
 ## Layer 1 — Token Management
 
-**Commands:** `trim`, `fade`, `context`, `cut`, `buzz`, `gain`, `style`
+**Commands:** `trim`, `fade`, `context`, `cut`, `buzz`, `gain`, `style`, `lineup`
 
 Sits between shell tooling and the LLM context window. Strips noise from build output, lazy-loads skills, monitors context pressure, logs savings.
+
+`fade` is the manual predecessor to graph-driven injection. It works today. The graph replaces it at Layer 3.
 
 ---
 
@@ -18,181 +115,106 @@ Sits between shell tooling and the LLM context window. Strips noise from build o
 
 **Commands:** `graph index`, `graph search`, `graph show`, `graph stats`
 
-Tree-sitter parses the repo into a SQLite code graph. Functions, classes, calls, imports — indexed as nodes and edges. sqlite-vec stores embeddings for semantic search.
+Tree-sitter parses the repo into the unified graph. Functions, classes, calls, imports — indexed as typed `CodeSymbol` nodes. sqlite-vec stores embeddings for semantic traversal. This layer feeds the repo-rooted subgraph that Layer 3 traverses from.
 
 ---
 
-## Layer 3 — Expert System
+## Layer 3 — Knowledge Graph
 
-**Commands:** `lineup`, `expert activate`, `expert deactivate`, `expert list`
+**Commands:** `expert activate`, `expert deactivate`, `expert list`, `graph walk`
 
-### What an expert is
+The unified graph. All knowledge types, all repos, all personas — one structure. Pre-tool hooks traverse it before every model action.
 
-An expert is a **knowledge graph subset** built from a domain dataset and injected into the model's processing path via pre-tool hooks — in code, before inference, without entering the conversation context.
+### Knowledge sources
 
-Not a prompt. Not a token. Not a LoRA. The model is programmatically required to use the knowledge.
+| NodeKind | Source |
+|----------|--------|
+| `CodeSymbol` | tree-sitter repo index (Layer 2) |
+| `Skill` | `~/.claude/skills/` parsed into nodes |
+| `Tool` | tool registry + usage history |
+| `MCP` | MCP server manifests |
+| `Persona` | user-defined + inferred from usage |
+| `Domain` | dataset ingest (see below) |
+| `Pattern` | extracted from Domain + CodeSymbol edges |
 
-### Knowledge graph construction
+### Domain datasets
 
-Each domain dataset is parsed into structured graph nodes with typed edges encoding relationships. Stored in CCB's SQLite DB alongside the code graph. Construction is one-time and offline.
+| Domain | Dataset | Rows |
+|--------|---------|------|
+| `sentinel` | [Fenrir-v2.1](https://huggingface.co/datasets/AlicanKiraz0/Cybersecurity-Dataset-Fenrir-v2.1) | 99,870 |
+| `coder` | [CodeX-2M-Thinking](https://huggingface.co/datasets/Modotte/CodeX-2M-Thinking) | 2M |
+| `architect` | [solutions-architect-hf](https://huggingface.co/datasets/VishaalY/solutions-architect-hf-dataset) | — |
+| `selector` | [hf_model_metadata](https://huggingface.co/datasets/davanstrien/hf_model_metadata) | — |
+| `debugger` | [hf-issues-dataset-with-comments](https://huggingface.co/datasets/selfishark/hf-issues-dataset-with-comments) | 4,370 |
+
+Datasets are not training data. They are parsed into graph nodes and edges. Construction is one-time and offline.
+
+---
+
+## The feedback loop (Atlas / Alchemy)
+
+The graph participates in Atlas's self-teaching loop.
 
 ```
-expert_graphs/
-├── sentinel/    nodes: OWASP rules, vuln patterns, auth contracts, CVEs
-├── coder/       nodes: language idioms, reasoning patterns, test structures
-├── architect/   nodes: AWS services, config patterns, infra troubleshooting
-├── selector/    nodes: HF model capabilities, architecture types, benchmarks
-└── debugger/    nodes: bug patterns, diagnosis paths, resolution templates
+user rates output (good / bad)
+  → activation_log records which nodes were active
+  → good outcome: relevance_weight rises on active nodes
+  → bad outcome: relevance_weight falls
+  → weekly: weight deltas averaged → local model update
+  → monthly: four weekly averages → stable base update
 ```
 
-### Pre-tool hook injection
-
-CCB registers pre-tool hooks in the inference pipeline. When a tool is about to execute:
-
-1. Hook fires with task context
-2. CCB traverses the active expert's knowledge graph
-3. Relevant nodes are identified via embedding similarity
-4. Those nodes are injected into the model's processing path **in code**
-5. The model is required to use that knowledge before the tool executes
-
-No tokens consumed. No conversation modification. The knowledge woven into the inference path, not the prompt.
-
-### Self-pruning
-
-The knowledge graph starts with all domain nodes populated. Nodes that never activate during the user's actual usage lose relevance weight over time. Eventually they are pruned.
-
-A developer's graph converges toward coder/architect/sentinel. An Alchemy user's graph converges toward vintage/marketplace knowledge. Each user's graph becomes unique to their usage patterns — automatically, without configuration.
-
-The pruning mechanism is disuse. No admin required.
-
----
-
-## Design philosophy — emergent expertise
-
-The knowledge graph does not get pruned by an algorithm deciding what is relevant. It gets shaped by the same force that shapes human expertise: directed use, feedback, and the reinforcement of what actually matters to this person doing this work.
-
-A surgeon carries dense knowledge of anatomy and procedure. A musician carries dense knowledge of theory and timing. Neither decided to specialize — their knowledge topology emerged from what they did, what they encountered, and what they were corrected on.
-
-The CCB knowledge graph works the same way. The user, their model interactions, and how they harness the model together determine which nodes survive and which fade. Two developers using Atlas for the same general purpose will end up with different graphs because they work differently and push the model in different directions.
-
-The variation is not a side effect. It is the point.
-
-**What guides the graph:**
-- **User** — tasks assigned, domains touched, feedback given (good/bad ratings)
-- **Model interactions** — which knowledge nodes led to outputs the user found useful
-- **Harnessing** — the intentional direction the user applies to the model over time
-
-The result is a knowledge graph that is uniquely theirs — an accurate reflection of their expertise, their domain, and their relationship with the model. Not a generic expert system. Not a one-size-fits-all knowledge base. A living graph that became what it is because of how they used it.
-
----
-
-## The self-teaching feedback loop (Atlas / Alchemy)
-
-This loop exists independently of CCB but CCB participates in it.
-
-### Weekly weight averaging
-
-1. User rates model output (good / bad) and other interaction signals are collected
-2. Weight deltas from those interactions are tracked on-device
-3. **Weekly:** weight deltas are averaged and applied to the local model
-4. **Monthly (week 4):** the four weekly averages are averaged → stable monthly base update
-
-### The privacy model
-
+Privacy model:
 ```
 cloud:  base_weights only  (anonymous aggregate, never personal data)
-local:  user_delta         (never uploaded, stays on device forever)
-
-on base update:  user_model = new_base + user_delta
+local:  user_delta + graph  (never uploaded, stays on device forever)
 ```
 
-Only the aggregated, anonymized base weights ever leave the device. The user's personal adjustments — their delta — accumulates locally and is re-applied every time a new base model is distributed.
-
-The knowledge graph follows the same model: base graph is distributed, user's pruned/weighted version stays local.
-
-### What CCB adds to the loop
-
-CCB's pre-tool hook injection means the model's weight changes occur under expert knowledge guidance. When a user's interaction is rated good, the weight pattern that led to that output is reinforced — and that pattern was shaped by the expert knowledge graph. Over time, the graph's most useful nodes become more deeply woven into the model's behavior.
-
-The Karpathy self-learning knowledge tree: the graph is not a static lookup. It is a living tree whose nodes' relevance weights update from the model's own operation. The model and the graph co-evolve toward the user's actual domain.
+The model and the graph co-evolve. Knowledge nodes that consistently lead to good outcomes become more deeply woven into the model's behavior. The graph is not a static lookup — it is a living structure whose topology reflects this user's expertise.
 
 ---
 
-## Distribution model
+## Upgrade the brain, not the model
 
-| Target | Org | License | Ships in |
-|--------|-----|---------|---------|
-| `ccb` (Rust) | thrtysxty | Apache-2.0 | Open source — proves the architecture, builds community |
-| `ccb-swift` (Swift) | ByteReactr | Proprietary | Premium — Atlas, Alchemy, Apple platform products |
+The key architectural property: you can give a small local model frontier-quality reasoning on a specific domain by giving it the right graph — without retraining, without a larger model, without more tokens.
 
-The Rust implementation is the public proof. The Swift implementation is the commercial product. Same architecture, same datasets, same knowledge graphs — platform and license are the only differences.
+qwopus (9B) plus this graph, for *your* codebase, knows your security rules, your patterns, your failure modes, your conventions. It reasons well on your work because it has the knowledge your work requires. The graph is the differentiator. The model is the executor.
 
----
-
-## Swift platform (Atlas / Apple)
-
-| Target | Runtime | Inference | Platforms |
-|--------|---------|-----------|-----------|
-| `ccb` (Rust) | Linux / server | llama.cpp | 9020 (RTX 3060), CI |
-| `ccb-swift` (Swift) | Apple silicon | Core ML + Foundation Models | macOS, iOS, Atlas, Alchemy |
-
-### Atlas integration
-
-CCB Swift is the intelligence module for Atlas. `AtlasCCB` shares one SQLite DB with the code graph layer. Pre-tool hooks integrate with Atlas's inference pipeline directly.
+This is why the Rust implementation ships open source. The architecture is the proof. Any model, any platform, same graph — same result.
 
 ---
 
-## Cross-product scope
+## Distribution
 
-| Product | Active expert graphs |
-|---------|---------------------|
-| Copernicus / Atlas | sentinel, coder, architect, debugger, selector |
-| Alchemy | vintage, marketplace (built from filtered FineWeb + flat icons) |
+| Target | Org | License | Platforms |
+|--------|-----|---------|-----------|
+| `ccb` (Rust) | thrtysxty | Apache-2.0 | Linux, server, CI — proves the architecture |
+| `ccb-swift` (Swift) | ByteReactr | Proprietary | macOS, iOS — Atlas, Alchemy |
 
-Each user's graph self-prunes to their actual usage. A Copernicus developer and an Alchemy seller end up with completely different local graphs built on the same base.
-
----
-
-## Datasets
-
-Domain datasets are the **knowledge graph construction source** — not training data. Each dataset is parsed into graph nodes and edges stored in SQLite.
-
-### Expert knowledge graphs
-
-| Expert | Dataset | Rows | Domain |
-|--------|---------|------|--------|
-| `sentinel` | [Fenrir-v2.1](https://huggingface.co/datasets/AlicanKiraz0/Cybersecurity-Dataset-Fenrir-v2.1) | 99,870 | OWASP, MITRE ATT&CK, auth hardening, crypto hygiene |
-| `coder` | [CodeX-2M-Thinking](https://huggingface.co/datasets/Modotte/CodeX-2M-Thinking) | 2M | Implementation + chain-of-thought reasoning |
-| `architect` | [solutions-architect-hf](https://huggingface.co/datasets/VishaalY/solutions-architect-hf-dataset) | — | AWS architecture, service config, infra troubleshooting |
-| `selector` | [hf_model_metadata](https://huggingface.co/datasets/davanstrien/hf_model_metadata) | — | HF model ecosystem — capabilities, architectures, benchmarks |
-| `debugger` | [hf-issues-dataset-with-comments](https://huggingface.co/datasets/selfishark/hf-issues-dataset-with-comments) | 4,370 | Model bug triage and resolution patterns |
-| `thinker` | [GLM-5.1-Reasoning-1M](https://huggingface.co/datasets/Jackrong/GLM-5.1-Reasoning-1M-Cleaned) | 1M | Deep reasoning — deferred |
-
-### Alchemy knowledge graphs (deferred)
-
-| Dataset | Use |
-|---------|-----|
-| [HuggingFaceFW/fineweb](https://huggingface.co/datasets/HuggingFaceFW/fineweb) | Filtered for marketplace/vintage content → listing copy graph |
-| [andrewburns/hf_flat_icons](https://huggingface.co/datasets/andrewburns/hf_flat_icons) | Semantic icon tagging → visual scan graph |
+Same graph schema. Same datasets. Same traversal logic. Platform and license are the only differences.
 
 ---
 
-## CCB database
+## Database schema
 
 `~/.cache/ccb/graph.db` — shared across all three layers.
 
 ```sql
--- Layer 2
+-- Layer 2: code graph
 code_nodes(id, file, symbol, kind, line)
 code_edges(src, dst, edge_type)
 
--- Layer 3
-expert_nodes(id, expert, content, embedding BLOB, relevance_weight REAL)
-expert_edges(src, dst, relationship)
-activation_log(ts, expert, node_id, outcome)
+-- Layer 3: unified knowledge graph
+nodes(id, kind, content, source, embedding BLOB, relevance_weight REAL)
+edges(src, dst, edge_type, weight REAL)
+activation_log(ts, node_id, task_context, outcome)
+
+-- Layer 3: persona
+personas(id, name, description)
+persona_edges(persona_id, node_id, affinity REAL)
 ```
 
-`relevance_weight` on each node is updated from the activation log. Low weight → pruning candidate. High weight → injected more frequently.
+`relevance_weight` decays on disuse. `activation_log` is the feedback source. `persona_edges` encode per-persona node affinity — the graph knows which nodes matter to which user profile.
 
 ---
 
