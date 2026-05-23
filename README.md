@@ -174,6 +174,12 @@ FAILED tests/test_api.py::test_update_story - AssertionError: 500
 ============================== 2 failed, 45 passed in 1.23s ==============================
 ```
 
+| command | tokens before | tokens after | saved | reduction |
+|---------|-------------:|-------------:|------:|----------:|
+| `cargo build` (type error) | 90 | 45 | 45 | **50%** |
+| `npm install` (clean) | 92 | 6 | 86 | **94%** |
+| `pytest` (2 failures) | 122 | 56 | 66 | **54%** |
+
 ### Lazy-load skills
 
 Instead of injecting all skill files into every session:
