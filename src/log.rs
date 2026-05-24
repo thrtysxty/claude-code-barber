@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct CompressionEvent {
     pub timestamp: String,
     pub feature: String,
@@ -10,6 +10,12 @@ pub struct CompressionEvent {
     pub tokens_out: usize,
     pub bytes_in: usize,
     pub bytes_out: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persona: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domains_hit: Option<Vec<String>>,
 }
 
 impl CompressionEvent {
@@ -112,6 +118,7 @@ mod tests {
             tokens_out: 999,
             bytes_in: 0,
             bytes_out: 0,
+            ..Default::default()
         };
         assert_eq!(event.reduction_pct(), 0.0);
     }
@@ -126,6 +133,7 @@ mod tests {
             tokens_out: 100,
             bytes_in: 0,
             bytes_out: 0,
+            ..Default::default()
         };
         assert_eq!(event.reduction_pct(), 0.0);
     }
@@ -140,6 +148,7 @@ mod tests {
             tokens_out: 0,
             bytes_in: 0,
             bytes_out: 0,
+            ..Default::default()
         };
         assert_eq!(event.reduction_pct(), 100.0);
     }
@@ -154,6 +163,7 @@ mod tests {
             tokens_out: 40,
             bytes_in: 0,
             bytes_out: 0,
+            ..Default::default()
         };
         assert!((event.reduction_pct() - 60.0).abs() < 0.01);
     }
@@ -168,6 +178,7 @@ mod tests {
             tokens_out: 73,
             bytes_in: 0,
             bytes_out: 0,
+            ..Default::default()
         };
         assert!((event.reduction_pct() - 27.0).abs() < 0.01);
     }

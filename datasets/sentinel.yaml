@@ -1,0 +1,86 @@
+personas:
+  - name: sentinel
+    description: Security expert — OWASP Top 10 and common CWE patterns
+    domains:
+      - name: path_traversal
+        category: security
+        patterns:
+          - id: "CWE-22"
+            name: "Path Traversal"
+            mitigations:
+              - "Resolve path then verify it starts with expected root"
+              - "Reject paths containing '..' before resolution"
+              - "Use allowlist of permitted directories"
+              - "Canonicalize paths before validation"
+          - id: "CWE-36"
+            name: "Absolute Path Traversal"
+            mitigations:
+              - "Reject absolute path input unless explicitly allowed"
+              - "Transform relative paths via realpath() before use"
+              - "Enforce root directory confinement"
+      - name: sql_injection
+        category: security
+        patterns:
+          - id: "CWE-89"
+            name: "SQL Injection"
+            mitigations:
+              - "Parameterized queries only — never string concatenation"
+              - "Allowlist input validation before query construction"
+              - "Least-privilege DB user — no DROP/ALTER in app role"
+              - "Use an ORM for data access when possible"
+          - id: "CWE-564"
+            name: "SQL Injection via Hibernate"
+            mitigations:
+              - "Never concatenate user input into HQL queries"
+              - "Use parameterized queries in Hibernate Native Queries"
+      - name: xss
+        category: security
+        patterns:
+          - id: "CWE-79"
+            name: "Cross-Site Scripting (XSS)"
+            mitigations:
+              - "Output encoding — HTML/JS/URL context-aware escaping"
+              - "Set Content-Security-Policy headers"
+              - "Avoid innerHTML with user input — use textContent"
+              - "Use template engines with auto-escaping"
+      - name: command_injection
+        category: security
+        patterns:
+          - id: "CWE-78"
+            name: "OS Command Injection"
+            mitigations:
+              - "Avoid shell=True / execSync with user input"
+              - "Use arg arrays instead of string concatenation"
+              - "Allowlist permitted commands and arguments"
+              - "Run commands in isolated subprocess with minimal privileges"
+      - name: insecure_deserialization
+        category: security
+        patterns:
+          - id: "CWE-502"
+            name: "Insecure Deserialization"
+            mitigations:
+              - "Avoid pickle/yaml.unsafe_load/eval on external data"
+              - "Use JSON or other safe serialization formats"
+              - "Validate and schema-check data before deserializing"
+              - "Run deserialization in sandboxed environment"
+      - name: secrets_in_code
+        category: security
+        patterns:
+          - id: "CWE-798"
+            name: "Hardcoded Credentials"
+            mitigations:
+              - "Use environment variables or secret manager"
+              - "Never hardcode credentials in source code"
+              - "Add .env files to .gitignore"
+              - "Rotate credentials immediately on exposure"
+              - "Use tools like git-secrets or TruffleHog to scan commits"
+      - name: ssrf
+        category: security
+        patterns:
+          - id: "CWE-918"
+            name: "Server-Side Request Forgery"
+            mitigations:
+              - "Allowlist outbound URLs — reject unlisted domains"
+              - "Block internal IP ranges (169.254/10.0/172.16/192.168)"
+              - "Validate URL scheme — reject file:/mailto:javascript:"
+              - "Use network isolation for untrusted request targets"

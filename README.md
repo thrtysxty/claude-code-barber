@@ -28,6 +28,8 @@
 - [Usage](#usage)
 - [Hook Integration](#hook-integration)
 - [Optional Features](#optional-features)
+  - [Code Graph](#code-graph)
+  - [Expert Personas & Knowledge Graph](#expert-personas--knowledge-graph)
 - [Benchmarks](#benchmarks)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
@@ -46,7 +48,7 @@ ccb sits between your shell and Claude Code. It filters, compresses, and monitor
 - [Rust 2021](https://www.rust-lang.org) — single binary, no runtime
 - [clap](https://github.com/clap-rs/clap) — CLI
 - [rusqlite](https://github.com/rusqlite/rusqlite) — code graph and knowledge graph (optional features)
-- [tree-sitter](https://tree-sitter.github.io) — symbol indexing (optional)
+- [tree-sitter](https://tree-sitter.github.io) — AST-based symbol extraction (Rust, Python, TS, JS)
 - [sqlite-vec](https://github.com/asg017/sqlite-vec) — embedding search (optional)
 
 ---
@@ -64,6 +66,12 @@ git clone https://github.com/thrtysxty/claude-code-barber
 cd claude-code-barber
 cargo build --release
 cp target/release/ccb ~/.local/bin/
+
+# macOS only: ad-hoc codesign required for Cargo-compiled binaries
+codesign --sign - ~/.local/bin/ccb
+
+# Wire hooks into Claude Code (context monitor + skill loader)
+ccb install
 ```
 
 ### Build options
@@ -96,6 +104,9 @@ cargo build --release --no-default-features
 | `ccb gain` | Token savings analytics from `~/.claude/ccb_log.jsonl` |
 | `ccb style index-build` | Scan `~/.claude/skills/` and regenerate `INDEX.md` |
 | `ccb style show` | Print current config (`~/.claude/ccb.toml`) |
+| `ccb install` | Wire context monitor + skill loader hooks into `~/.claude/settings.json` |
+| `ccb install --auto` | Same, no interactive prompt |
+| `ccb install --dry-run` | Show what would be installed without writing anything |
 
 ---
 
@@ -302,34 +313,139 @@ Re-run whenever you add or update a skill.
 ## Optional Features
 
 ```bash
-cargo build --release --features graph    # code symbol graph (SQLite + tree-sitter)
-cargo build --release --features expert   # unified knowledge graph (Layer 3)
-cargo build --release --features route    # model router proxy binary
-cargo build --release --features full     # everything
+cargo build --release --features graph     # code symbol graph (SQLite + tree-sitter)
+cargo build --release --features expert    # unified knowledge graph (Layer 3)
+cargo build --release --features classify  # two-tier safety classifier hook
+cargo build --release --features route     # model router proxy binary
+cargo build --release --features full      # everything
 ```
 
 ### Code Graph
 
-Builds a SQLite-backed symbol index across Rust, Python, TypeScript, and JavaScript files:
+Builds a SQLite-backed symbol index across Rust, Python, TypeScript, and JavaScript files. When paired with the classify hook, automatically injects symbol maps on stderr for every `Read` tool call — giving the LLM a table of contents with line numbers so it can use targeted `offset`/`limit` reads instead of loading entire files.
 
 ```bash
-ccb graph index ./src          # index a directory
+ccb graph index ./src          # index a directory (default: .)
 ccb graph search "compress"    # find symbols by name
 ccb graph show src/main.rs     # show all symbols in a file
 ccb graph stats                # aggregate counts by language
 ```
 
-### Knowledge Graph (Expert System)
-
-A unified graph of all knowledge — skills, tools, MCPs, personas, domain rules, code symbols. Traversed before tool execution to surface relevant context without pre-loading anything.
-
-```bash
-ccb expert list                          # list all nodes by kind
-ccb expert activate backend-developer    # set active persona
-ccb graph walk "fix auth validation"     # traverse graph, print activated nodes
+**Graph-aware Read context** (automatic via classify hook):
+```
+[ccb:graph] 28 symbols in src/features/classify.rs
+  const `TRANSCRIPT_CHAR_LIMIT` line 16
+  enum `Decision` line 21
+  fn `tier1_classify` line 112
+  fn `tier2_classify` line 251
+  fn `run` line 658
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
+### Classify
+
+Two-tier safety classifier for Claude Code `PreToolUse` hooks. Tier 1 is instant local pattern matching (no API call). Tier 2 sends ambiguous actions to an LLM for evaluation (via OpenRouter). Integrates expert context and graph-aware Read hints.
+
+```bash
+# Wire as a PreToolUse hook in ~/.claude/settings.json
+ccb classify   # reads hook JSON from stdin, exits silently to allow, prints deny JSON to block
+```
+
+### Expert Personas & Knowledge Graph
+
+Define domain experts in a YAML dataset — security rules, coding patterns, architecture principles, or any knowledge you want surfaced at tool time. Experts activate on demand and inject context without pre-loading files.
+
+#### Quick start
+
+```bash
+# 1. Build with the expert feature
+cargo build --release --features expert
+cp target/release/ccb ~/.local/bin/
+
+# 2. Ingest a dataset (bundled sentinel dataset or your own)
+ccb expert ingest --dataset datasets/sentinel.yaml
+
+# 3. Activate a persona
+ccb expert activate sentinel
+
+# 4. Traverse the graph — see what it surfaces for a given task
+ccb expert walk "validate user input before SQL query"
+
+# 5. Wire to Claude Code (done automatically by ccb install)
+ccb install --features expert
+```
+
+#### Commands
+
+```bash
+ccb expert ingest --dataset <file.yaml>   # load a YAML dataset into the graph
+ccb expert build <name> --dataset <file>  # same as ingest, names the expert explicitly
+ccb expert list                           # list registered experts + active status
+ccb expert activate <name>                # set active persona (persists across sessions)
+ccb expert deactivate                     # clear active persona
+ccb expert walk "<task description>"      # traverse graph, print matched nodes
+ccb expert query [--tool <name>]          # hook-facing: emit context for active persona
+```
+
+#### Dataset format
+
+A dataset is a YAML file with one or more `personas`. Each persona has `domains`, and each domain has `patterns` — the atomic knowledge nodes.
+
+```yaml
+personas:
+  - name: my-expert              # used in: ccb expert activate my-expert
+    description: One line — what this expert knows about
+    domains:
+      - name: auth               # logical grouping
+        category: security       # free-form tag (security | architecture | style | ...)
+        patterns:
+          - id: AUTH-001         # unique ID — any string
+            name: Session token storage
+            mitigations:
+              - Store session tokens in httpOnly cookies, never localStorage
+              - Rotate tokens on privilege escalation
+              - Set Secure + SameSite=Strict on all auth cookies
+          - id: AUTH-002
+            name: Password hashing
+            mitigations:
+              - Use bcrypt (cost ≥12), Argon2id, or scrypt — never MD5/SHA1
+              - Hash on the server; never accept pre-hashed passwords from clients
+      - name: input-validation
+        category: security
+        patterns:
+          - id: VALID-001
+            name: SQL injection prevention
+            mitigations:
+              - Use parameterised queries — never string concatenation
+              - Apply allowlist validation on all user inputs
+```
+
+**Required fields per pattern:** `id`, `name`, `mitigations` (array of strings).
+`category` and domain `name` are free-form — use whatever taxonomy makes sense for your knowledge.
+
+#### Bundled dataset: sentinel
+
+`datasets/sentinel.yaml` ships with the repo — a security expert covering OWASP Top 10 patterns (SQLi, XSS, path traversal, SSRF, and more):
+
+```bash
+ccb expert ingest --dataset datasets/sentinel.yaml
+ccb expert activate sentinel
+ccb expert walk "user uploads a file to the server"
+# → surfaces: path traversal, file type validation, upload size limits
+```
+
+#### Writing your own persona
+
+Good expert datasets are **narrow and opinionated**:
+
+| Good | Avoid |
+|------|-------|
+| 8–15 patterns per domain | 100-pattern dumps |
+| Concrete mitigations ("use X", "never Y") | Abstract advice ("be careful") |
+| Specific to your stack | Generic best-practices lists |
+
+A 40-pattern dataset with precise mitigations beats a 400-pattern dataset with vague ones. The traversal surfaces the top matches — depth beats breadth.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the graph traversal design.
 
 ### Model Router
 
@@ -381,10 +497,10 @@ Every operation is also logged to `~/.claude/ccb_log.jsonl`:
 
 - [x] Layer 1 — Token management (`trim`, `fade`, `context`, `buzz`, `gain`)
 - [x] Layer 2 — Code symbol graph (`graph index`, `graph search`)
-- [x] Layer 3 foundation — unified knowledge graph schema + CLI
-- [ ] Layer 3 — domain dataset ingest (sentinel, coder, architect)
-- [ ] Layer 3 — pre-tool hook traversal in production
-- [ ] `ccb-swift` — Apple platform port for Atlas/Alchemy
+- [x] Layer 3 — Unified knowledge graph + expert personas
+- [x] Classify — Two-tier safety classifier with graph-aware Read hints
+- [x] tree-sitter AST-based symbol extraction (Rust, Python, TypeScript, JavaScript)
+- [ ] Atlas Context Engine integration (MCP server, smart Read targeting)
 
 ---
 
@@ -418,6 +534,7 @@ src/
     ├── buzz.rs        # nuclear mode cleanup + tests
     ├── cut.rs         # all-in-one compression
     ├── index.rs       # skills index generator
+    ├── classify.rs    # two-tier safety classifier (--features classify)
     ├── expert.rs      # unified knowledge graph (--features expert)
     └── graph.rs       # code symbol graph (--features graph)
 hooks/

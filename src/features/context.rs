@@ -1,5 +1,6 @@
-//! context — monitor context window usage, suggest /clear or /compact
-//! Designed to run as a PostToolUse hook: reads usage % from env, advises action.
+//! context — monitor context window usage and inject safe-stop directives.
+//! Designed to run as a PostToolUse hook: reads usage % from env, emits
+//! agent-readable directives that Claude Code injects into the next turn.
 
 use crate::cli::ContextCmd;
 use crate::utils::progress_bar;
@@ -13,8 +14,6 @@ pub fn run(cmd: ContextCmd) -> anyhow::Result<()> {
 }
 
 fn current_pct() -> Option<u8> {
-    // Claude Code exposes context usage via CCB_CONTEXT_PCT when hook is wired
-    // Falls back to parsing CCB_CTX_TOKENS / CCB_CTX_MAX if available
     if let Ok(val) = std::env::var("CCB_CONTEXT_PCT") {
         return val.parse().ok();
     }
@@ -52,11 +51,28 @@ fn advise(threshold: u8, action: &str) -> anyhow::Result<()> {
     };
 
     if pct >= threshold {
-        // Output is read by PostToolUse hook and injected into Claude's context
-        println!(
-            "\n⚠️  ccb context: {}% used (threshold {}%) — consider /{}\n",
-            pct, threshold, action
-        );
+        let directive = match action {
+            "compact" => format!(
+                "\n[CCB CONTEXT DIRECTIVE] Context at {}% (threshold {}%). \
+COMPACT REQUIRED: Complete the current tool sequence to a safe boundary \
+(file written, gate passed, or search complete). Do NOT compact mid-edit or mid-gate. \
+Before running /compact, write one paragraph to /tmp/ccb-handoff.md: \
+stories completed, current story state, next story. Then run /compact.\n",
+                pct, threshold
+            ),
+            "clear" => format!(
+                "\n[CCB CONTEXT DIRECTIVE] Context at {}% (threshold {}%). \
+CONTEXT CRITICAL: Finish the current statement immediately — no new reads, \
+no new searches. Write /tmp/ccb-handoff.md (completed, in-progress, next). \
+Run /compact now. Resume from handoff note after compaction.\n",
+                pct, threshold
+            ),
+            _ => format!(
+                "\n[CCB CONTEXT DIRECTIVE] Context at {}% — run /{} at next safe boundary.\n",
+                pct, action
+            ),
+        };
+        print!("{}", directive);
         tracing::warn!(pct, threshold, action, "context: threshold exceeded");
     }
     Ok(())

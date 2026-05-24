@@ -28,13 +28,21 @@ pub enum Command {
     /// Nuclear option — maximum token reduction across all features
     Buzz,
     /// Show token savings analytics
-    Gain,
+    Gain(GainArgs),
+    /// Wire ccb hooks into ~/.claude/settings.json (use --auto to apply without prompting)
+    Install(InstallArgs),
     /// Manage expert personas and the knowledge graph (requires --features expert)
     #[cfg(feature = "expert")]
     Expert(ExpertArgs),
     /// Build and query a code symbol graph (requires --features graph)
     #[cfg(feature = "graph")]
     Graph(GraphArgs),
+    /// Model router — routes Claude Code API calls to local or Anthropic backends
+    #[cfg(feature = "route")]
+    Route(RouteArgs),
+    /// Classify tool calls for safety (reads hook JSON from stdin)
+    #[cfg(feature = "classify")]
+    Classify,
 }
 
 #[derive(Args)]
@@ -76,6 +84,14 @@ pub enum ContextCmd {
 #[derive(Args)]
 pub struct TrimArgs {
     pub cmd: Vec<String>,
+}
+
+#[derive(Args)]
+pub struct GainArgs {
+    #[arg(long)]
+    pub ab: bool,
+    #[arg(long)]
+    pub expert: bool,
 }
 
 #[derive(Args)]
@@ -140,6 +156,11 @@ pub enum ExpertCmd {
         #[arg(long)]
         dataset: std::path::PathBuf,
     },
+    /// Ingest YAML dataset file into the knowledge graph
+    Ingest {
+        #[arg(long)]
+        dataset: std::path::PathBuf,
+    },
     /// Activate a persona — makes it available to hooks
     Activate { name: String },
     /// Deactivate the current persona
@@ -171,4 +192,36 @@ pub enum ExpertOutputFormatArg {
 pub struct ExpertArgs {
     #[command(subcommand)]
     pub cmd: ExpertCmd,
+}
+
+#[derive(Args)]
+pub struct InstallArgs {
+    /// Apply changes without interactive confirmation
+    #[arg(long)]
+    pub auto: bool,
+    /// Dry run: show what would be installed without applying
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+/// Route arguments (requires --features route)
+#[cfg(feature = "route")]
+#[derive(Args)]
+pub struct RouteArgs {
+    #[command(subcommand)]
+    pub cmd: RouteCmd,
+}
+
+/// Route subcommands
+#[cfg(feature = "route")]
+#[derive(Subcommand)]
+pub enum RouteCmd {
+    /// Start the router on a specific port
+    Start { #[arg(default_value = "9001")] port: u16 },
+    /// Stop the router
+    Stop,
+    /// Show router status
+    Status,
+    /// Print export block for shell
+    Env,
 }

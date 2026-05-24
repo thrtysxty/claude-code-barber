@@ -35,3 +35,11 @@ fn test_fade_unknown_skill() {
         .failure()
         .stderr(predicate::str::contains("not found"));
 }
+
+#[test]
+fn test_fade_with_resource() {
+    // Non-existent resource — fade.rs exits 1 (unknown skill not found in INDEX.md)
+    let mut cmd = Command::cargo_bin("ccb").unwrap();
+    cmd.arg("fade").arg("some_skill");
+    cmd.assert().failure();
+}

@@ -329,6 +329,61 @@ pub fn query_active(format: OutputFormat) -> Result<()> {
     Ok(())
 }
 
+pub fn query_active_json() -> Result<Option<String>> {
+    let conn = db()?;
+
+    let active: Option<i64> = conn
+        .query_row("SELECT persona_id FROM active_persona", [], |row| {
+            row.get(0)
+        })
+        .ok();
+
+    let Some(persona_id) = active else {
+        return Ok(None);
+    };
+
+    let persona_name: String = conn.query_row(
+        "SELECT name FROM personas WHERE id = ?",
+        params![persona_id],
+        |row| row.get(0),
+    )?;
+
+    let mut stmt = conn.prepare(
+        "SELECT d.name FROM domains d
+         JOIN persona_domains pd ON pd.domain_id = d.id
+         WHERE pd.persona_id = ?
+         ORDER BY d.name",
+    )?;
+    let domains: Vec<String> = stmt
+        .query_map(params![persona_id], |row| row.get(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    let mut stmt = conn.prepare(
+        "SELECT p.pattern_id, p.name, p.mitigations
+         FROM patterns p
+         JOIN domains d ON d.id = p.domain_id
+         JOIN persona_domains pd ON pd.domain_id = d.id
+         WHERE pd.persona_id = ?
+         ORDER BY p.pattern_id",
+    )?;
+    let patterns: Vec<serde_json::Value> = stmt
+        .query_map(params![persona_id], |row| {
+            let id: String = row.get(0)?;
+            let name: String = row.get(1)?;
+            let mits_json: String = row.get(2)?;
+            let mits: Vec<String> = serde_json::from_str(&mits_json).unwrap_or_default();
+            Ok(serde_json::json!({"id": id, "name": name, "mitigations": mits}))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    let output = serde_json::json!({
+        "persona": persona_name,
+        "active_domains": domains,
+        "patterns": patterns,
+    });
+    Ok(Some(output.to_string()))
+}
+
 struct PatternRow {
     id: String,
     name: String,
@@ -419,6 +474,103 @@ pub fn walk(task: &str, threshold: f64) -> Result<()> {
 }
 
 // ---------------------------------------------------------------------------
+
+
+/// Ingest a YAML dataset file into the knowledge graph.
+/// The file must contain a top-level "personas" list.
+/// Each persona has {name, description, domains: [{name, category, patterns: [{id, name, mitigations}]}]}.
+pub fn ingest(dataset_path: &std::path::Path) -> Result<()> {
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct YamlPattern {
+        id: String,
+        name: String,
+        mitigations: Vec<String>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct YamlDomain {
+        name: String,
+        category: String,
+        patterns: Vec<YamlPattern>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct YamlPersona {
+        name: String,
+        description: String,
+        domains: Vec<YamlDomain>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct YamlDataset {
+        personas: Vec<YamlPersona>,
+    }
+
+    let data = std::fs::read_to_string(dataset_path)
+        .with_context(|| format!("reading dataset {path}", path = dataset_path.display()))?;
+    let ds: YamlDataset = serde_yaml::from_str(&data)
+        .with_context(|| "parsing YAML dataset")?;
+
+    let conn = db()?;
+    let mut total_domains = 0;
+    let mut total_patterns = 0;
+
+    for persona in &ds.personas {
+        conn.execute(
+            "INSERT INTO personas (name, description) VALUES (?, ?)
+             ON CONFLICT(name) DO UPDATE SET description = excluded.description",
+            params![&persona.name, &persona.description],
+        )?;
+        let persona_id: i64 = conn.query_row(
+            "SELECT id FROM personas WHERE name = ?",
+            params![&persona.name],
+            |row| row.get(0),
+        )?;
+
+        for domain in &persona.domains {
+            conn.execute(
+                "INSERT INTO domains (name, category) VALUES (?, ?)
+                 ON CONFLICT(name) DO UPDATE SET category = excluded.category",
+                params![&domain.name, &domain.category],
+            )?;
+            let domain_id: i64 = conn.query_row(
+                "SELECT id FROM domains WHERE name = ?",
+                params![&domain.name],
+                |row| row.get(0),
+            )?;
+            conn.execute(
+                "INSERT INTO persona_domains (persona_id, domain_id, weight) VALUES (?, ?, 1.0)
+                 ON CONFLICT(persona_id, domain_id) DO NOTHING",
+                params![persona_id, domain_id],
+            )?;
+
+            total_domains += 1;
+            for pattern in &domain.patterns {
+                let mitigations_json =
+                    serde_json::to_string(&pattern.mitigations).context("serialising mitigations")?;
+                conn.execute(
+                    "INSERT INTO patterns (domain_id, pattern_id, name, mitigations) VALUES (?, ?, ?, ?)
+                     ON CONFLICT(domain_id, pattern_id) DO UPDATE SET
+                       name = excluded.name, mitigations = excluded.mitigations",
+                    params![domain_id, &pattern.id, &pattern.name, &mitigations_json],
+                )?;
+                total_patterns += 1;
+            }
+        }
+    }
+
+    println!(
+        "Ingested {} persona(s), {} domain(s), {} pattern(s)",
+        ds.personas.len(),
+        total_domains,
+        total_patterns
+    );
+    Ok(())
+}
+
+
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -665,3 +817,48 @@ mod tests {
         assert_eq!(rows, vec!["high"]);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Active context query (used by trim/fade to annotate log events)
+// ---------------------------------------------------------------------------
+
+/// Returns (persona_name, domains_hit) if an expert persona is active, None otherwise.
+/// Requires the expert feature to be compiled in.
+#[cfg(feature = "expert")]
+pub fn active_context() -> Option<(String, Vec<String>)> {
+    let conn = db().ok()?;
+
+    let persona_id: Option<i64> = conn
+        .query_row("SELECT persona_id FROM active_persona", [], |row| row.get(0))
+        .ok();
+
+    let persona_id = persona_id?;
+
+    let persona_name: String = conn
+        .query_row("SELECT name FROM personas WHERE id = ?", params![persona_id], |row| {
+            row.get(0)
+        })
+        .ok()?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT d.name FROM domains d
+             JOIN persona_domains pd ON pd.domain_id = d.id
+             WHERE pd.persona_id = ?",
+        )
+        .ok()?;
+
+    let domains: Vec<String> = stmt
+        .query_map(params![persona_id], |row| row.get(0))
+        .ok()?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Some((persona_name, domains))
+}
+
+#[cfg(not(feature = "expert"))]
+pub fn active_context() -> Option<(String, Vec<String>)> {
+    None
+}
+

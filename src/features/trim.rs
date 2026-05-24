@@ -1,8 +1,45 @@
 use crate::cli::TrimArgs;
+#[cfg(feature = "expert")]
+use crate::features::expert::active_context;
 use crate::log::{estimate_tokens, CompressionEvent};
 use std::process::Command;
 
 pub fn run(args: TrimArgs) -> anyhow::Result<()> {
+    // Bypass mode: skip all processing, pass through unchanged, log as bypass
+    if std::env::var("CCB_BYPASS").is_ok() {
+        if args.cmd.is_empty() {
+            anyhow::bail!("usage: ccb trim <command> [args...]");
+        }
+        let out = Command::new(&args.cmd[0])
+            .args(&args.cmd[1..])
+            .output()
+            .map_err(|e| anyhow::anyhow!("ccb trim: command not found: {}: {}", &args.cmd[0], e))?;
+        let combined = String::from_utf8_lossy(&out.stdout).to_string()
+            + &String::from_utf8_lossy(&out.stderr).to_string();
+        let mode = Some("bypass".to_string());
+        let (persona, domains_hit) = {
+        #[cfg(feature = "expert")]
+        { active_context().unzip() }
+        #[cfg(not(feature = "expert"))]
+        { (None, Some(vec![])) }
+    };
+        CompressionEvent {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            feature: "trim".to_string(),
+            command: args.cmd.join(" "),
+            tokens_in: estimate_tokens(&combined),
+            tokens_out: estimate_tokens(&combined),
+            bytes_in: combined.len(),
+            bytes_out: combined.len(),
+            mode,
+            persona,
+            domains_hit,
+        }
+        .record();
+        print!("{}", combined);
+        return Ok(());
+    }
+
     if args.cmd.is_empty() {
         anyhow::bail!("usage: ccb trim <command> [args...]");
     }
@@ -24,6 +61,12 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
 
     let compressed = compress_str(&combined);
 
+    let (persona, domains_hit) = {
+        #[cfg(feature = "expert")]
+        { active_context().unzip() }
+        #[cfg(not(feature = "expert"))]
+        { (None, Some(vec![])) }
+    };
     CompressionEvent {
         timestamp: chrono::Utc::now().to_rfc3339(),
         feature: "trim".to_string(),
@@ -32,6 +75,9 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
         tokens_out: estimate_tokens(&compressed),
         bytes_in: combined.len(),
         bytes_out: compressed.len(),
+        mode: None,
+        persona,
+        domains_hit,
     }
     .record();
 

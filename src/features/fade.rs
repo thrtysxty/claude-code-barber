@@ -1,7 +1,45 @@
 use crate::cli::FadeArgs;
+#[cfg(feature = "expert")]
+use crate::features::expert::active_context;
+use crate::log::{CompressionEvent, estimate_tokens};
 use std::path::PathBuf;
 
 pub fn run(args: FadeArgs) -> anyhow::Result<()> {
+    // Bypass mode: log with mode:bypass and return
+    if std::env::var("CCB_BYPASS").is_ok() {
+        let content = match &args.resource {
+            Some(name) => {
+                let index_content = read_index()?;
+                match lookup(&index_content, name) {
+                    Some(path) => std::fs::read_to_string(&path).unwrap_or_default(),
+                    None => String::new(),
+                }
+            }
+            None => read_index()?,
+        };
+        let (persona, domains_hit) = {
+        #[cfg(feature = "expert")]
+        { active_context().unzip() }
+        #[cfg(not(feature = "expert"))]
+        { (None, Some(vec![])) }
+    };
+        CompressionEvent {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            feature: "fade".to_string(),
+            command: args.resource.clone().unwrap_or_else(|| "list".to_string()),
+            tokens_in: estimate_tokens(&content),
+            tokens_out: estimate_tokens(&content),
+            bytes_in: content.len(),
+            bytes_out: content.len(),
+            mode: Some("bypass".to_string()),
+            persona,
+            domains_hit,
+        }
+        .record();
+        print!("{}", content);
+        return Ok(());
+    }
+
     match args.resource {
         Some(name) => load_resource(&name),
         None => list_index(),

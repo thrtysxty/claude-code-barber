@@ -4,6 +4,7 @@ use rusqlite::{params, Connection};
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tree_sitter::Parser;
 
 const DB_PATH: &str = "/.cache/ccb/graph.db";
 
@@ -48,93 +49,224 @@ fn detect_lang(path: &Path) -> Option<&'static str> {
     }
 }
 
-fn extract_rust_symbols(path: &Path) -> Result<Vec<(String, String, i64)>> {
-    let source = std::fs::read_to_string(path)?;
-    let mut symbols = Vec::new();
+fn walk_tree(node: tree_sitter::Node, source: &[u8], symbols: &mut Vec<(String, String, i64)>, lang: &str) {
+    let kind = node.kind();
+    let line = (node.start_position().row + 1) as i64;
 
-    for line in source.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-
-        if let Some(name) = trimmed.split_whitespace().nth(1) {
-            if name.starts_with('a') && name.starts_with(|c: char| c.is_alphabetic()) {
-                if let Some(name) = name.strip_prefix("async fn ") {
-                    symbols.push((name.to_string(), "fn".to_string(), 0));
+    match lang {
+        "rust" => match kind {
+            "function_item" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "fn".to_string(), line));
+                    }
                 }
-            } else if name.starts_with(|c: char| c.is_alphabetic()) {
-                let kind = if line.contains("fn ") { "fn" } else { "struct" };
-                symbols.push((name.to_string(), kind.to_string(), 0));
             }
-        }
+            "struct_item" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "struct".to_string(), line));
+                    }
+                }
+            }
+            "enum_item" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "enum".to_string(), line));
+                    }
+                }
+            }
+            "trait_item" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "trait".to_string(), line));
+                    }
+                }
+            }
+            "impl_item" => {
+                if let Some(n) = node.child_by_field_name("type") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "impl".to_string(), line));
+                    }
+                }
+            }
+            "const_item" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "const".to_string(), line));
+                    }
+                }
+            }
+            "static_item" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "static".to_string(), line));
+                    }
+                }
+            }
+            "mod_item" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "mod".to_string(), line));
+                    }
+                }
+            }
+            "type_item" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "type".to_string(), line));
+                    }
+                }
+            }
+            _ => {}
+        },
+        "python" => match kind {
+            "function_definition" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "fn".to_string(), line));
+                    }
+                }
+            }
+            "class_definition" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "class".to_string(), line));
+                    }
+                }
+            }
+            _ => {}
+        },
+        "typescript" | "javascript" => match kind {
+            "function_declaration" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "fn".to_string(), line));
+                    }
+                }
+            }
+            "class_declaration" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "class".to_string(), line));
+                    }
+                }
+            }
+            "interface_declaration" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "interface".to_string(), line));
+                    }
+                }
+            }
+            "type_alias_declaration" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "type".to_string(), line));
+                    }
+                }
+            }
+            "enum_declaration" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "enum".to_string(), line));
+                    }
+                }
+            }
+            "method_definition" => {
+                if let Some(n) = node.child_by_field_name("name") {
+                    if let Ok(name) = n.utf8_text(source) {
+                        symbols.push((name.to_string(), "method".to_string(), line));
+                    }
+                }
+            }
+            "lexical_declaration" | "variable_declaration" => {
+                for i in 0..node.named_child_count() {
+                    if let Some(decl) = node.named_child(i) {
+                        if decl.kind() == "variable_declarator" {
+                            let has_fn = decl.child_by_field_name("value")
+                                .map(|v| matches!(v.kind(), "arrow_function" | "function"))
+                                .unwrap_or(false);
+                            if has_fn {
+                                if let Some(n) = decl.child_by_field_name("name") {
+                                    if let Ok(name) = n.utf8_text(source) {
+                                        symbols.push((name.to_string(), "fn".to_string(), line));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return; // children already visited
+            }
+            _ => {}
+        },
+        _ => {}
     }
-    Ok(symbols)
+
+    let cursor = &mut node.walk();
+    for child in node.children(cursor) {
+        walk_tree(child, source, symbols, lang);
+    }
 }
 
-fn extract_python_symbols(path: &Path) -> Result<Vec<(String, String, i64)>> {
+fn extract_symbols_ts(path: &Path, lang: &str) -> Result<Vec<(String, String, i64)>> {
     let source = std::fs::read_to_string(path)?;
-    let mut symbols = Vec::new();
+    let source_bytes = source.as_bytes();
 
-    for (idx, line) in source.lines().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            continue;
-        }
-
-        if let Some(colon_pos) = trimmed.find(':') {
-            let before_colon = trimmed[..colon_pos].trim();
-            if let Some(rest) = before_colon.strip_prefix("def ") {
-                let name = rest.trim();
-                if !name.is_empty() {
-                    symbols.push((name.to_string(), "def".to_string(), idx as i64));
-                }
-            } else if let Some(rest) = before_colon.strip_prefix("class ") {
-                let name = rest.trim();
-                if !name.is_empty() {
-                    symbols.push((name.to_string(), "class".to_string(), idx as i64));
-                }
+    let mut parser = Parser::new();
+    let ts_lang = match lang {
+        "rust" => tree_sitter_rust::language(),
+        "python" => tree_sitter_python::language(),
+        "typescript" => {
+            if path.extension().map(|e| e == "tsx").unwrap_or(false) {
+                tree_sitter_typescript::language_tsx()
+            } else {
+                tree_sitter_typescript::language_typescript()
             }
         }
-    }
-    Ok(symbols)
-}
+        "javascript" => tree_sitter_javascript::language(),
+        other => anyhow::bail!("Unsupported language: {}", other),
+    };
+    parser.set_language(&ts_lang)?;
 
-fn extract_tsjs_symbols(path: &Path) -> Result<Vec<(String, String, i64)>> {
-    let source = std::fs::read_to_string(path)?;
+    let tree = parser.parse(&source, None)
+        .ok_or_else(|| anyhow::anyhow!("Failed to parse {}", path.display()))?;
+
     let mut symbols = Vec::new();
-
-    for (idx, line) in source.lines().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with("//") {
-            continue;
-        }
-
-        if let Some(name) = trimmed.split_whitespace().nth(1) {
-            if name.starts_with(|c: char| c.is_alphabetic()) {
-                symbols.push((name.to_string(), "fn".to_string(), idx as i64));
-            }
-        }
-    }
+    walk_tree(tree.root_node(), source_bytes, &mut symbols, lang);
     Ok(symbols)
 }
 
 fn extract_symbols(path: &Path, lang: &str) -> Result<Vec<(String, String, i64)>> {
-    match lang {
-        "rust" => extract_rust_symbols(path),
-        "python" => extract_python_symbols(path),
-        "typescript" | "javascript" => extract_tsjs_symbols(path),
-        _ => anyhow::bail!("Unsupported language: {}", lang),
-    }
+    extract_symbols_ts(path, lang)
 }
 
 pub fn index(path: &Path) -> Result<()> {
     let start = SystemTime::now();
     let db = db()?;
 
+    const SKIP_DIRS: &[&str] = &[
+        "node_modules", "dist-electron", "dist", ".git", "target",
+        "__pycache__", ".venv", "build", "coverage", "e2e/test-results",
+    ];
+
+    // Refuse to index temp directories
+    let path_str = path.display().to_string();
+    if path_str.starts_with("/var/folders") || path_str.starts_with("/tmp") || path_str.contains("/tmp/") {
+        anyhow::bail!("Refusing to index temp directory: {}", path_str);
+    }
+
     let walker = walkdir::WalkDir::new(path)
-        .follow_links(true)
+        .follow_links(false)
         .into_iter()
+        .filter_entry(|e| {
+            if e.file_type().is_dir() {
+                let name = e.file_name().to_string_lossy();
+                return !SKIP_DIRS.iter().any(|skip| name == *skip);
+            }
+            true
+        })
         .filter_map(|e| e.ok());
 
     let mut indexed_count = 0;
@@ -148,16 +280,21 @@ pub fn index(path: &Path) -> Result<()> {
 
         if let Some(lang) = detect_lang(path) {
             if let Ok(symbols) = extract_symbols(path, lang) {
+                let path_str = path.display().to_string();
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+
+                // Delete stale symbols before re-inserting
+                db.execute(
+                    "DELETE FROM symbols WHERE file_id IN (SELECT id FROM files WHERE path = ?)",
+                    params![&path_str],
+                )?;
+
                 db.execute(
                     "INSERT OR REPLACE INTO files (path, lang, indexed) VALUES (?, ?, ?)",
-                    params![
-                        path.display().to_string(),
-                        lang,
-                        SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs()
-                    ],
+                    params![&path_str, lang, now],
                 )?;
                 let file_id = db.last_insert_rowid();
 
@@ -215,16 +352,15 @@ pub fn search(pattern: &str, format: OutputFormat) -> Result<()> {
 
 pub fn show(file: &Path, format: OutputFormat) -> Result<()> {
     let conn = db()?;
-    // Canonicalize to handle both absolute (from CLI) and relative (from index) paths
-    let canonical = file.canonicalize().unwrap_or_else(|_| file.to_path_buf());
-    let canonical_str = canonical.display().to_string();
-    let exists = conn.query_row(
+    // Use display string directly — do NOT canonicalize, as WalkDir
+    // stores non-canonical paths (e.g. /var -> /private/var on macOS).
+    let canonical_str = file.display().to_string();
+    let exists: i64 = conn.query_row(
         "SELECT COUNT(*) FROM files WHERE path = ?",
         params![canonical_str],
         |row| row.get(0),
-    ) == Ok(0);
-
-    if !exists {
+    )?;
+    if exists == 0 {
         println!("File not indexed: {}", file.display());
         return Ok(());
     }
@@ -349,4 +485,16 @@ pub fn stats(format: OutputFormat) -> Result<()> {
         }
     }
     Ok(())
+}
+
+pub fn symbols_in_file(file_path: &str) -> Result<Vec<(String, String, i64)>> {
+    let conn = db()?;
+    let mut stmt = conn.prepare(
+        "SELECT name, kind, line FROM symbols WHERE file_id = (SELECT id FROM files WHERE path = ?) ORDER BY line"
+    )?;
+    let rows = stmt.query(params![file_path])?;
+    let results: Vec<(String, String, i64)> = rows
+        .mapped(|row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(results)
 }

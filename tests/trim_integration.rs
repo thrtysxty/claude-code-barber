@@ -48,3 +48,21 @@ fn test_trim_logs_to_jsonl() {
     let json: serde_json::Value = serde_json::from_str(last_line).unwrap();
     assert_eq!(json["feature"], "trim");
 }
+
+#[test]
+fn test_trim_stderr_included() {
+    // cat /nonexistent exits 1, but trim swallows exit code and returns Ok(())
+    let output = Command::cargo_bin("ccb").unwrap()
+        .arg("trim")
+        .arg("cat")
+        .arg("/nonexistent")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "trim should swallow inner exit code");
+    let combined = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        combined.contains("No such file") || combined.contains("nonexistent"),
+        "stderr output should be included: {:?}",
+        combined
+    );
+}

@@ -56,6 +56,9 @@ pub fn run() -> anyhow::Result<()> {
                 tokens_out: estimate_tokens(&stripped),
                 bytes_in: before,
                 bytes_out: after,
+                mode: None,
+                persona: None,
+                domains_hit: None,
             }
             .record();
         }
