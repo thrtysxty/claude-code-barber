@@ -18,3 +18,13 @@ pub fn run() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn cut_run_completes_without_error() {
+        // Smoke test: run() should succeed even if lineup/context fail gracefully
+        let result = crate::features::cut::run();
+        assert!(result.is_ok());
+    }
+}

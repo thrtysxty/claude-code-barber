@@ -151,3 +151,40 @@ fn make_executable(path: &PathBuf) -> Result<()> {
 fn make_executable(_path: &PathBuf) -> Result<()> {
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hook_already_present_returns_false_when_no_hooks() {
+        let settings = serde_json::json!({"hooks": {"PreToolUse": [], "PostToolUse": []}});
+        assert!(!hook_already_present(&settings, "PreToolUse", "context_monitor"));
+        assert!(!hook_already_present(&settings, "PostToolUse", "skill_loader"));
+    }
+
+    #[test]
+    fn hook_already_present_finds_matching_hook() {
+        let settings = serde_json::json!({
+            "hooks": {
+                "PreToolUse": [
+                    {"type": "command", "command": "/some/path/context_monitor.sh"}
+                ]
+            }
+        });
+        assert!(hook_already_present(&settings, "PreToolUse", "context_monitor"));
+        assert!(!hook_already_present(&settings, "PreToolUse", "skill_loader"));
+    }
+
+    #[test]
+    fn hook_already_present_returns_false_for_missing_phase() {
+        let settings = serde_json::json!({"hooks": {}});
+        assert!(!hook_already_present(&settings, "PreToolUse", "context_monitor"));
+    }
+
+    #[test]
+    fn hook_already_present_returns_false_null_array() {
+        let settings = serde_json::json!({"hooks": {"PreToolUse": null}});
+        assert!(!hook_already_present(&settings, "PreToolUse", "context_monitor"));
+    }
+}
