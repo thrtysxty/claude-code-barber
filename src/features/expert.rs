@@ -4,8 +4,10 @@
 //! `~/.cache/ccb/graph.db`. Schema is migrated on first run via
 //! `CREATE TABLE IF NOT EXISTS`.
 
+use crate::cli::ExportFormat;
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
+use std::io::Write;
 
 const DB_PATH: &str = "/.cache/ccb/graph.db";
 
@@ -66,6 +68,197 @@ fn db() -> Result<Connection> {
     )?;
 
     Ok(conn)
+}
+
+// ---------------------------------------------------------------------------
+// Dataset format
+// ---------------------------------------------------------------------------
+
+use serde::Serialize;
+
+/// A single instruction-tuning pair in Alpaca format.
+#[derive(Debug, Serialize)]
+struct AlpacaPair {
+    instruction: String,
+    input: String,
+    output: String,
+}
+
+/// A single instruction-tuning pair in ShareGPT format.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ShareGPTPair {
+   conversations: Vec<ShareGPTMessage>,
+}
+
+#[derive(Debug, Serialize)]
+struct ShareGPTMessage {
+    from: String,
+    value: String,
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/// Export the active persona's patterns as instruction-tuning pairs.
+/// `format` selects between Alpaca (default) and ShareGPT.
+pub fn export(persona_name: &str, format: ExportFormat, output_path: &std::path::Path) -> Result<()> {
+    let conn = db()?;
+
+    // Resolve persona
+    let persona_id: i64 = conn
+        .query_row(
+            "SELECT id FROM personas WHERE name = ?",
+            params![persona_name],
+            |row| row.get(0),
+        )
+        .with_context(|| format!("persona '{persona_name}' not found"))?;
+
+    // Fetch domains and patterns
+    let mut stmt = conn.prepare(
+        "SELECT d.name, d.category, p.pattern_id, p.name, p.mitigations
+         FROM patterns p
+         JOIN domains d ON d.id = p.domain_id
+         JOIN persona_domains pd ON pd.domain_id = d.id
+         WHERE pd.persona_id = ?
+         ORDER BY d.name, p.pattern_id",
+    )?;
+
+    let rows: Vec<(String, String, String, String, String)> = stmt
+        .query_map(params![persona_id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    if rows.is_empty() {
+        anyhow::bail!("persona '{persona_name}' has no patterns to export");
+    }
+
+    let mut count = 0;
+
+    let file = std::fs::File::create(output_path)
+        .with_context(|| format!("creating output file {}", output_path.display()))?;
+    let mut writer = std::io::BufWriter::new(file);
+
+    // Group rows by domain for synthesis pairs
+    let by_domain: std::collections::HashMap<String, Vec<(String, String, String)>> =
+        rows.iter().fold(std::collections::HashMap::new(), |mut acc, (d, _, pid, pn, m)| {
+            acc.entry(d.clone()).or_default().push((pid.clone(), pn.clone(), m.clone()));
+            acc
+        });
+
+    match format {
+        ExportFormat::Alpaca => {
+            for (domain_name, patterns) in &by_domain {
+                // One pair per pattern
+                for (_, pattern_name, mitigations_json) in patterns {
+                    let mitigations: Vec<String> =
+                        serde_json::from_str(mitigations_json).unwrap_or_default();
+                    let output = mitigations.join(". ");
+                    if output.is_empty() {
+                        continue;
+                    }
+                    let pair = AlpacaPair {
+                        instruction: format!("What mitigations apply to {}?", pattern_name),
+                        input: String::new(),
+                        output,
+                    };
+                    serde_json::to_writer(&mut writer, &pair)?;
+                    writer.write_all(b"\n")?;
+                    count += 1;
+                }
+
+                // Cross-domain synthesis: all mitigations for the domain as one response
+                if patterns.len() > 1 {
+                    let all_mits: Vec<String> = patterns
+                        .iter()
+                        .filter_map(|(_, _, m)| {
+                            let v: Vec<String> = serde_json::from_str(m).ok()?;
+                            Some(v)
+                        })
+                        .flatten()
+                        .collect();
+                    if !all_mits.is_empty() {
+                        let pair = AlpacaPair {
+                            instruction: format!(
+                                "What are the key mitigations for {} security risks?",
+                                domain_name
+                            ),
+                            input: String::new(),
+                            output: all_mits.join(". "),
+                        };
+                        serde_json::to_writer(&mut writer, &pair)?;
+                        writer.write_all(b"\n")?;
+                        count += 1;
+                    }
+                }
+            }
+        }
+        ExportFormat::Sharegpt => {
+            for (domain_name, patterns) in &by_domain {
+                for (_, pattern_name, mitigations_json) in patterns {
+                    let mitigations: Vec<String> =
+                        serde_json::from_str(mitigations_json).unwrap_or_default();
+                    let output = mitigations.join(". ");
+                    if output.is_empty() {
+                        continue;
+                    }
+                    let pair = ShareGPTPair {
+                        conversations: vec![
+                            ShareGPTMessage {
+                                from: String::from("human"),
+                                value: format!("What mitigations apply to {}?", pattern_name),
+                            },
+                            ShareGPTMessage {
+                                from: String::from("gpt"),
+                                value: output,
+                            },
+                        ],
+                    };
+                    serde_json::to_writer(&mut writer, &pair)?;
+                    writer.write_all(b"\n")?;
+                    count += 1;
+                }
+
+                // Cross-domain synthesis
+                if patterns.len() > 1 {
+                    let all_mits: Vec<String> = patterns
+                        .iter()
+                        .filter_map(|(_, _, m)| {
+                            let v: Vec<String> = serde_json::from_str(m).ok()?;
+                            Some(v)
+                        })
+                        .flatten()
+                        .collect();
+                    if !all_mits.is_empty() {
+                        let pair = ShareGPTPair {
+                            conversations: vec![
+                                ShareGPTMessage {
+                                    from: String::from("human"),
+                                    value: format!(
+                                        "What are the key mitigations for {} security risks?",
+                                        domain_name
+                                    ),
+                                },
+                                ShareGPTMessage {
+                                    from: String::from("gpt"),
+                                    value: all_mits.join(". "),
+                                },
+                            ],
+                        };
+                        serde_json::to_writer(&mut writer, &pair)?;
+                        writer.write_all(b"\n")?;
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    drop(writer);
+    println!("Exported {} training pairs to {}", count, output_path.display());
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
