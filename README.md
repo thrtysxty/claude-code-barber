@@ -48,7 +48,7 @@ ccb sits between your shell and Claude Code. It filters, compresses, and monitor
 - [Rust 2021](https://www.rust-lang.org) — single binary, no runtime
 - [clap](https://github.com/clap-rs/clap) — CLI
 - [rusqlite](https://github.com/rusqlite/rusqlite) — code graph and knowledge graph (optional features)
-- [tree-sitter](https://tree-sitter.github.io) — symbol indexing (optional)
+- [tree-sitter](https://tree-sitter.github.io) — AST-based symbol extraction (Rust, Python, TS, JS)
 - [sqlite-vec](https://github.com/asg017/sqlite-vec) — embedding search (optional)
 
 ---
@@ -313,21 +313,41 @@ Re-run whenever you add or update a skill.
 ## Optional Features
 
 ```bash
-cargo build --release --features graph    # code symbol graph (SQLite + tree-sitter)
-cargo build --release --features expert   # unified knowledge graph (Layer 3)
-cargo build --release --features route    # model router proxy binary
-cargo build --release --features full     # everything
+cargo build --release --features graph     # code symbol graph (SQLite + tree-sitter)
+cargo build --release --features expert    # unified knowledge graph (Layer 3)
+cargo build --release --features classify  # two-tier safety classifier hook
+cargo build --release --features route     # model router proxy binary
+cargo build --release --features full      # everything
 ```
 
 ### Code Graph
 
-Builds a SQLite-backed symbol index across Rust, Python, TypeScript, and JavaScript files:
+Builds a SQLite-backed symbol index across Rust, Python, TypeScript, and JavaScript files. When paired with the classify hook, automatically injects symbol maps on stderr for every `Read` tool call — giving the LLM a table of contents with line numbers so it can use targeted `offset`/`limit` reads instead of loading entire files.
 
 ```bash
 ccb graph index ./src          # index a directory (default: .)
 ccb graph search "compress"    # find symbols by name
 ccb graph show src/main.rs     # show all symbols in a file
 ccb graph stats                # aggregate counts by language
+```
+
+**Graph-aware Read context** (automatic via classify hook):
+```
+[ccb:graph] 28 symbols in src/features/classify.rs
+  const `TRANSCRIPT_CHAR_LIMIT` line 16
+  enum `Decision` line 21
+  fn `tier1_classify` line 112
+  fn `tier2_classify` line 251
+  fn `run` line 658
+```
+
+### Classify
+
+Two-tier safety classifier for Claude Code `PreToolUse` hooks. Tier 1 is instant local pattern matching (no API call). Tier 2 sends ambiguous actions to an LLM for evaluation (via OpenRouter). Integrates expert context and graph-aware Read hints.
+
+```bash
+# Wire as a PreToolUse hook in ~/.claude/settings.json
+ccb classify   # reads hook JSON from stdin, exits silently to allow, prints deny JSON to block
 ```
 
 ### Expert Personas & Knowledge Graph
@@ -477,10 +497,10 @@ Every operation is also logged to `~/.claude/ccb_log.jsonl`:
 
 - [x] Layer 1 — Token management (`trim`, `fade`, `context`, `buzz`, `gain`)
 - [x] Layer 2 — Code symbol graph (`graph index`, `graph search`)
-- [x] Layer 3 foundation — unified knowledge graph schema + CLI
-- [ ] Layer 3 — domain dataset ingest (sentinel, coder, architect)
-- [ ] Layer 3 — pre-tool hook traversal in production
-- [ ] `ccb-swift` — Apple platform port for Atlas/Alchemy
+- [x] Layer 3 — Unified knowledge graph + expert personas
+- [x] Classify — Two-tier safety classifier with graph-aware Read hints
+- [x] tree-sitter AST-based symbol extraction (Rust, Python, TypeScript, JavaScript)
+- [ ] Atlas Context Engine integration (MCP server, smart Read targeting)
 
 ---
 
@@ -514,6 +534,7 @@ src/
     ├── buzz.rs        # nuclear mode cleanup + tests
     ├── cut.rs         # all-in-one compression
     ├── index.rs       # skills index generator
+    ├── classify.rs    # two-tier safety classifier (--features classify)
     ├── expert.rs      # unified knowledge graph (--features expert)
     └── graph.rs       # code symbol graph (--features graph)
 hooks/

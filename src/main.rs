@@ -10,10 +10,14 @@ pub mod features {
     pub mod cut;
     #[cfg(feature = "expert")]
     pub mod expert;
+    #[cfg(feature = "classify")]
+    pub mod classify;
     #[cfg(feature = "fade")]
     pub mod fade;
     #[cfg(feature = "graph")]
     pub mod graph;
+    #[cfg(feature = "route")]
+    pub mod route;
     pub mod index;
     pub mod lineup;
     #[cfg(feature = "trim")]
@@ -40,12 +44,25 @@ fn main() -> anyhow::Result<()> {
         Command::Style(s) => style_cmd(s.cmd),
         Command::Context(c) => features::context::run(c.cmd),
         Command::Buzz => features::buzz::run(),
-        Command::Gain => analytics::gain(),
+        Command::Gain(args) => {
+        let mode = if args.ab {
+            analytics::GainMode::AbTest
+        } else if args.expert {
+            analytics::GainMode::ExpertDelta
+        } else {
+            analytics::GainMode::Default
+        };
+        analytics::gain(mode)
+    },
         Command::Install(args) => features::install::run(args.auto, args.dry_run),
         #[cfg(feature = "graph")]
         Command::Graph(args) => graph_cmd(args),
         #[cfg(feature = "expert")]
         Command::Expert(args) => expert_cmd(args),
+        #[cfg(feature = "route")]
+        Command::Route(args) => route_cmd(args),
+        #[cfg(feature = "classify")]
+        Command::Classify => features::classify::run(),
     }
 }
 
@@ -114,4 +131,11 @@ fn expert_cmd(_args: cli::ExpertArgs) -> anyhow::Result<()> {
         ExpertCmd::Walk { task } => features::expert::walk(&task, 0.5),
         ExpertCmd::Query { tool: _, format } => features::expert::query_active(fmt(&format)),
     }
+}
+
+#[cfg(feature = "route")]
+fn route_cmd(args: cli::RouteArgs) -> anyhow::Result<()> {
+    use features::route::run_router;
+    run_router(args.cmd).map_err(|e| anyhow::anyhow!("Router error: {}", e))?;
+    Ok(())
 }

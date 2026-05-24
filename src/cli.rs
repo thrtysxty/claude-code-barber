@@ -28,7 +28,7 @@ pub enum Command {
     /// Nuclear option — maximum token reduction across all features
     Buzz,
     /// Show token savings analytics
-    Gain,
+    Gain(GainArgs),
     /// Wire ccb hooks into ~/.claude/settings.json (use --auto to apply without prompting)
     Install(InstallArgs),
     /// Manage expert personas and the knowledge graph (requires --features expert)
@@ -37,6 +37,12 @@ pub enum Command {
     /// Build and query a code symbol graph (requires --features graph)
     #[cfg(feature = "graph")]
     Graph(GraphArgs),
+    /// Model router — routes Claude Code API calls to local or Anthropic backends
+    #[cfg(feature = "route")]
+    Route(RouteArgs),
+    /// Classify tool calls for safety (reads hook JSON from stdin)
+    #[cfg(feature = "classify")]
+    Classify,
 }
 
 #[derive(Args)]
@@ -78,6 +84,14 @@ pub enum ContextCmd {
 #[derive(Args)]
 pub struct TrimArgs {
     pub cmd: Vec<String>,
+}
+
+#[derive(Args)]
+pub struct GainArgs {
+    #[arg(long)]
+    pub ab: bool,
+    #[arg(long)]
+    pub expert: bool,
 }
 
 #[derive(Args)]
@@ -188,4 +202,26 @@ pub struct InstallArgs {
     /// Dry run: show what would be installed without applying
     #[arg(long)]
     pub dry_run: bool,
+}
+
+/// Route arguments (requires --features route)
+#[cfg(feature = "route")]
+#[derive(Args)]
+pub struct RouteArgs {
+    #[command(subcommand)]
+    pub cmd: RouteCmd,
+}
+
+/// Route subcommands
+#[cfg(feature = "route")]
+#[derive(Subcommand)]
+pub enum RouteCmd {
+    /// Start the router on a specific port
+    Start { #[arg(default_value = "9001")] port: u16 },
+    /// Stop the router
+    Stop,
+    /// Show router status
+    Status,
+    /// Print export block for shell
+    Env,
 }

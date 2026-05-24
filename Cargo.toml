@@ -32,7 +32,7 @@ path = "tests/expert_integration.rs"
 required-features = ["expert"]
 
 [features]
-default = ["trim", "fade"]
+default = ["trim", "fade", "route"]
 trim    = []
 fade    = []
 sandbox = []
@@ -41,8 +41,9 @@ graph   = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-python",
            "dep:tree-sitter-typescript", "dep:tree-sitter-javascript",
            "dep:rusqlite", "dep:walkdir", "dep:ignore"]
 route   = ["dep:tokio", "dep:axum", "dep:reqwest", "dep:bytes", "dep:futures-util", "dep:uuid"]
-full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert"]
+full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert", "classify"]
 expert  = ["dep:rusqlite", "dep:serde_yaml"]
+classify = ["dep:reqwest", "dep:regex-lite"]
 
 [dependencies]
 clap               = { version = "4", features = ["derive", "color"] }
@@ -65,11 +66,12 @@ tree-sitter-javascript = { version = "0.21", optional = true }
 rusqlite               = { version = "0.31", features = ["bundled"], optional = true }
 walkdir                = { version = "2",    optional = true }
 ignore                 = { version = "0.4",  optional = true }
+regex-lite             = { version = "0.1",  optional = true }
 
 # route feature deps
 tokio        = { version = "1",    features = ["full"],                  optional = true }
 axum         = { version = "0.7",                                        optional = true }
-reqwest      = { version = "0.12", features = ["stream", "json"],        optional = true }
+reqwest      = { version = "0.12", features = ["stream", "json", "blocking"], optional = true }
 bytes        = { version = "1",                                          optional = true }
 futures-util = { version = "0.3",                                        optional = true }
 uuid         = { version = "1",    features = ["v4"],                    optional = true }
