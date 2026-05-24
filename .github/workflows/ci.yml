@@ -9,14 +9,23 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: Test
+  test-default:
+    name: Test (default features)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
+
+  test-full:
+    name: Test (full features)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --features full
 
   clippy:
     name: Clippy
@@ -28,6 +37,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy -- -D warnings
+      - run: cargo clippy --features full -- -D warnings
 
   fmt:
     name: Rustfmt
@@ -38,3 +48,22 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --check
+
+  benchmark:
+    name: Benchmark Regression Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run benchmarks
+        run: cargo bench --features full
+      - name: Compare with baseline
+        run: |
+          # Load previous baseline if it exists; if not, this run becomes the baseline
+          if [ -n "${{ github.event.before }}" ]; then
+            cargo bench --features full -- --load-baseline "${{ github.event.before }}" || \
+            cargo bench --features full -- --save-baseline "${{ github.event.before }}"
+          else
+            cargo bench --features full -- --save-baseline main
+          fi
