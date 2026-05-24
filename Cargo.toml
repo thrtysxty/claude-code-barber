@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Claude Code Barber — composable token management for Claude Code and AI coding agents"
 license = "MIT"
-repository = "https://github.com/LitlBitz/claude-code-barber"
+repository = "https://github.com/thrtysxty/claude-code-barber"
 keywords = ["claude", "llm", "tokens", "context", "ai"]
 categories = ["command-line-utilities", "development-tools"]
 

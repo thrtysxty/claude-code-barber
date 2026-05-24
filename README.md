@@ -49,7 +49,7 @@ ccb sits between your shell and Claude Code. It filters, compresses, and monitor
 - [clap](https://github.com/clap-rs/clap) — CLI
 - [rusqlite](https://github.com/rusqlite/rusqlite) — code graph and knowledge graph (optional features)
 - [tree-sitter](https://tree-sitter.github.io) — AST-based symbol extraction (Rust, Python, TS, JS)
-- [sqlite-vec](https://github.com/asg017/sqlite-vec) — embedding search (optional)
+- [SQLite](https://sqlite.org) — code graph, knowledge graph, and infra metadata (via rusqlite)
 
 ---
 
@@ -77,14 +77,14 @@ ccb install
 ### Build options
 
 ```bash
-# Default — trim + fade enabled
+# Default — trim + fade + route enabled
 cargo build --release
 
 # All features
 cargo build --release --features full
 
-# Minimal — context awareness and analytics only
-cargo build --release --no-default-features
+# Without model router
+cargo build --release --no-default-features --features trim,fade
 ```
 
 ---
@@ -324,6 +324,8 @@ cargo build --release --features full      # everything
 
 Builds a SQLite-backed symbol index across Rust, Python, TypeScript, and JavaScript files. When paired with the classify hook, automatically injects symbol maps on stderr for every `Read` tool call — giving the LLM a table of contents with line numbers so it can use targeted `offset`/`limit` reads instead of loading entire files.
 
+The graph also stores **infrastructure metadata** — the `domains` and `patterns` tables hold operational knowledge (e.g., GitHub account routing, deployment configs) that agents can query at tool time.
+
 ```bash
 ccb graph index ./src          # index a directory (default: .)
 ccb graph search "compress"    # find symbols by name
@@ -449,13 +451,39 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the graph traversal design.
 
 ### Model Router
 
-Routes Claude API calls across multiple backends (local Ollama, aibox, Anthropic) based on model tier. Binary: `ccb-route`.
+Routes Claude Code API calls across multiple backends based on model tier. Binary: `ccb-route`, default feature.
 
 ```bash
 cargo build --release --features route
 ./target/release/ccb-route
 # listens on :9001 by default
 ```
+
+**Routing table** (configurable via env vars):
+
+| Tier | Default backend | Override env var |
+|------|----------------|-----------------|
+| `haiku` | qwopus (aibox:8080, local Ollama) | `ROUTE_HAIKU` |
+| `sonnet` | minimax (api.minimax.io) | `ROUTE_SONNET` |
+| `opus` | minimax (api.minimax.io) | `ROUTE_OPUS` |
+
+**Explicit prefix overrides** bypass the routing table:
+
+```bash
+claude --model qwopus:sonnet    # → aibox, regardless of ROUTE_SONNET
+claude --model minimax:opus     # → MiniMax, regardless of ROUTE_OPUS
+claude --model anthropic:haiku  # → real Anthropic, regardless of ROUTE_HAIKU
+```
+
+**Agent dispatch** — spawn Claude Code agents against the router for zero Anthropic API cost:
+
+```bash
+python3 ~/Projects/scripts/model-router.py &
+ANTHROPIC_BASE_URL=http://localhost:9001 ANTHROPIC_API_KEY=router \
+  claude --model MiniMax-M2.7 --dangerously-skip-permissions
+```
+
+Agents routed through the model router have full Claude Code capabilities — bash, file ops, and subagent spawning — identical to Opus.
 
 ---
 
@@ -488,6 +516,8 @@ Every operation is also logged to `~/.claude/ccb_log.jsonl`:
 | Context window monitoring | — | ✓ (`context`) |
 | Budget inspector | — | ✓ (`lineup`) |
 | Knowledge graph (Layer 3) | — | ✓ (`expert`) |
+| Model router (multi-backend) | — | ✓ (`route`) |
+| Code symbol graph | — | ✓ (`graph`) |
 | Hook scripts included | — | ✓ |
 | Build without unused features | — | ✓ (feature flags) |
 
@@ -500,6 +530,8 @@ Every operation is also logged to `~/.claude/ccb_log.jsonl`:
 - [x] Layer 3 — Unified knowledge graph + expert personas
 - [x] Classify — Two-tier safety classifier with graph-aware Read hints
 - [x] tree-sitter AST-based symbol extraction (Rust, Python, TypeScript, JavaScript)
+- [x] Model router — multi-backend agent dispatch (Ollama local/cloud, MiniMax API, Anthropic)
+- [x] Infra metadata in graph — operational knowledge (GitHub auth routing, deployment configs)
 - [ ] Atlas Context Engine integration (MCP server, smart Read targeting)
 
 ---
@@ -526,6 +558,8 @@ src/
 ├── log.rs             # token estimation, CompressionEvent, JSONL logging
 ├── analytics.rs       # ccb gain — aggregate savings from log
 ├── utils.rs           # shared utilities (progress bar)
+├── bin/
+│   └── ccb-route.rs   # model router binary (--features route)
 └── features/
     ├── trim.rs        # command output compression + tests
     ├── fade.rs        # lazy skill loading + index lookup
@@ -534,9 +568,11 @@ src/
     ├── buzz.rs        # nuclear mode cleanup + tests
     ├── cut.rs         # all-in-one compression
     ├── index.rs       # skills index generator
+    ├── install.rs     # hook wiring into ~/.claude/settings.json
+    ├── route.rs       # model router logic (--features route)
     ├── classify.rs    # two-tier safety classifier (--features classify)
     ├── expert.rs      # unified knowledge graph (--features expert)
-    └── graph.rs       # code symbol graph (--features graph)
+    └── graph.rs       # code symbol graph + infra metadata (--features graph)
 hooks/
 ├── skill_loader.sh        # PreToolUse hook for /skill
 ├── context_monitor.sh     # PostToolUse hook for context checks
@@ -545,6 +581,8 @@ docs/
 ├── ARCHITECTURE.md        # three-layer design + knowledge graph spec
 ├── TEST_DATA.md           # real trim fixture inputs/outputs
 └── TEST_DATA_LAYER3.md    # real expert graph fixture inputs/outputs
+datasets/
+└── sentinel.yaml          # bundled security expert (OWASP Top 10)
 ```
 
 ## Configuration
