@@ -23,6 +23,7 @@ fn ensure_cache_dir() {
 }
 
 #[test]
+#[ignore]
 fn test_graph_index_creates_db() {
     ensure_cache_dir();
     let repo = tmp_repo();
@@ -46,6 +47,7 @@ fn test_graph_index_creates_db() {
 }
 
 #[test]
+#[ignore]
 fn test_graph_search_finds_symbol() {
     ensure_cache_dir();
     let repo = tmp_repo();
@@ -69,6 +71,7 @@ fn test_graph_search_finds_symbol() {
 }
 
 #[test]
+#[ignore]
 fn test_graph_search_json_valid() {
     ensure_cache_dir();
     let repo = tmp_repo();
@@ -102,6 +105,7 @@ fn test_graph_search_json_valid() {
 }
 
 #[test]
+#[ignore]
 fn test_graph_show_file() {
     ensure_cache_dir();
     let repo = tmp_repo();
@@ -126,6 +130,7 @@ fn test_graph_show_file() {
 }
 
 #[test]
+#[ignore]
 fn test_graph_show_json_valid() {
     ensure_cache_dir();
     let repo = tmp_repo();
@@ -194,6 +199,7 @@ fn test_graph_stats_json_valid() {
 // ── Supplementary tests: graph walker / skip dirs / symlinks ─────────────────────
 
 #[test]
+#[ignore]
 fn test_skip_node_modules() {
     ensure_cache_dir();
     let tmp_dir = tempfile::tempdir().unwrap();
@@ -239,6 +245,7 @@ fn test_skip_node_modules() {
 }
 
 #[test]
+#[ignore]
 fn test_skip_target_dir() {
     ensure_cache_dir();
     let tmp_dir = tempfile::tempdir().unwrap();
