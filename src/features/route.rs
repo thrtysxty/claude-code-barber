@@ -46,6 +46,9 @@ fn load_config() -> Result<Config> {
     if !config_path.exists() {
         let cfg = DefaultConfig::new();
         let toml = toml::to_string_pretty(&cfg)?;
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
         fs::write(&config_path, &toml)?;
         Ok(Config::from_default(cfg))
     } else {
@@ -62,6 +65,9 @@ fn load_config() -> Result<Config> {
                 fs::remove_file(&config_path).ok();
                 let cfg = DefaultConfig::new();
                 let toml = toml::to_string_pretty(&cfg)?;
+                if let Some(parent) = config_path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
                 fs::write(&config_path, &toml)?;
                 Ok(Config::from_default(cfg))
             }
