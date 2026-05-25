@@ -88,7 +88,7 @@ struct AlpacaPair {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ShareGPTPair {
-   conversations: Vec<ShareGPTMessage>,
+    conversations: Vec<ShareGPTMessage>,
 }
 
 #[derive(Debug, Serialize)]
@@ -103,7 +103,11 @@ struct ShareGPTMessage {
 
 /// Export the active persona's patterns as instruction-tuning pairs.
 /// `format` selects between Alpaca (default) and ShareGPT.
-pub fn export(persona_name: &str, format: ExportFormat, output_path: &std::path::Path) -> Result<()> {
+pub fn export(
+    persona_name: &str,
+    format: ExportFormat,
+    output_path: &std::path::Path,
+) -> Result<()> {
     let conn = db()?;
 
     // Resolve persona
@@ -127,7 +131,13 @@ pub fn export(persona_name: &str, format: ExportFormat, output_path: &std::path:
 
     let rows: Vec<(String, String, String, String, String)> = stmt
         .query_map(params![persona_id], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+            ))
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
@@ -143,10 +153,15 @@ pub fn export(persona_name: &str, format: ExportFormat, output_path: &std::path:
 
     // Group rows by domain for synthesis pairs
     let by_domain: std::collections::HashMap<String, Vec<(String, String, String)>> =
-        rows.iter().fold(std::collections::HashMap::new(), |mut acc, (d, _, pid, pn, m)| {
-            acc.entry(d.clone()).or_default().push((pid.clone(), pn.clone(), m.clone()));
-            acc
-        });
+        rows.iter().fold(
+            std::collections::HashMap::new(),
+            |mut acc, (d, _, pid, pn, m)| {
+                acc.entry(d.clone())
+                    .or_default()
+                    .push((pid.clone(), pn.clone(), m.clone()));
+                acc
+            },
+        );
 
     match format {
         ExportFormat::Alpaca => {
@@ -257,7 +272,11 @@ pub fn export(persona_name: &str, format: ExportFormat, output_path: &std::path:
     }
 
     drop(writer);
-    println!("Exported {} training pairs to {}", count, output_path.display());
+    println!(
+        "Exported {} training pairs to {}",
+        count,
+        output_path.display()
+    );
     Ok(())
 }
 
