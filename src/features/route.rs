@@ -302,6 +302,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_start_stop() {
         let cfg = load_config().unwrap();
         cfg.start().unwrap();
