@@ -130,6 +130,11 @@ fn expert_cmd(_args: cli::ExpertArgs) -> anyhow::Result<()> {
         ExpertCmd::List => features::expert::list(),
         ExpertCmd::Walk { task } => features::expert::walk(&task, 0.5),
         ExpertCmd::Query { tool: _, format } => features::expert::query_active(fmt(&format)),
+        ExpertCmd::Export {
+            persona,
+            format,
+            output,
+        } => features::expert::export(&persona, format, &output),
     }
 }
 

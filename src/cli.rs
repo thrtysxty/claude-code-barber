@@ -176,6 +176,14 @@ pub enum ExpertCmd {
         #[arg(long, value_enum, default_value = "json")]
         format: ExpertOutputFormatArg,
     },
+    /// Export expert graph as instruction-tuning pairs for LoRA training
+    Export {
+        persona: String,
+        #[arg(long, default_value = "alpaca")]
+        format: ExportFormat,
+        #[arg(long)]
+        output: std::path::PathBuf,
+    },
 }
 
 /// Output format for expert commands
@@ -184,6 +192,14 @@ pub enum ExpertCmd {
 pub enum ExpertOutputFormatArg {
     Human,
     Json,
+}
+
+/// Export format for instruction-tuning datasets
+#[cfg(feature = "expert")]
+#[derive(clap::ValueEnum, Clone)]
+pub enum ExportFormat {
+    Alpaca,
+    Sharegpt,
 }
 
 /// Manage expert personas and the knowledge graph (requires --features expert)
