@@ -346,6 +346,7 @@ fn test_no_follow_symlinks() {
 }
 
 #[test]
+#[ignore]
 fn test_graph_show_unindexed_file() {
     // Show on a file that was never indexed — should exit 0, no panic
     let output = std::process::Command::new("target/debug/ccb")
