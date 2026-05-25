@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Config {
     pub terse: bool,
@@ -9,6 +10,7 @@ pub struct Config {
     pub features: FeatureConfig,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct FeatureConfig {
     pub trim: bool,
@@ -18,6 +20,7 @@ pub struct FeatureConfig {
     pub graph: bool,
 }
 
+#[allow(dead_code)]
 pub fn config_path() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_default()
@@ -25,6 +28,7 @@ pub fn config_path() -> PathBuf {
         .join("ccb.toml")
 }
 
+#[allow(dead_code)]
 pub fn load() -> anyhow::Result<Config> {
     let path = config_path();
     if !path.exists() {

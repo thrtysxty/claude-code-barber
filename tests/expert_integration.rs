@@ -230,7 +230,10 @@ personas:
 
         let mut cmd = Command::cargo_bin("ccb").unwrap();
         cmd.env("HOME", tmp_dir.path());
-        cmd.arg("expert").arg("ingest").arg("--dataset").arg(&yaml_path);
+        cmd.arg("expert")
+            .arg("ingest")
+            .arg("--dataset")
+            .arg(&yaml_path);
         cmd.assert().success();
 
         let db_path = tmp_dir.path().join(".cache/ccb/graph.db");
@@ -242,7 +245,10 @@ personas:
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(count, 1, "Should have exactly one 'test-expert' persona in DB");
+        assert_eq!(
+            count, 1,
+            "Should have exactly one 'test-expert' persona in DB"
+        );
     }
 
     #[test]
@@ -269,12 +275,18 @@ personas:
 
         let mut cmd = Command::cargo_bin("ccb").unwrap();
         cmd.env("HOME", tmp_dir.path());
-        cmd.arg("expert").arg("ingest").arg("--dataset").arg(&yaml_path);
+        cmd.arg("expert")
+            .arg("ingest")
+            .arg("--dataset")
+            .arg(&yaml_path);
         cmd.assert().success();
 
         let mut cmd2 = Command::cargo_bin("ccb").unwrap();
         cmd2.env("HOME", tmp_dir.path());
-        cmd2.arg("expert").arg("ingest").arg("--dataset").arg(&yaml_path);
+        cmd2.arg("expert")
+            .arg("ingest")
+            .arg("--dataset")
+            .arg(&yaml_path);
         cmd2.assert().success();
 
         let db_path = tmp_dir.path().join(".cache/ccb/graph.db");
@@ -286,7 +298,10 @@ personas:
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(count, 1, "Should still have exactly one 'idempotent-expert' after two ingests");
+        assert_eq!(
+            count, 1,
+            "Should still have exactly one 'idempotent-expert' after two ingests"
+        );
     }
 
     #[test]
@@ -297,7 +312,10 @@ personas:
 
         let mut cmd = Command::cargo_bin("ccb").unwrap();
         cmd.env("HOME", tmp_dir.path());
-        cmd.arg("expert").arg("ingest").arg("--dataset").arg(&bad_path);
+        cmd.arg("expert")
+            .arg("ingest")
+            .arg("--dataset")
+            .arg(&bad_path);
         cmd.assert().failure();
     }
 }

@@ -217,7 +217,10 @@ pub struct RouteArgs {
 #[derive(Subcommand)]
 pub enum RouteCmd {
     /// Start the router on a specific port
-    Start { #[arg(default_value = "9001")] port: u16 },
+    Start {
+        #[arg(default_value = "9001")]
+        port: u16,
+    },
     /// Stop the router
     Stop,
     /// Show router status

@@ -27,7 +27,10 @@ fn dry_run_no_writes() {
 
     // No .claude directory created
     let claude_dir = tmp_home.join(".claude");
-    assert!(!claude_dir.exists(), "dry_run should not create .claude directory");
+    assert!(
+        !claude_dir.exists(),
+        "dry_run should not create .claude directory"
+    );
 }
 
 #[test]
@@ -50,7 +53,10 @@ fn idempotent_posttooluse_once() {
         .filter(|entry| entry.to_string().contains("context_monitor"))
         .count();
 
-    assert_eq!(context_count, 1, "context_monitor should appear exactly once in PostToolUse");
+    assert_eq!(
+        context_count, 1,
+        "context_monitor should appear exactly once in PostToolUse"
+    );
 }
 
 #[test]
@@ -61,7 +67,10 @@ fn creates_hooks_dir_and_executable() {
     let mut cmd = run_install_auto(tmp_home, false);
     cmd.assert().success();
 
-    let hook_path = tmp_home.join(".claude").join("hooks").join("context_monitor.sh");
+    let hook_path = tmp_home
+        .join(".claude")
+        .join("hooks")
+        .join("context_monitor.sh");
     assert!(hook_path.exists(), "context_monitor.sh should be created");
 
     // Executable check (unix only)

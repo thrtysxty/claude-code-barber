@@ -6,23 +6,23 @@ mod utils;
 
 pub mod features {
     pub mod buzz;
+    #[cfg(feature = "classify")]
+    pub mod classify;
     pub mod context;
     pub mod cut;
     #[cfg(feature = "expert")]
     pub mod expert;
-    #[cfg(feature = "classify")]
-    pub mod classify;
     #[cfg(feature = "fade")]
     pub mod fade;
     #[cfg(feature = "graph")]
     pub mod graph;
+    pub mod index;
+    pub mod install;
+    pub mod lineup;
     #[cfg(feature = "route")]
     pub mod route;
-    pub mod index;
-    pub mod lineup;
     #[cfg(feature = "trim")]
     pub mod trim;
-    pub mod install;
 }
 
 use clap::Parser;
@@ -45,15 +45,15 @@ fn main() -> anyhow::Result<()> {
         Command::Context(c) => features::context::run(c.cmd),
         Command::Buzz => features::buzz::run(),
         Command::Gain(args) => {
-        let mode = if args.ab {
-            analytics::GainMode::AbTest
-        } else if args.expert {
-            analytics::GainMode::ExpertDelta
-        } else {
-            analytics::GainMode::Default
-        };
-        analytics::gain(mode)
-    },
+            let mode = if args.ab {
+                analytics::GainMode::AbTest
+            } else if args.expert {
+                analytics::GainMode::ExpertDelta
+            } else {
+                analytics::GainMode::Default
+            };
+            analytics::gain(mode)
+        }
         Command::Install(args) => features::install::run(args.auto, args.dry_run),
         #[cfg(feature = "graph")]
         Command::Graph(args) => graph_cmd(args),

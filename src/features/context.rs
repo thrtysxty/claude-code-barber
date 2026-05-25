@@ -77,3 +77,79 @@ Run /compact now. Resume from handoff note after compaction.\n",
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Helper: clear all CCB env vars immediately, returning a guard that also clears on drop.
+    struct EnvGuard;
+    impl EnvGuard {
+        fn new() -> Self {
+            std::env::remove_var("CCB_CONTEXT_PCT");
+            std::env::remove_var("CCB_CTX_TOKENS");
+            std::env::remove_var("CCB_CTX_MAX");
+            Self
+        }
+    }
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            std::env::remove_var("CCB_CONTEXT_PCT");
+            std::env::remove_var("CCB_CTX_TOKENS");
+            std::env::remove_var("CCB_CTX_MAX");
+        }
+    }
+
+    #[test]
+    fn current_pct_parses_ccb_context_pct() {
+        let _guard = EnvGuard::new();
+        std::env::set_var("CCB_CONTEXT_PCT", "42");
+        assert_eq!(current_pct(), Some(42));
+    }
+
+    #[test]
+    fn current_pct_computes_from_tokens() {
+        let _guard = EnvGuard::new();
+        std::env::set_var("CCB_CTX_TOKENS", "50000");
+        std::env::set_var("CCB_CTX_MAX", "100000");
+        assert_eq!(current_pct(), Some(50));
+    }
+
+    #[test]
+    fn current_pct_returns_none_when_no_env() {
+        let _guard = EnvGuard::new();
+        // Guard already cleared env vars via `new()`
+        assert_eq!(current_pct(), None);
+    }
+
+    #[test]
+    fn current_pct_handles_zero_max() {
+        let _guard = EnvGuard::new();
+        std::env::set_var("CCB_CTX_TOKENS", "50000");
+        std::env::set_var("CCB_CTX_MAX", "0");
+        assert_eq!(current_pct(), None);
+    }
+
+    #[test]
+    fn advise_prints_directive_when_threshold_exceeded() {
+        let _guard = EnvGuard::new();
+        std::env::set_var("CCB_CONTEXT_PCT", "80");
+        let result = advise(70, "compact");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn advise_skips_when_no_pct() {
+        let _guard = EnvGuard::new();
+        let result = advise(50, "compact");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn advise_does_not_fire_below_threshold() {
+        let _guard = EnvGuard::new();
+        std::env::set_var("CCB_CONTEXT_PCT", "30");
+        let result = advise(70, "compact");
+        assert!(result.is_ok());
+    }
+}

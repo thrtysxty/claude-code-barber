@@ -475,7 +475,6 @@ pub fn walk(task: &str, threshold: f64) -> Result<()> {
 
 // ---------------------------------------------------------------------------
 
-
 /// Ingest a YAML dataset file into the knowledge graph.
 /// The file must contain a top-level "personas" list.
 /// Each persona has {name, description, domains: [{name, category, patterns: [{id, name, mitigations}]}]}.
@@ -510,8 +509,7 @@ pub fn ingest(dataset_path: &std::path::Path) -> Result<()> {
 
     let data = std::fs::read_to_string(dataset_path)
         .with_context(|| format!("reading dataset {path}", path = dataset_path.display()))?;
-    let ds: YamlDataset = serde_yaml::from_str(&data)
-        .with_context(|| "parsing YAML dataset")?;
+    let ds: YamlDataset = serde_yaml::from_str(&data).with_context(|| "parsing YAML dataset")?;
 
     let conn = db()?;
     let mut total_domains = 0;
@@ -548,8 +546,8 @@ pub fn ingest(dataset_path: &std::path::Path) -> Result<()> {
 
             total_domains += 1;
             for pattern in &domain.patterns {
-                let mitigations_json =
-                    serde_json::to_string(&pattern.mitigations).context("serialising mitigations")?;
+                let mitigations_json = serde_json::to_string(&pattern.mitigations)
+                    .context("serialising mitigations")?;
                 conn.execute(
                     "INSERT INTO patterns (domain_id, pattern_id, name, mitigations) VALUES (?, ?, ?, ?)
                      ON CONFLICT(domain_id, pattern_id) DO UPDATE SET
@@ -569,7 +567,6 @@ pub fn ingest(dataset_path: &std::path::Path) -> Result<()> {
     );
     Ok(())
 }
-
 
 // Tests
 // ---------------------------------------------------------------------------
@@ -829,15 +826,19 @@ pub fn active_context() -> Option<(String, Vec<String>)> {
     let conn = db().ok()?;
 
     let persona_id: Option<i64> = conn
-        .query_row("SELECT persona_id FROM active_persona", [], |row| row.get(0))
+        .query_row("SELECT persona_id FROM active_persona", [], |row| {
+            row.get(0)
+        })
         .ok();
 
     let persona_id = persona_id?;
 
     let persona_name: String = conn
-        .query_row("SELECT name FROM personas WHERE id = ?", params![persona_id], |row| {
-            row.get(0)
-        })
+        .query_row(
+            "SELECT name FROM personas WHERE id = ?",
+            params![persona_id],
+            |row| row.get(0),
+        )
         .ok()?;
 
     let mut stmt = conn
@@ -861,4 +862,3 @@ pub fn active_context() -> Option<(String, Vec<String>)> {
 pub fn active_context() -> Option<(String, Vec<String>)> {
     None
 }
-

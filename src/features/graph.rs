@@ -49,7 +49,12 @@ fn detect_lang(path: &Path) -> Option<&'static str> {
     }
 }
 
-fn walk_tree(node: tree_sitter::Node, source: &[u8], symbols: &mut Vec<(String, String, i64)>, lang: &str) {
+fn walk_tree(
+    node: tree_sitter::Node,
+    source: &[u8],
+    symbols: &mut Vec<(String, String, i64)>,
+    lang: &str,
+) {
     let kind = node.kind();
     let line = (node.start_position().row + 1) as i64;
 
@@ -184,7 +189,8 @@ fn walk_tree(node: tree_sitter::Node, source: &[u8], symbols: &mut Vec<(String, 
                 for i in 0..node.named_child_count() {
                     if let Some(decl) = node.named_child(i) {
                         if decl.kind() == "variable_declarator" {
-                            let has_fn = decl.child_by_field_name("value")
+                            let has_fn = decl
+                                .child_by_field_name("value")
                                 .map(|v| matches!(v.kind(), "arrow_function" | "function"))
                                 .unwrap_or(false);
                             if has_fn {
@@ -230,7 +236,8 @@ fn extract_symbols_ts(path: &Path, lang: &str) -> Result<Vec<(String, String, i6
     };
     parser.set_language(&ts_lang)?;
 
-    let tree = parser.parse(&source, None)
+    let tree = parser
+        .parse(&source, None)
         .ok_or_else(|| anyhow::anyhow!("Failed to parse {}", path.display()))?;
 
     let mut symbols = Vec::new();
@@ -247,13 +254,24 @@ pub fn index(path: &Path) -> Result<()> {
     let db = db()?;
 
     const SKIP_DIRS: &[&str] = &[
-        "node_modules", "dist-electron", "dist", ".git", "target",
-        "__pycache__", ".venv", "build", "coverage", "e2e/test-results",
+        "node_modules",
+        "dist-electron",
+        "dist",
+        ".git",
+        "target",
+        "__pycache__",
+        ".venv",
+        "build",
+        "coverage",
+        "e2e/test-results",
     ];
 
     // Refuse to index temp directories
     let path_str = path.display().to_string();
-    if path_str.starts_with("/var/folders") || path_str.starts_with("/tmp") || path_str.contains("/tmp/") {
+    if path_str.starts_with("/var/folders")
+        || path_str.starts_with("/tmp")
+        || path_str.contains("/tmp/")
+    {
         anyhow::bail!("Refusing to index temp directory: {}", path_str);
     }
 
