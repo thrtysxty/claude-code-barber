@@ -175,7 +175,6 @@ fn test_graph_stats_json_valid() {
 
 #[test]
 fn test_skip_node_modules() {
-
     let tmp_dir = tempfile::tempdir().unwrap();
     let home = tmp_dir.path();
 
@@ -220,7 +219,6 @@ fn test_skip_node_modules() {
 
 #[test]
 fn test_skip_target_dir() {
-
     let tmp_dir = tempfile::tempdir().unwrap();
     let home = tmp_dir.path();
 
@@ -317,7 +315,6 @@ fn test_no_follow_symlinks() {
     // Clean up external file
     let _ = std::fs::remove_file(&external_file);
 }
-
 
 #[test]
 fn test_graph_show_unindexed_file() {

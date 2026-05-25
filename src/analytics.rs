@@ -1,6 +1,7 @@
 use crate::log::CompressionEvent;
 use std::collections::HashMap;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub enum GainMode {
     Default,
@@ -8,6 +9,7 @@ pub enum GainMode {
     ExpertDelta,
 }
 
+#[allow(dead_code)]
 pub fn gain(mode: GainMode) -> anyhow::Result<()> {
     let events = load_events();
 
@@ -26,6 +28,7 @@ pub fn gain(mode: GainMode) -> anyhow::Result<()> {
     }
 }
 
+#[allow(dead_code)]
 fn gain_default(events: &[CompressionEvent]) -> anyhow::Result<()> {
     let mut by_feature: HashMap<&str, (usize, usize, usize)> = HashMap::new();
 
@@ -70,6 +73,7 @@ fn gain_default(events: &[CompressionEvent]) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn gain_ab(events: &[CompressionEvent]) -> anyhow::Result<()> {
     let ccb_events: Vec<_> = events
         .iter()
@@ -83,16 +87,40 @@ fn gain_ab(events: &[CompressionEvent]) -> anyhow::Result<()> {
     let ccb_total_in: usize = ccb_events.iter().map(|e| e.tokens_in).sum();
     let ccb_total_out: usize = ccb_events.iter().map(|e| e.tokens_out).sum();
     let ccb_saved = ccb_total_in.saturating_sub(ccb_total_out);
-    let ccb_pct = if ccb_total_in > 0 { ccb_saved * 100 / ccb_total_in } else { 0 };
-    let ccb_avg_in = if !ccb_events.is_empty() { ccb_total_in / ccb_events.len() } else { 0 };
-    let ccb_avg_out = if !ccb_events.is_empty() { ccb_total_out / ccb_events.len() } else { 0 };
+    let ccb_pct = if ccb_total_in > 0 {
+        ccb_saved * 100 / ccb_total_in
+    } else {
+        0
+    };
+    let ccb_avg_in = if !ccb_events.is_empty() {
+        ccb_total_in / ccb_events.len()
+    } else {
+        0
+    };
+    let ccb_avg_out = if !ccb_events.is_empty() {
+        ccb_total_out / ccb_events.len()
+    } else {
+        0
+    };
 
     let bp_total_in: usize = bypass_events.iter().map(|e| e.tokens_in).sum();
     let bp_total_out: usize = bypass_events.iter().map(|e| e.tokens_out).sum();
     let bp_saved = bp_total_in.saturating_sub(bp_total_out);
-    let _bp_pct = if bp_total_in > 0 { bp_saved * 100 / bp_total_in } else { 0 };
-    let bp_avg_in = if !bypass_events.is_empty() { bp_total_in / bypass_events.len() } else { 0 };
-    let bp_avg_out = if !bypass_events.is_empty() { bp_total_out / bypass_events.len() } else { 0 };
+    let _bp_pct = if bp_total_in > 0 {
+        bp_saved * 100 / bp_total_in
+    } else {
+        0
+    };
+    let bp_avg_in = if !bypass_events.is_empty() {
+        bp_total_in / bypass_events.len()
+    } else {
+        0
+    };
+    let bp_avg_out = if !bypass_events.is_empty() {
+        bp_total_out / bypass_events.len()
+    } else {
+        0
+    };
 
     println!("╭──────────────────────────────────────────────────────────────╮");
     println!("│                 CCB — A/B Comparison                      │");
@@ -115,37 +143,54 @@ fn gain_ab(events: &[CompressionEvent]) -> anyhow::Result<()> {
     );
 
     if bypass_events.len() < 2 {
-        println!(
-            "  Not enough bypass sessions — run with CCB_BYPASS=1 to generate baseline."
-        );
+        println!("  Not enough bypass sessions — run with CCB_BYPASS=1 to generate baseline.");
     }
 
     Ok(())
 }
 
+#[allow(dead_code)]
 fn gain_expert_delta(events: &[CompressionEvent]) -> anyhow::Result<()> {
-    let expert_events: Vec<_> = events
-        .iter()
-        .filter(|e| e.persona.is_some())
-        .collect();
-    let no_expert_events: Vec<_> = events
-        .iter()
-        .filter(|e| e.persona.is_none())
-        .collect();
+    let expert_events: Vec<_> = events.iter().filter(|e| e.persona.is_some()).collect();
+    let no_expert_events: Vec<_> = events.iter().filter(|e| e.persona.is_none()).collect();
 
     let exp_total_in: usize = expert_events.iter().map(|e| e.tokens_in).sum();
     let exp_total_out: usize = expert_events.iter().map(|e| e.tokens_out).sum();
     let exp_saved = exp_total_in.saturating_sub(exp_total_out);
-    let exp_pct = if exp_total_in > 0 { exp_saved * 100 / exp_total_in } else { 0 };
-    let exp_avg_in = if !expert_events.is_empty() { exp_total_in / expert_events.len() } else { 0 };
-    let exp_avg_out = if !expert_events.is_empty() { exp_total_out / expert_events.len() } else { 0 };
+    let exp_pct = if exp_total_in > 0 {
+        exp_saved * 100 / exp_total_in
+    } else {
+        0
+    };
+    let exp_avg_in = if !expert_events.is_empty() {
+        exp_total_in / expert_events.len()
+    } else {
+        0
+    };
+    let exp_avg_out = if !expert_events.is_empty() {
+        exp_total_out / expert_events.len()
+    } else {
+        0
+    };
 
     let no_exp_total_in: usize = no_expert_events.iter().map(|e| e.tokens_in).sum();
     let no_exp_total_out: usize = no_expert_events.iter().map(|e| e.tokens_out).sum();
     let no_exp_saved = no_exp_total_in.saturating_sub(no_exp_total_out);
-    let no_exp_pct = if no_exp_total_in > 0 { no_exp_saved * 100 / no_exp_total_in } else { 0 };
-    let no_exp_avg_in = if !no_expert_events.is_empty() { no_exp_total_in / no_expert_events.len() } else { 0 };
-    let no_exp_avg_out = if !no_expert_events.is_empty() { no_exp_total_out / no_expert_events.len() } else { 0 };
+    let no_exp_pct = if no_exp_total_in > 0 {
+        no_exp_saved * 100 / no_exp_total_in
+    } else {
+        0
+    };
+    let no_exp_avg_in = if !no_expert_events.is_empty() {
+        no_exp_total_in / no_expert_events.len()
+    } else {
+        0
+    };
+    let no_exp_avg_out = if !no_expert_events.is_empty() {
+        no_exp_total_out / no_expert_events.len()
+    } else {
+        0
+    };
 
     println!("╭─────────────────────────────────────────────────────────────╮");
     println!("│             CCB — Expert Injection Delta                   │");
@@ -179,8 +224,10 @@ fn gain_expert_delta(events: &[CompressionEvent]) -> anyhow::Result<()> {
     let mut top_domains: Vec<_> = domain_counts.iter().collect();
     top_domains.sort_by(|a, b| b.1.cmp(a.1));
     if !top_domains.is_empty() {
-        println!("
-Top domains:");
+        println!(
+            "
+Top domains:"
+        );
         for (domain, count) in top_domains.iter().take(3) {
             println!("  {} — {} hits", domain, count);
         }
@@ -189,6 +236,7 @@ Top domains:");
     Ok(())
 }
 
+#[allow(dead_code)]
 fn load_events() -> Vec<CompressionEvent> {
     let path = dirs::home_dir()
         .unwrap_or_default()

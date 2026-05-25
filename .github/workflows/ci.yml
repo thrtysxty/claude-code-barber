@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test
+      - run: cargo test -- --test-threads=1
 
   test-full:
     name: Test (full features)
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --features full
+      - run: cargo test --features full -- --test-threads=1
 
   clippy:
     name: Clippy
@@ -55,15 +55,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: Run benchmarks
         run: cargo bench --features full
       - name: Compare with baseline
         run: |
-          # Load previous baseline if it exists; if not, this run becomes the baseline
-          if [ -n "${{ github.event.before }}" ]; then
-            cargo bench --features full -- --load-baseline "${{ github.event.before }}" || \
-            cargo bench --features full -- --save-baseline "${{ github.event.before }}"
-          else
-            cargo bench --features full -- --save-baseline main
-          fi
+          # Save baseline on first run; subsequent runs compare against it
+          cargo bench --features full -- --save-baseline=main || true

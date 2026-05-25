@@ -1,14 +1,13 @@
 //! Model router — routes Claude Code API calls to local or Anthropic backends
 
-use anyhow::{Context, Result};
 #[cfg(feature = "route")]
 use crate::cli::RouteCmd;
+use anyhow::{Context, Result};
 
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-
 
 const ROUTER_PID_FILE: &str = ".cache/ccb/router.pid";
 const DEFAULT_PORT: u16 = 9001;
@@ -25,7 +24,8 @@ impl DefaultConfig {
     fn new() -> Self {
         let aibox = env::var("AIBOX_URL").unwrap_or_else(|_| "http://aibox:8080".to_string());
         let aibox_model = env::var("AIBOX_MODEL").unwrap_or_else(|_| "qwopus3.5-9b-v3".to_string());
-        let ollama = env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
+        let ollama =
+            env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
         let ollama_model = env::var("OLLAMA_MODEL").unwrap_or_else(|_| "glm-5.1:cloud".to_string());
 
         Self {
@@ -106,7 +106,7 @@ impl Config {
                 .with_context(|| format!("reading PID file at {}", pid_file.display()))?;
             if let Ok(_pid) = pid_str.trim().parse::<u32>() {
                 let process_exists = Command::new("ps")
-                    .args(&["-p", &pid_str])
+                    .args(["-p", &pid_str])
                     .output()
                     .unwrap()
                     .status
@@ -128,9 +128,13 @@ impl Config {
         };
 
         // Shell out to the Python model-router (the working implementation)
-        let python_router = std::path::PathBuf::from("/Users/dadmin/Projects/scripts/model-router.py");
+        let python_router =
+            std::path::PathBuf::from("/Users/dadmin/Projects/scripts/model-router.py");
         if !python_router.exists() {
-            return Err(anyhow::anyhow!("router script not found at {}", python_router.display()));
+            return Err(anyhow::anyhow!(
+                "router script not found at {}",
+                python_router.display()
+            ));
         }
 
         let mut cmd = Command::new("python3");
@@ -145,7 +149,8 @@ impl Config {
         cmd.stdout(Stdio::null());
         cmd.stderr(Stdio::null());
 
-        let status = cmd.spawn()
+        let status = cmd
+            .spawn()
             .with_context(|| "failed to spawn python3 model-router.py")?;
 
         // Wait for startup
@@ -159,7 +164,10 @@ impl Config {
 
         println!("Router started on :{}", self.port);
         println!("Run Claude Code with:");
-        println!("  ANTHROPIC_BASE_URL=http://localhost:{} ANTHROPIC_API_KEY=router claude", self.port);
+        println!(
+            "  ANTHROPIC_BASE_URL=http://localhost:{} ANTHROPIC_API_KEY=router claude",
+            self.port
+        );
 
         Ok(())
     }
@@ -173,9 +181,7 @@ impl Config {
             .with_context(|| format!("reading PID file at {}", ROUTER_PID_FILE))?;
 
         if let Ok(_pid) = pid_str.trim().parse::<u32>() {
-            let _ = Command::new("kill")
-                .args(&["-9", &pid_str])
-                .output();
+            let _ = Command::new("kill").args(["-9", &pid_str]).output();
 
             fs::remove_file(ROUTER_PID_FILE)
                 .with_context(|| format!("removing PID file at {}", ROUTER_PID_FILE))?;
@@ -189,13 +195,16 @@ impl Config {
             .with_context(|| format!("reading PID file at {}", ROUTER_PID_FILE))?;
 
         let running = Command::new("ps")
-            .args(&["-p", &pid_str])
+            .args(["-p", &pid_str])
             .output()
             .unwrap()
             .status
             .success();
 
-        println!("Router status: {}", if running { "running" } else { "stopped" });
+        println!(
+            "Router status: {}",
+            if running { "running" } else { "stopped" }
+        );
         println!("  PID: {}", pid_str);
         println!("  Port: {}", self.port);
         println!("  Routes:");
@@ -234,7 +243,10 @@ fn load_real_key() -> Result<String> {
         for line in content.lines() {
             let line = line.trim();
             if line.starts_with("ANTHROPIC_API_KEY=") && !line.contains("router") {
-                return Ok(line.splitn(2, '=').nth(1).unwrap_or_default().trim().to_string());
+                return Ok(line
+                    .split_once('=')
+                    .map(|(_, v)| v.trim().to_string())
+                    .unwrap_or_default());
             }
         }
     }
@@ -253,7 +265,10 @@ fn run_router_binary() -> Result<std::process::Child> {
         .join("ccb-route");
 
     if !router_exe.exists() {
-        return Err(anyhow::anyhow!("ccb-route binary not found at {}", router_exe.display()));
+        return Err(anyhow::anyhow!(
+            "ccb-route binary not found at {}",
+            router_exe.display()
+        ));
     }
 
     let mut cmd = Command::new(router_exe);
@@ -306,8 +321,8 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_secs(2));
 
         // Check health endpoint
-        let response = reqwest::blocking::get(format!("http://localhost:{}/health", cfg.port))
-            .unwrap();
+        let response =
+            reqwest::blocking::get(format!("http://localhost:{}/health", cfg.port)).unwrap();
         let json: serde_json::Value = response.json().unwrap();
         assert_eq!(json["status"], "ok");
 

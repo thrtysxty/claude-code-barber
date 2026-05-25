@@ -52,13 +52,17 @@ fn test_trim_logs_to_jsonl() {
 #[test]
 fn test_trim_stderr_included() {
     // cat /nonexistent exits 1, but trim swallows exit code and returns Ok(())
-    let output = Command::cargo_bin("ccb").unwrap()
+    let output = Command::cargo_bin("ccb")
+        .unwrap()
         .arg("trim")
         .arg("cat")
         .arg("/nonexistent")
         .output()
         .unwrap();
-    assert!(output.status.success(), "trim should swallow inner exit code");
+    assert!(
+        output.status.success(),
+        "trim should swallow inner exit code"
+    );
     let combined = String::from_utf8_lossy(&output.stdout);
     assert!(
         combined.contains("No such file") || combined.contains("nonexistent"),

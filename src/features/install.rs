@@ -159,8 +159,16 @@ mod tests {
     #[test]
     fn hook_already_present_returns_false_when_no_hooks() {
         let settings = serde_json::json!({"hooks": {"PreToolUse": [], "PostToolUse": []}});
-        assert!(!hook_already_present(&settings, "PreToolUse", "context_monitor"));
-        assert!(!hook_already_present(&settings, "PostToolUse", "skill_loader"));
+        assert!(!hook_already_present(
+            &settings,
+            "PreToolUse",
+            "context_monitor"
+        ));
+        assert!(!hook_already_present(
+            &settings,
+            "PostToolUse",
+            "skill_loader"
+        ));
     }
 
     #[test]
@@ -172,19 +180,35 @@ mod tests {
                 ]
             }
         });
-        assert!(hook_already_present(&settings, "PreToolUse", "context_monitor"));
-        assert!(!hook_already_present(&settings, "PreToolUse", "skill_loader"));
+        assert!(hook_already_present(
+            &settings,
+            "PreToolUse",
+            "context_monitor"
+        ));
+        assert!(!hook_already_present(
+            &settings,
+            "PreToolUse",
+            "skill_loader"
+        ));
     }
 
     #[test]
     fn hook_already_present_returns_false_for_missing_phase() {
         let settings = serde_json::json!({"hooks": {}});
-        assert!(!hook_already_present(&settings, "PreToolUse", "context_monitor"));
+        assert!(!hook_already_present(
+            &settings,
+            "PreToolUse",
+            "context_monitor"
+        ));
     }
 
     #[test]
     fn hook_already_present_returns_false_null_array() {
         let settings = serde_json::json!({"hooks": {"PreToolUse": null}});
-        assert!(!hook_already_present(&settings, "PreToolUse", "context_monitor"));
+        assert!(!hook_already_present(
+            &settings,
+            "PreToolUse",
+            "context_monitor"
+        ));
     }
 }

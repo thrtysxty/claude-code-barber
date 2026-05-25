@@ -1,0 +1,320 @@
+{
+  "persona": "architect",
+  "description": "Expert in cloud architecture, microservices patterns, and infrastructure as code",
+  "domains": [
+    {
+      "name": "aws-well-architected",
+      "category": "cloud-architecture",
+      "patterns": [
+        {
+          "id": "ARCH-001",
+          "name": "Circuit Breaker Pattern",
+          "mitigations": [
+            "Wrap external service calls in a circuit breaker to prevent cascade failures",
+            "Configure circuit breaker thresholds: 5 consecutive failures over 30 seconds triggers open state",
+            "Add retry logic with exponential backoff (base 2x, max 3 retries) before circuit opens",
+            "Implement fallback responses when circuit is open (cached data or default values)"
+          ]
+        },
+        {
+          "id": "ARCH-002",
+          "name": "Bulkhead Pattern",
+          "mitigations": [
+            "Isolate workloads in separate thread pools (e.g., 50 threads for user service, 100 for background jobs)",
+            "Use container limits (CPU/memory) to prevent resource starvation",
+            "Implement queue-based isolation with per-service queues",
+            "Add circuit breakers to each bulkhead to prevent resource exhaustion"
+          ]
+        },
+        {
+          "id": "ARCH-003",
+          "name": "Rate Limiter Pattern",
+          "mitigations": [
+            "Implement token bucket algorithm at API gateway (100 req/sec per client)",
+            "Add distributed rate limiting using Redis (RedisLRU or RedisRateLimiter)",
+            "Implement request throttling at application layer (max 500 req/sec per service)",
+            "Add rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining) for client awareness"
+          ]
+        },
+        {
+          "id": "ARCH-004",
+          "name": "CQRS Pattern",
+          "mitigations": [
+            "Separate read and write models with different schemas",
+            "Use event sourcing to capture state changes as immutable events",
+            "Implement asynchronous event processing with dead letter queues",
+            "Add read replicas with configurable TTL for caching"
+          ]
+        },
+        {
+          "id": "ARCH-005",
+          "name": "Saga Pattern",
+          "mitigations": [
+            "Implement compensating transactions for distributed workflows",
+            "Use local transactions (Saga Orchestrator or Choreography)",
+            "Add saga state machine with pending/committed/failed states",
+            "Implement idempotency keys for all saga steps to prevent duplicate processing"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "kubernetes",
+      "category": "container-orchestration",
+      "patterns": [
+        {
+          "id": "ARCH-006",
+          "name": "Pod Disruption Budget",
+          "mitigations": [
+            "Define PDB resources (minAvailable: 2, maxUnavailable: 0) for critical workloads",
+            "Set tolerations for planned maintenance windows",
+            "Configure node affinity for critical pods during disruption",
+            "Use priority classes to protect critical workloads"
+          ]
+        },
+        {
+          "id": "ARCH-007",
+          "name": "Resource Requests and Limits",
+          "mitigations": [
+            "Set CPU requests (100m) and limits (500m) to prevent resource contention",
+            "Add memory limits (512Mi) with requests (256Mi) to prevent OOM",
+            "Use ephemeral storage limits for temporary data",
+            "Configure burstable instances with appropriate request/limit ratios"
+          ]
+        },
+        {
+          "id": "ARCH-008",
+          "name": "Service Mesh",
+          "mitigations": [
+            "Deploy Istio or Linkerd for service-to-service communication",
+            "Enable automatic mTLS between all services",
+            "Configure retry policies with jitter (50ms random)",
+            "Add circuit breaker configuration via Envoy sidecar"
+          ]
+        },
+        {
+          "id": "ARCH-009",
+          "name": "Pod Anti-Affinity",
+          "mitigations": [
+            "Use podAntiAffinity with preferredDuringSchedulingIgnoredDuringExecution",
+            "Schedule replicas on different nodes for fault tolerance",
+            "Add nodeSelector for specific hardware requirements",
+            "Configure topologySpreadConstraints for even distribution"
+          ]
+        },
+        {
+          "id": "ARCH-010",
+          "name": "ConfigMaps and Secrets",
+          "mitigations": [
+            "Store sensitive data in Kubernetes Secrets (encrypted at rest)",
+            "Use ConfigMaps for non-sensitive configuration",
+            "Mount secrets as volumes or environment variables",
+            "Implement secret rotation with external key management (AWS KMS)"
+          ]
+        },
+        {
+          "id": "ARCH-011",
+          "name": "Horizontal Pod Autoscaler",
+          "mitigations": [
+            "Configure HPA based on CPU utilization (70% threshold)",
+            "Add custom metrics (Requests/sec) for application-specific scaling",
+            "Set minReplicas (3) and maxReplicas (20) with scale-up delay (1m)",
+            "Enable scale-down stabilization window (300s) to prevent thrashing"
+          ]
+        },
+        {
+          "id": "ARCH-012",
+          "name": "Pod Security Policies",
+          "mitigations": [
+            "Apply restricted namespace defaults for production",
+            "Disable privileged containers and hostNetwork",
+            "Use read-only root filesystem for containers",
+            "Restrict capabilities (no NET_ADMIN, no SYS_ADMIN)"
+          ]
+        },
+        {
+          "id": "ARCH-013",
+          "name": "Liveness and Readiness Probes",
+          "mitigations": [
+            "Configure liveness probe: httpGet path /healthz, initialDelaySeconds: 30, periodSeconds: 10",
+            "Configure readiness probe: httpGet path /ready, initialDelaySeconds: 5, periodSeconds: 5",
+            "Add startupProbe for long initialization (initialDelaySeconds: 0, periodSeconds: 30)",
+            "Set execProbe for custom health checks (curl http://localhost:8080/health)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "terraform",
+      "category": "infrastructure-as-code",
+      "patterns": [
+        {
+          "id": "ARCH-014",
+          "name": "Terraform State Locking",
+          "mitigations": [
+            "Use backend storage (S3 + DynamoDB) for remote state locking",
+            "Enable state locking timeout (30 minutes) to prevent stale locks",
+            "Implement terraform fmt and terraform plan in CI/CD",
+            "Use terraform workspace to manage environments"
+          ]
+        },
+        {
+          "id": "ARCH-015",
+          "name": "Terraform Modules",
+          "mitigations": [
+            "Create reusable modules with version constraints (terraform = '>= 1.5')",
+            "Document module inputs and outputs with descriptions",
+            "Use module sources with checksums for reproducibility",
+            "Implement module versioning (Terraform 0.12 style) for upgrades"
+          ]
+        },
+        {
+          "id": "ARCH-016",
+          "name": "Terraform Workspaces",
+          "mitigations": [
+            "Use workspaces for multiple environments (dev, staging, prod)",
+            "Export workspace name as environment variable",
+            "Implement workspace switching in CI/CD pipelines",
+            "Add workspace cleanup job for expired workspaces"
+          ]
+        },
+        {
+          "id": "ARCH-017",
+          "name": "Terraform State Versioning",
+          "mitigations": [
+            "Enable state versioning (max = 10) for rollback capability",
+            "Use terraform state pull to backup state before deployments",
+            "Implement state version tagging for production changes",
+            "Add state version cleanup job after 30 days"
+          ]
+        },
+        {
+          "id": "ARCH-018",
+          "name": "Terraform Drift Detection",
+          "mitigations": [
+            "Schedule terraform plan daily to detect drift",
+            "Implement terraform import for manually changed resources",
+            "Add drift detection to CI/CD pipeline (fail on drift)",
+            "Configure terraform state remote lock to prevent concurrent modifications"
+          ]
+        },
+        {
+          "id": "ARCH-019",
+          "name": "Terraform Input Variables",
+          "mitigations": [
+            "Use default values for optional inputs (default = '' or default = 1)",
+            "Validate inputs with terraform validate (type, length, required)",
+            "Document sensitive inputs with sensitive = true",
+            "Use input variable validation expressions (contains, startsWith)"
+          ]
+        },
+        {
+          "id": "ARCH-020",
+          "name": "Terraform Output Values",
+          "mitigations": [
+            "Document outputs in README.md with usage examples",
+            "Use sensitive = true for outputs containing secrets",
+            "Set description for all outputs (description = 'VPC ID')",
+            "Implement output validation (contains, length)"
+          ]
+        },
+        {
+          "id": "ARCH-021",
+          "name": "Terraform Provider Versioning",
+          "mitigations": [
+            "Pin provider versions in requirements.lock file",
+            "Use provider alias for version-specific configurations",
+            "Implement provider upgrade workflow in CI/CD",
+            "Test provider changes in staging environment first"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "microservices",
+      "category": "distributed-systems",
+      "patterns": [
+        {
+          "id": "ARCH-022",
+          "name": "Circuit Breaker Pattern",
+          "mitigations": [
+            "Implement Hystrix or Resilience4j for circuit breaker logic",
+            "Configure failure threshold: 5 failures in 30 seconds",
+            "Add timeout (30 seconds) for all external calls",
+            "Return cached data or fallback service when circuit is open"
+          ]
+        },
+        {
+          "id": "ARCH-023",
+          "name": "Bulkhead Pattern",
+          "mitigations": [
+            "Isolate thread pools per service (e.g., user-service: 50 threads)",
+            "Use connection pools (HikariCP) per service with limits",
+            "Implement separate queues for different workload types",
+            "Add memory limits per service container"
+          ]
+        },
+        {
+          "id": "ARCH-024",
+          "name": "Retry Pattern",
+          "mitigations": [
+            "Implement exponential backoff (2^i * 100ms, max 30s)",
+            "Add jitter (random 50ms) to prevent thundering herd",
+            "Configure max retries (3) and retry-after header",
+            "Distinguish retryable (5xx, timeout) vs non-retryable (4xx, bad input) errors"
+          ]
+        },
+        {
+          "id": "ARCH-025",
+          "name": "Circuit Breaker Pattern",
+          "mitigations": [
+            "Use Resilience4j with SlidingWindowQuantileFailureRateCalculator",
+            "Configure half-open state after 30 seconds",
+            "Add fallback handler for open circuit",
+            "Implement circuit breaker metrics (calls, failures, states)"
+          ]
+        },
+        {
+          "id": "ARCH-026",
+          "name": "Bulkhead Pattern",
+          "mitigations": [
+            "Use thread pool isolation with fixed size (e.g., 100 threads)",
+            "Implement queue-based bulkhead with max capacity (1000 items)",
+            "Add circuit breaker to each bulkhead for defense in depth",
+            "Monitor thread pool utilization (alert if > 80%)"
+          ]
+        },
+        {
+          "id": "ARCH-027",
+          "name": "Retry Pattern",
+          "mitigations": [
+            "Implement retry with exponential backoff (2^i * 100ms)",
+            "Add jitter (50ms) to prevent thundering herd attacks",
+            "Configure max retries (3) and retry-after header",
+            "Distinguish retryable (5xx, timeout) vs non-retryable (4xx, bad input) errors"
+          ]
+        },
+        {
+          "id": "ARCH-028",
+          "name": "Circuit Breaker Pattern",
+          "mitigations": [
+            "Use Resilience4j with SlidingWindowQuantileFailureRateCalculator",
+            "Configure half-open state after 30 seconds",
+            "Add fallback handler for open circuit",
+            "Implement circuit breaker metrics (calls, failures, states)"
+          ]
+        },
+        {
+          "id": "ARCH-029",
+          "name": "Bulkhead Pattern",
+          "mitigations": [
+            "Use thread pool isolation with fixed size (e.g., 100 threads)",
+            "Implement queue-based bulkhead with max capacity (1000 items)",
+            "Add circuit breaker to each bulkhead for defense in depth",
+            "Monitor thread pool utilization (alert if > 80%)"
+          ]
+        }
+      ]
+    }
+  ]
+}

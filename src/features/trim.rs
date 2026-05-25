@@ -15,14 +15,18 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
             .output()
             .map_err(|e| anyhow::anyhow!("ccb trim: command not found: {}: {}", &args.cmd[0], e))?;
         let combined = String::from_utf8_lossy(&out.stdout).to_string()
-            + &String::from_utf8_lossy(&out.stderr).to_string();
+            + &String::from_utf8_lossy(&out.stderr);
         let mode = Some("bypass".to_string());
         let (persona, domains_hit) = {
-        #[cfg(feature = "expert")]
-        { active_context().unzip() }
-        #[cfg(not(feature = "expert"))]
-        { (None, Some(vec![])) }
-    };
+            #[cfg(feature = "expert")]
+            {
+                active_context().unzip()
+            }
+            #[cfg(not(feature = "expert"))]
+            {
+                (None, Some(vec![]))
+            }
+        };
         CompressionEvent {
             timestamp: chrono::Utc::now().to_rfc3339(),
             feature: "trim".to_string(),
@@ -63,9 +67,13 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
 
     let (persona, domains_hit) = {
         #[cfg(feature = "expert")]
-        { active_context().unzip() }
+        {
+            active_context().unzip()
+        }
         #[cfg(not(feature = "expert"))]
-        { (None, Some(vec![])) }
+        {
+            (None, Some(vec![]))
+        }
     };
     CompressionEvent {
         timestamp: chrono::Utc::now().to_rfc3339(),

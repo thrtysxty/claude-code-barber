@@ -299,12 +299,10 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                         .and_then(|v| v.to_str().ok())
                         .unwrap_or("application/json")
                         .to_string();
-                    let stream = resp
-                        .bytes_stream()
-                        .map(|r| {
-                            #[allow(clippy::redundant_closure)]
-                            r.map_err(|e| std::io::Error::other(e))
-                        });
+                    let stream = resp.bytes_stream().map(|r| {
+                        #[allow(clippy::redundant_closure)]
+                        r.map_err(|e| std::io::Error::other(e))
+                    });
                     Response::builder()
                         .status(status)
                         .header("content-type", ct)

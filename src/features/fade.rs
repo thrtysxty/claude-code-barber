@@ -1,7 +1,7 @@
 use crate::cli::FadeArgs;
 #[cfg(feature = "expert")]
 use crate::features::expert::active_context;
-use crate::log::{CompressionEvent, estimate_tokens};
+use crate::log::{estimate_tokens, CompressionEvent};
 use std::path::PathBuf;
 
 pub fn run(args: FadeArgs) -> anyhow::Result<()> {
@@ -18,11 +18,15 @@ pub fn run(args: FadeArgs) -> anyhow::Result<()> {
             None => read_index()?,
         };
         let (persona, domains_hit) = {
-        #[cfg(feature = "expert")]
-        { active_context().unzip() }
-        #[cfg(not(feature = "expert"))]
-        { (None, Some(vec![])) }
-    };
+            #[cfg(feature = "expert")]
+            {
+                active_context().unzip()
+            }
+            #[cfg(not(feature = "expert"))]
+            {
+                (None, Some(vec![]))
+            }
+        };
         CompressionEvent {
             timestamp: chrono::Utc::now().to_rfc3339(),
             feature: "fade".to_string(),
