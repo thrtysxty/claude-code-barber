@@ -1,0 +1,120 @@
+# CCB Router — Provider Configuration
+#
+# Each [providers.<name>] block defines a backend the router can send requests to.
+# The router aggregates models from all providers into a single /v1/models list,
+# grouped by tier for Claude Code's /model navigation.
+#
+# Fields:
+#   url          — Base URL for the provider's API
+#   api_format   — How to format requests: "anthropic", "ollama_compat", "openai_compat"
+#   auth_method  — How to authenticate: "oauth_passthrough", "bearer", "header", "api_key", "none"
+#   auth_header  — (optional) Custom header name for "header" auth method
+#   auth_value_env — (optional) Env var or ~/.secrets key name holding the credential
+#   discover     — (optional) Auto-discover models from the provider (e.g. Ollama /api/tags)
+#   models       — (optional) Static model list when discover = false
+#   tier         — (optional) Default tier for this provider's models: "opus", "sonnet", "haiku", "local"
+#
+# Auth methods:
+#   oauth_passthrough — Forward all auth headers from the original Claude Code request
+#   bearer            — Authorization: Bearer $KEY (reads from auth_value_env)
+#   header            — Custom header (auth_header: auth_value_env)
+#   api_key           — x-api-key: $KEY (reads from auth_value_env)
+#   none              — No authentication headers sent
+#
+# Tier mapping:
+#   When Claude Code requests a tier (opus/sonnet/haiku), the router picks the
+#   first provider configured for that tier. Models within each provider inherit
+#   the provider's tier unless overridden per-model.
+
+[providers.anthropic]
+url = "https://api.anthropic.com"
+api_format = "anthropic"
+auth_method = "oauth_passthrough"
+tier = "opus"
+models = [
+    { id = "claude-opus-4-7",              display = "Claude Opus 4.7",    tier = "opus" },
+    { id = "claude-opus-4-6",              display = "Claude Opus 4.6",    tier = "opus" },
+    { id = "claude-sonnet-4-6",            display = "Claude Sonnet 4.6",  tier = "sonnet" },
+    { id = "claude-sonnet-4-5-20241022",   display = "Claude Sonnet 4.5",  tier = "sonnet" },
+    { id = "claude-haiku-4-5-20251001",    display = "Claude Haiku 4.5",   tier = "haiku" },
+]
+
+[providers.ollama]
+url = "http://localhost:11434"
+api_format = "ollama_compat"
+auth_method = "none"
+tier = "sonnet"
+discover = true
+# Static entries for known cloud & local models; discover=true adds any others.
+# backend_id = the actual model name sent to Ollama (cloud models need :cloud suffix).
+# id = the user-facing name (what you type in claude --model <id>).
+# Capabilities per model (from Ollama docs):
+#   V=vision  T=tools  K=thinking  A=audio
+models = [
+    # Cloud — Opus tier (frontier reasoning)
+    { id = "deepseek-v3.2",          backend_id = "deepseek-v3.2:cloud",         display = "DeepSeek V3.2",          tier = "opus" },     # T,K
+    { id = "deepseek-v4-pro",        backend_id = "deepseek-v4-pro:cloud",       display = "DeepSeek V4 Pro",        tier = "opus" },     # T,K
+    { id = "nemotron-3-super:120b",  backend_id = "nemotron-3-super:120b-cloud", display = "Nemotron 3 Super 120B",  tier = "opus" },     # T,K
+    # Cloud — Sonnet tier (strong all-rounders)
+    { id = "kimi-k2.6",              backend_id = "kimi-k2.6:cloud",             display = "Kimi K2.6",              tier = "sonnet" },    # V,T,K
+    { id = "qwen3.5",                backend_id = "qwen3.5:cloud",               display = "Qwen 3.5",              tier = "sonnet" },    # V,T,K
+    { id = "glm-5.1",                backend_id = "glm-5.1:cloud",               display = "GLM 5.1",               tier = "sonnet" },    # T,K
+    { id = "glm-5",                  backend_id = "glm-5:cloud",                 display = "GLM 5",                  tier = "sonnet" },    # T,K
+    { id = "qwen3-next:80b",         backend_id = "qwen3-next:80b-cloud",        display = "Qwen 3 Next 80B",       tier = "sonnet" },    # T,K
+    { id = "deepseek-v4-flash",      backend_id = "deepseek-v4-flash:cloud",     display = "DeepSeek V4 Flash",     tier = "sonnet" },    # T,K
+    # Cloud — Haiku tier (fast / small)
+    { id = "gemma4:31b",             backend_id = "gemma4:31b-cloud",            display = "Gemma4 31B",             tier = "haiku" },     # V,T,K,A
+    { id = "gemma3:27b",             backend_id = "gemma3:27b-cloud",            display = "Gemma3 27B",             tier = "haiku" },     # V
+    { id = "nemotron-3-nano:30b",    backend_id = "nemotron-3-nano:30b-cloud",   display = "Nemotron 3 Nano 30B",   tier = "haiku" },     # T,K
+    { id = "qwen3-coder-next",       backend_id = "qwen3-coder-next:cloud",      display = "Qwen 3 Coder Next",     tier = "haiku" },     # T
+    # Local — small models for offline / low-latency (no backend_id needed, names match)
+    { id = "devstral-small-2:24b",   backend_id = "devstral-small-2:24b-cloud",  display = "Devstral Small 24B",    tier = "local" },     # V,T
+    { id = "ministral-3:14b",        backend_id = "ministral-3:14b-cloud",       display = "Ministral 3 14B",       tier = "local" },     # V,T
+]
+
+[providers.aibox]
+url = "http://aibox:8080"
+api_format = "ollama_compat"
+auth_method = "none"
+tier = "haiku"
+models = [
+    { id = "qwopus3.5-9b-v3", display = "Qwopus 3.5 9B", tier = "haiku" },
+]
+
+[providers.minimax]
+url = "https://api.minimax.io/anthropic"
+api_format = "anthropic"
+auth_method = "api_key"
+auth_value_env = "MINIMAX_API_KEY"
+tier = "opus"
+models = [
+    { id = "MiniMax-M2.7",           display = "MiniMax M2.7",           tier = "opus" },
+    { id = "MiniMax-M2.7-highspeed", display = "MiniMax M2.7 Fast",     tier = "opus" },
+    { id = "MiniMax-M2.5",           display = "MiniMax M2.5",           tier = "sonnet" },
+    { id = "MiniMax-M2.5-highspeed", display = "MiniMax M2.5 Fast",     tier = "sonnet" },
+    { id = "MiniMax-M2.1",           display = "MiniMax M2.1",           tier = "sonnet" },
+    { id = "MiniMax-M2.1-highspeed", display = "MiniMax M2.1 Fast",     tier = "haiku" },
+    { id = "MiniMax-M2",             display = "MiniMax M2",             tier = "haiku" },
+]
+
+# ── Example: adding a new provider ──────────────────────────────────────────
+#
+# [providers.together]
+# url = "https://api.together.xyz/v1"
+# api_format = "openai_compat"
+# auth_method = "bearer"
+# auth_value_env = "TOGETHER_API_KEY"
+# tier = "sonnet"
+# models = [
+#     { id = "meta-llama/Llama-3-70b-chat-hf", display = "Llama 3 70B", tier = "sonnet" },
+# ]
+#
+# [providers.groq]
+# url = "https://api.groq.com/openai/v1"
+# api_format = "openai_compat"
+# auth_method = "bearer"
+# auth_value_env = "GROQ_API_KEY"
+# tier = "haiku"
+# models = [
+#     { id = "llama-3.3-70b-versatile", display = "Llama 3.3 70B", tier = "haiku" },
+# ]

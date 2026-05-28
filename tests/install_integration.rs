@@ -2,7 +2,6 @@
 //! install.rs uses dirs::home_dir() — each test redirects HOME to a temp dir.
 
 use assert_cmd::Command;
-use predicates::prelude::*;
 use std::fs;
 
 /// Helper: run `ccb install --auto` with HOME set to tmp_dir.

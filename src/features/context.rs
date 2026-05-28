@@ -81,15 +81,20 @@ Run /compact now. Resume from handoff note after compaction.\n",
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
 
-    // Helper: clear all CCB env vars immediately, returning a guard that also clears on drop.
-    struct EnvGuard;
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct EnvGuard {
+        _lock: std::sync::MutexGuard<'static, ()>,
+    }
     impl EnvGuard {
         fn new() -> Self {
+            let lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             std::env::remove_var("CCB_CONTEXT_PCT");
             std::env::remove_var("CCB_CTX_TOKENS");
             std::env::remove_var("CCB_CTX_MAX");
-            Self
+            Self { _lock: lock }
         }
     }
     impl Drop for EnvGuard {
@@ -118,7 +123,6 @@ mod tests {
     #[test]
     fn current_pct_returns_none_when_no_env() {
         let _guard = EnvGuard::new();
-        // Guard already cleared env vars via `new()`
         assert_eq!(current_pct(), None);
     }
 

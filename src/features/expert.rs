@@ -596,6 +596,31 @@ pub fn query_active_json() -> Result<Option<String>> {
     Ok(Some(output.to_string()))
 }
 
+/// Get the active persona name as a plain string (for factory/hook consumption).
+pub fn query_active_name() -> String {
+    let conn = match db() {
+        Ok(c) => c,
+        Err(_) => return String::new(),
+    };
+
+    let active: Option<i64> = conn
+        .query_row("SELECT persona_id FROM active_persona", [], |row| {
+            row.get(0)
+        })
+        .ok();
+
+    let Some(persona_id) = active else {
+        return String::new();
+    };
+
+    conn.query_row(
+        "SELECT name FROM personas WHERE id = ?",
+        params![persona_id],
+        |row| row.get(0),
+    )
+    .unwrap_or_default()
+}
+
 struct PatternRow {
     id: String,
     name: String,
@@ -787,15 +812,6 @@ pub fn ingest(dataset_path: &std::path::Path) -> Result<()> {
 mod tests {
     use super::*;
     use rusqlite::Connection;
-    use std::cell::RefCell;
-    use std::rc::Rc;
-
-    /// In-memory DB wrapper for tests.
-    fn mem_db() -> Rc<RefCell<Connection>> {
-        let conn = Connection::open_in_memory().unwrap();
-        Rc::new(RefCell::new(conn))
-    }
-
     /// Helper: run a SQL batch on an in-memory connection.
     fn init_schema(conn: &Connection) {
         conn.execute_batch(
@@ -924,7 +940,7 @@ mod tests {
             [],
         )
         .unwrap();
-        let pid: i64 = conn
+        let _pid: i64 = conn
             .query_row("SELECT id FROM personas WHERE name = 'sec'", [], |row| {
                 row.get(0)
             })

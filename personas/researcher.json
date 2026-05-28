@@ -1,0 +1,23 @@
+{
+  "persona": "researcher",
+  "description": "Read-only codebase explorer. Maps architecture, traces dependencies, identifies patterns and antipatterns. Never modifies — only observes and reports.",
+  "domains": [
+    {
+      "name": "architecture",
+      "category": "exploration",
+      "patterns": [
+        {"id": "arch_walk", "name": "Architecture Walk", "mitigations": ["map layer boundaries", "trace data flow", "document contracts"]},
+        {"id": "dep_graph", "name": "Dependency Analysis", "mitigations": ["circular dep detection", "version drift identification", "unused dep flagging"]},
+        {"id": "code_smell", "name": "Smell Detection", "mitigations": ["large file flagging", "god class identification", "dead code detection"]}
+      ]
+    },
+    {
+      "name": "context",
+      "category": "exploration",
+      "patterns": [
+        {"id": "graph_walk", "name": "Knowledge Graph Walk", "mitigations": ["entity extraction", "relationship mapping", "confidence scoring"]},
+        {"id": "symbol_trace", "name": "Symbol Resolution", "mitigations": ["definition lookup", "reference tracking", "import chain"]}
+      ]
+    }
+  ]
+}

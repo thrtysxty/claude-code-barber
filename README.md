@@ -30,6 +30,7 @@
 - [Optional Features](#optional-features)
   - [Code Graph](#code-graph)
   - [Expert Personas & Knowledge Graph](#expert-personas--knowledge-graph)
+  - [Model Router](#model-router)
 - [Benchmarks](#benchmarks)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
@@ -107,6 +108,7 @@ cargo build --release --no-default-features --features trim,fade
 | `ccb install` | Wire context monitor + skill loader hooks into `~/.claude/settings.json` |
 | `ccb install --auto` | Same, no interactive prompt |
 | `ccb install --dry-run` | Show what would be installed without writing anything |
+| `ccb-route` | Start the model router on `:9001` — routes to all configured providers |
 
 ---
 
@@ -451,39 +453,136 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the graph traversal design.
 
 ### Model Router
 
-Routes Claude Code API calls across multiple backends based on model tier. Binary: `ccb-route`, default feature.
+Routes Claude Code API calls across multiple backends through a single endpoint. One `claude` command, every model from every provider available in the `/model` picker. Binary: `ccb-route`, default feature.
 
 ```bash
 cargo build --release --features route
-./target/release/ccb-route
+cp target/release/ccb-route ~/.local/bin/
+ccb-route
 # listens on :9001 by default
 ```
 
-**Routing table** (configurable via env vars):
+#### How it works
 
-| Tier | Default backend | Override env var |
-|------|----------------|-----------------|
-| `haiku` | qwopus (aibox:8080, local Ollama) | `ROUTE_HAIKU` |
-| `sonnet` | minimax (api.minimax.io) | `ROUTE_SONNET` |
-| `opus` | minimax (api.minimax.io) | `ROUTE_OPUS` |
+The router sits between Claude Code and your backends. Claude Code thinks it's talking to Anthropic. The router intercepts every request, resolves the model to the correct provider, and forwards it — rewriting auth headers, endpoints, and model IDs as needed.
 
-**Explicit prefix overrides** bypass the routing table:
-
-```bash
-claude --model qwopus:sonnet    # → aibox, regardless of ROUTE_SONNET
-claude --model minimax:opus     # → MiniMax, regardless of ROUTE_OPUS
-claude --model anthropic:haiku  # → real Anthropic, regardless of ROUTE_HAIKU
+```
+Claude Code ──► localhost:9001 (ccb-route) ──┬──► api.anthropic.com  (Claude)
+                                              ├──► localhost:11434    (Ollama)
+                                              ├──► api.minimax.io    (MiniMax)
+                                              └──► aibox:8080        (local GPU)
 ```
 
-**Agent dispatch** — spawn Claude Code agents against the router for zero Anthropic API cost:
+All models share the same Claude Code session — same tools, same context, same hooks, same permissions. Switch models mid-conversation with `/model` and the new model picks up the full transcript.
+
+#### Gateway discovery
+
+Claude Code's gateway model discovery fetches `/v1/models` from the router at startup. The router aggregates models from all providers into one list. Every model appears in the `/model` picker alongside the built-in Claude models.
+
+**The claude-prefix trick**: Claude Code filters gateway models by `/^(claude|anthropic)/i`. The router prefixes all model IDs with `claude-` (e.g., `claude-glm-5.1`, `claude-deepseek-v4-flash`). When a request comes in, the router strips the prefix before forwarding to the backend.
+
+**Auto-discovery**: Providers with `discover = true` (like Ollama) auto-populate from the backend. Pull a new model in Ollama and it appears in the `/model` picker on the next `claude` launch — no config changes needed.
+
+#### Shell setup
+
+Add to `~/.zshenv` (**not** `.zprofile` or `.zshrc` — `.zshenv` is the only file sourced for all shell types including non-login interactive shells, which is how terminals and VS Code launch):
 
 ```bash
-python3 ~/Projects/scripts/model-router.py &
-ANTHROPIC_BASE_URL=http://localhost:9001 ANTHROPIC_API_KEY=router \
-  claude --model MiniMax-M2.7 --dangerously-skip-permissions
+# Source secrets first (API keys for MiniMax, etc.)
+[ -f ~/.secrets ] && source ~/.secrets
+
+# CCB router — all providers through one endpoint
+export ANTHROPIC_BASE_URL=http://localhost:9001
+unset ANTHROPIC_API_KEY
+export ANTHROPIC_AUTH_TOKEN=$(your-oauth-token-helper)
+export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1
 ```
 
-Agents routed through the model router have full Claude Code capabilities — bash, file ops, and subagent spawning — identical to Opus.
+Key points:
+- **`ANTHROPIC_AUTH_TOKEN`** (not `ANTHROPIC_API_KEY`) keeps Claude Code in OAuth/subscription mode with the full model picker. Setting `ANTHROPIC_API_KEY` locks the picker to 4 built-in models.
+- **`CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1`** tells Claude Code to fetch `/v1/models` from `ANTHROPIC_BASE_URL` and add the results to the picker.
+- The router forwards the OAuth token to Anthropic as `Authorization: Bearer` for real Claude models.
+
+#### Provider configuration
+
+All providers are defined in `config/providers.toml`:
+
+```toml
+[providers.anthropic]
+url = "https://api.anthropic.com"
+auth_method = "oauth_passthrough"
+models = [
+    { id = "claude-opus-4-7", display = "Claude Opus 4.7", tier = "opus" },
+    # ...
+]
+
+[providers.ollama]
+url = "http://localhost:11434"
+auth_method = "none"
+discover = true    # auto-populate from Ollama's model list
+models = [
+    # Static entries override display name and tier for known models
+    { id = "qwen3.5", backend_id = "qwen3.5:cloud", display = "Qwen 3.5", tier = "sonnet" },
+    # ...
+]
+
+[providers.minimax]
+url = "https://api.minimax.io/anthropic"
+auth_method = "api_key"
+auth_value_env = "MINIMAX_API_KEY"
+models = [
+    { id = "MiniMax-M2.7", display = "MiniMax M2.7", tier = "opus" },
+    # ...
+]
+```
+
+See `config/providers.toml` for the full configuration with all supported auth methods and a commented example for adding new providers (Together, Groq, etc.).
+
+#### Model tiers
+
+Models are organized into tiers that map to Claude Code's model slots:
+
+| Tier | Role | Examples |
+|------|------|---------|
+| **Opus** | Frontier reasoning | Claude Opus 4.7, DeepSeek V4 Pro, MiniMax M2.7 |
+| **Sonnet** | Strong all-rounders | Claude Sonnet 4.6, Qwen 3.5, GLM 5.1, Kimi K2.6 |
+| **Haiku** | Fast / small | Claude Haiku 4.5, Gemma4 31B, Qwopus 3.5 9B |
+| **Local** | Offline / low-latency | Devstral Small 24B, Ministral 3 14B |
+
+For `discover = true` providers, unknown models get auto-assigned tiers based on parameter count: 200B+ → Opus, 30B+ → Sonnet, 10B+ → Haiku, <10B → Local.
+
+#### Explicit prefix overrides
+
+Bypass the routing table by prefixing the model with a provider name:
+
+```bash
+claude --model anthropic:haiku  # → real Anthropic, always
+claude --model ollama:gemma4    # → Ollama, always
+claude --model minimax:opus     # → MiniMax, always
+```
+
+#### Startup banner
+
+When the router starts, it prints the full model list grouped by tier and provider status:
+
+```
+ccb-route  :9001
+  ── Opus ──
+    Claude Opus 4.7 (claude-opus-4-7 via anthropic [oauth])
+    DeepSeek V4 Pro (deepseek-v4-pro via ollama [none])
+    MiniMax M2.7 (MiniMax-M2.7 via minimax [api-key])
+  ── Sonnet ──
+    Claude Sonnet 4.6 (claude-sonnet-4-6 via anthropic [oauth])
+    Qwen 3.5 (qwen3.5 via ollama [none])
+    ...
+```
+
+#### Diagnostics
+
+- **Router log**: `stderr` (or redirect to `/tmp/ccb-route.log`)
+- **Gateway cache**: `~/.claude/cache/gateway-models.json` — delete to force Claude Code to re-fetch on next launch
+- **Verify env vars**: `zsh -i -c 'echo $ANTHROPIC_BASE_URL'` should print `http://localhost:9001`
+- **Test model list**: `curl -s http://localhost:9001/v1/models | python3 -c "import json,sys; print(len(json.load(sys.stdin)['data']), 'models')"`
 
 ---
 
@@ -516,7 +615,7 @@ Every operation is also logged to `~/.claude/ccb_log.jsonl`:
 | Context window monitoring | — | ✓ (`context`) |
 | Budget inspector | — | ✓ (`lineup`) |
 | Knowledge graph (Layer 3) | — | ✓ (`expert`) |
-| Model router (multi-backend) | — | ✓ (`route`) |
+| Multi-provider model router | — | ✓ (`route`) |
 | Code symbol graph | — | ✓ (`graph`) |
 | Hook scripts included | — | ✓ |
 | Build without unused features | — | ✓ (feature flags) |
@@ -530,7 +629,7 @@ Every operation is also logged to `~/.claude/ccb_log.jsonl`:
 - [x] Layer 3 — Unified knowledge graph + expert personas
 - [x] Classify — Two-tier safety classifier with graph-aware Read hints
 - [x] tree-sitter AST-based symbol extraction (Rust, Python, TypeScript, JavaScript)
-- [x] Model router — multi-backend agent dispatch (Ollama local/cloud, MiniMax API, Anthropic)
+- [x] Model router — multi-provider routing with gateway discovery, `/model` picker integration, auto-discovery
 - [x] Infra metadata in graph — operational knowledge (GitHub auth routing, deployment configs)
 - [ ] Atlas Context Engine integration (MCP server, smart Read targeting)
 

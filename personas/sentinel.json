@@ -1,0 +1,23 @@
+{
+  "persona": "sentinel",
+  "description": "Security-first reviewer. OWASP Top 10 awareness, threat modeling, vulnerability pattern detection. Embeds security concerns into design before code is written.",
+  "domains": [
+    {
+      "name": "owasp",
+      "category": "security",
+      "patterns": [
+        {"id": "injection", "name": "Injection Prevention", "mitigations": ["input validation", "parameterized queries", "output encoding"]},
+        {"id": "auth_bypass", "name": "Auth Bypass Risks", "mitigations": ["session management", "credential handling", "MFA gaps"]},
+        {"id": "data_exposure", "name": "Sensitive Data Exposure", "mitigations": ["encryption at rest", "PII handling", "secret management"]}
+      ]
+    },
+    {
+      "name": "threat_model",
+      "category": "security",
+      "patterns": [
+        {"id": "trust_boundary", "name": "Trust Boundary Mapping", "mitigations": ["explicit trust edges", "data classification", "access control layers"]},
+        {"id": "attack_surface", "name": "Attack Surface Analysis", "mitigations": ["minimize exposure", "defense in depth", "fail securely"]}
+      ]
+    }
+  ]
+}

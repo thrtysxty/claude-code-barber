@@ -31,6 +31,11 @@ name = "expert_integration"
 path = "tests/expert_integration.rs"
 required-features = ["expert"]
 
+[[test]]
+name = "route_integration"
+path = "tests/route_integration.rs"
+required-features = ["route"]
+
 [features]
 default = ["trim", "fade", "route"]
 trim    = []
@@ -41,9 +46,10 @@ graph   = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-python",
            "dep:tree-sitter-typescript", "dep:tree-sitter-javascript",
            "dep:rusqlite", "dep:walkdir", "dep:ignore"]
 route   = ["dep:tokio", "dep:axum", "dep:reqwest", "dep:bytes", "dep:futures-util", "dep:uuid"]
-full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert", "classify"]
+full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert", "classify", "factory"]
 expert  = ["dep:rusqlite", "dep:serde_yaml"]
 classify = ["dep:reqwest", "dep:regex-lite"]
+factory = ["dep:rusqlite", "expert"]
 
 [dependencies]
 clap               = { version = "4", features = ["derive", "color"] }

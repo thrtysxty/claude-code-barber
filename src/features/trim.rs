@@ -27,6 +27,9 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
                 (None, Some(vec![]))
             }
         };
+        if let (Some(ref p), Some(ref d)) = (&persona, &domains_hit) {
+            eprintln!("\x1b[2m[@{}] domains: {}\x1b[0m", p, d.join(", "));
+        }
         CompressionEvent {
             timestamp: chrono::Utc::now().to_rfc3339(),
             feature: "trim".to_string(),
@@ -63,8 +66,6 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
         format!("{}{}", stdout, stderr)
     };
 
-    let compressed = compress_str(&combined);
-
     let (persona, domains_hit) = {
         #[cfg(feature = "expert")]
         {
@@ -75,6 +76,21 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
             (None, Some(vec![]))
         }
     };
+
+    // Surface active persona to stderr so it appears in the Claude session transcript.
+    // This is the load-bearing signal for the 7-agent factory loop — each stage
+    // announces its role before emitting output.
+    if let (Some(ref p), Some(ref d)) = (&persona, &domains_hit) {
+        eprintln!("\x1b[2m[@{}] domains: {}\x1b[0m", p, d.join(", "));
+    }
+
+    let compressed = compress_str(&combined);
+
+    let mode = if persona.is_some() {
+        None
+    } else {
+        Some("no-expert".to_string())
+    };
     CompressionEvent {
         timestamp: chrono::Utc::now().to_rfc3339(),
         feature: "trim".to_string(),
@@ -83,7 +99,7 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
         tokens_out: estimate_tokens(&compressed),
         bytes_in: combined.len(),
         bytes_out: compressed.len(),
-        mode: None,
+        mode,
         persona,
         domains_hit,
     }

@@ -1,0 +1,73 @@
+# Model context windows and pricing
+# Used by ccb-route (/v1/models) and ccb statusline (soft_limit, rates)
+# Models not listed use family fallback in model_metadata.rs
+
+[context_windows]
+# Anthropic native
+"claude-opus-4-7"                = 200000
+"claude-opus-4-6"                = 200000
+"claude-sonnet-4-6"              = 200000
+"claude-sonnet-4-5-20241022"     = 200000
+"claude-haiku-4-5-20251001"      = 200000
+# MiniMax — all models share 204,800 ctx
+"MiniMax-M2.7"                   = 204800
+"MiniMax-M2.7-highspeed"         = 204800
+"MiniMax-M2.5"                   = 204800
+"MiniMax-M2.5-highspeed"         = 204800
+"MiniMax-M2.1"                   = 204800
+"MiniMax-M2.1-highspeed"         = 204800
+"MiniMax-M2"                     = 204800
+# Local
+"qwopus3.5-9b-v3"               = 131072
+# Ollama cloud — context windows vary by model
+"deepseek-v3.2"                  = 131072
+"deepseek-v4-pro"                = 131072
+"deepseek-v4-flash"              = 131072
+"nemotron-3-super:120b"          = 131072
+"kimi-k2.6"                      = 131072
+"qwen3.5"                        = 131072
+"glm-5.1"                        = 131072
+"glm-5"                          = 131072
+"qwen3-next:80b"                 = 131072
+"gemma4:31b"                     = 131072
+"gemma3:27b"                     = 131072
+"nemotron-3-nano:30b"            = 131072
+"qwen3-coder-next"               = 131072
+"devstral-small-2:24b"           = 131072
+"ministral-3:14b"                = 131072
+
+[rates]
+# $/1M tokens: [input, output, thinking_multiplier]
+# Anthropic native
+"claude-opus-4-7"                = [15.0, 75.0, 3.5]
+"claude-opus-4-6"                = [15.0, 75.0, 3.5]
+"claude-sonnet-4-6"              = [3.0, 15.0, 3.5]
+"claude-sonnet-4-5-20241022"     = [3.0, 15.0, 3.5]
+"claude-haiku-4-5-20251001"      = [0.80, 4.0, 1.0]
+# MiniMax pay-as-you-go (cache_read=$0.03-0.06/M, cache_write=$0.375/M)
+# Standard: $0.30 in / $1.20 out — Highspeed: $0.60 in / $2.40 out
+"MiniMax-M2.7"                   = [0.30, 1.20, 1.0]
+"MiniMax-M2.7-highspeed"         = [0.60, 2.40, 1.0]
+"MiniMax-M2.5"                   = [0.30, 1.20, 1.0]
+"MiniMax-M2.5-highspeed"         = [0.60, 2.40, 1.0]
+"MiniMax-M2.1"                   = [0.30, 1.20, 1.0]
+"MiniMax-M2.1-highspeed"         = [0.60, 2.40, 1.0]
+"MiniMax-M2"                     = [0.30, 1.20, 1.0]
+# Local (free)
+"qwopus3.5-9b-v3"               = [0.0, 0.0, 1.0]
+# Ollama Plus (flat subscription, no per-token cost)
+"deepseek-v3.2"                  = [0.0, 0.0, 1.0]
+"deepseek-v4-pro"                = [0.0, 0.0, 1.0]
+"deepseek-v4-flash"              = [0.0, 0.0, 1.0]
+"nemotron-3-super:120b"          = [0.0, 0.0, 1.0]
+"kimi-k2.6"                      = [0.0, 0.0, 1.0]
+"qwen3.5"                        = [0.0, 0.0, 1.0]
+"glm-5.1"                        = [0.0, 0.0, 1.0]
+"glm-5"                          = [0.0, 0.0, 1.0]
+"qwen3-next:80b"                 = [0.0, 0.0, 1.0]
+"gemma4:31b"                     = [0.0, 0.0, 1.0]
+"gemma3:27b"                     = [0.0, 0.0, 1.0]
+"nemotron-3-nano:30b"            = [0.0, 0.0, 1.0]
+"qwen3-coder-next"               = [0.0, 0.0, 1.0]
+"devstral-small-2:24b"           = [0.0, 0.0, 1.0]
+"ministral-3:14b"                = [0.0, 0.0, 1.0]
