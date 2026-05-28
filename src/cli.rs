@@ -87,7 +87,63 @@ pub enum ContextCmd {
         #[arg(default_value = "60")]
         threshold: u8,
     },
+    /// Inject structured context at a hook point (session-start | pre-tool)
+    Inject {
+        /// Hook type: session-start or pre-tool
+        #[arg(long)]
+        hook: String,
+        /// Tool name (for pre-tool hook)
+        #[arg(long)]
+        tool: Option<String>,
+        /// Tool input as JSON string (for pre-tool hook)
+        #[arg(long)]
+        input: Option<String>,
+        /// Read hook payload from stdin instead of --tool/--input flags
+        #[arg(long)]
+        stdin: bool,
+    },
+    /// Trace a tool call result (PostToolUse hook)
+    Trace,
+    /// Tune context node weights from session traces (EMA update)
+    Tune {
+        /// Dry run: show proposed changes without applying them
+        #[arg(long)]
+        dry_run: bool,
+        /// Run LoCoMo validation after applying changes
+        #[arg(long)]
+        validate: bool,
+        /// Override the validation threshold (percentage points)
+        #[arg(long)]
+        threshold: Option<f64>,
+        /// Override the EMA decay factor (default 0.7)
+        #[arg(long)]
+        alpha: Option<f64>,
+    },
+    /// Detect gaps: built-but-unused experts, missing coverage for active domains
+    Gaps {
+        /// Minimum sessions before flagging as gap (default 3)
+        #[arg(long)]
+        min_sessions: Option<i64>,
+        /// Apply a suggestion by gap ID
+        #[arg(long)]
+        apply: Option<i64>,
+    },
+    /// Show weight distribution, top gainers/losers, active gaps, and LoCoMo trend
+    Report {
+        /// Output format: human or json (default human)
+        #[arg(long, value_enum, default_value = "human")]
+        format: ContextReportFormat,
+        /// Filter by node name
+        #[arg(long)]
+        node: Option<String>,
+    },
 }
+
+#[derive(clap::ValueEnum, Clone, Default, Debug)]
+pub enum ContextReportFormat {
+    #[default]
+    Human,
+    Json,
 
 #[derive(Args)]
 pub struct TrimArgs {

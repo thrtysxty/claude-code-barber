@@ -190,7 +190,6 @@ fn retrieve_tier2(topic_signals: &[&str], budget: usize) -> Vec<Tier2Node> {
             let weight: f64 = row.get(2)?;
             Ok((name, category, weight))
         })
-        .into_iter()
         .filter_map(|r| r.ok())
         .collect();
 
@@ -455,8 +454,7 @@ pub fn run_inject_stdin(hook: &str) -> Result<()> {
             inject_pre_tool(tool_name, &tool_input)
         }
         _ => {
-            let mut stdin_flag = false;
-            run_inject(hook, None, None, stdin_flag)
+            run_inject(hook, None, None, false)
         }
     }
 }
@@ -508,7 +506,7 @@ fn trace_tool_call(
         } else if let Some(s) = v.as_str() {
             s.chars().take(200).collect()
         } else if let Some(obj) = v.as_object() {
-            let keys: Vec<_> = obj.keys().take(10).collect();
+            let keys: Vec<_> = obj.keys().take(10).map(|k| k.as_str()).collect();
             format!("object: {}", keys.join(", "))
         } else {
             "ok".to_string()

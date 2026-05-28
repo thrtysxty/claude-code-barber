@@ -1,8 +1,16 @@
 //! context — monitor context window usage and inject safe-stop directives.
 //! Designed to run as a PostToolUse hook: reads usage % from env, emits
 //! agent-readable directives that Claude Code injects into the next turn.
+//!
+//! Also provides: `ccb context inject` (PreToolUse/SessionStart injection)
+//! and `ccb context trace` (PostToolUse logging).
+//!
+//! CCB-026 adds: `ccb context tune` (EMA weight updates), `ccb context gaps`
+//! (blind-spot detection), `ccb context report` (weight distribution).
 
-use crate::cli::ContextCmd;
+pub mod feedback;
+
+use crate::cli::{ContextCmd, ContextReportFormat};
 use crate::utils::progress_bar;
 
 pub fn run(cmd: ContextCmd) -> anyhow::Result<()> {
@@ -10,7 +18,94 @@ pub fn run(cmd: ContextCmd) -> anyhow::Result<()> {
         ContextCmd::Show => show(),
         ContextCmd::Clear { threshold } => advise(threshold, "clear"),
         ContextCmd::Compact { threshold } => advise(threshold, "compact"),
+        ContextCmd::Inject { hook, tool, input, stdin } => {
+            #[cfg(any(feature = "graph", feature = "expert", feature = "memory", feature = "factory"))]
+            crate::hooks::run_inject(&hook, tool.as_deref(), input.as_deref(), stdin)?;
+            #[cfg(not(any(feature = "graph", feature = "expert", feature = "memory", feature = "factory")))]
+            {
+                let _ = (&hook, &tool, &input, &stdin);
+                anyhow::bail!("hooks feature requires rusqlite — rebuild with --features graph,expert,memory,factory,hooks,status,classify")
+            }
+        }
+        #[cfg(any(feature = "graph", feature = "expert", feature = "memory", feature = "factory"))]
+        ContextCmd::Trace {} => crate::hooks::run_trace(),
+        // CCB-026: weight feedback commands
+        ContextCmd::Tune {
+            dry_run,
+            validate,
+            threshold,
+            alpha,
+        } => {
+            let opts = feedback::TuneOptions {
+                dry_run,
+                validate,
+                threshold_pct: threshold,
+                alpha,
+            };
+            let report = feedback::tune(opts)?;
+            feedback::print_tune_report(&report)?;
+            Ok(())
+        }
+        ContextCmd::Gaps { min_sessions, apply } => {
+            let config = feedback::TuneConfig {
+                min_sessions_for_gap: min_sessions.unwrap_or(3),
+                ..Default::default()
+            };
+            let gaps = feedback::detect_gaps(config)?;
+            if let Some(gap_id) = apply {
+                apply_gap_suggestion(gap_id, &gaps)?;
+            } else {
+                feedback::print_gaps(&gaps)?;
+            }
+            Ok(())
+        }
+        ContextCmd::Report { format, node } => {
+            let fmt = match format {
+                ContextReportFormat::Human => feedback::ReportFormat::Human,
+                ContextReportFormat::Json => feedback::ReportFormat::Json,
+            };
+            feedback::print_report(fmt, node.as_deref())?;
+            Ok(())
+        }
     }
+}
+
+fn apply_gap_suggestion(gap_id: i64, gaps: &[feedback::GapReport]) -> anyhow::Result<()> {
+    let gap = gaps
+        .iter()
+        .find(|g| g.node_id == gap_id)
+        .ok_or_else(|| anyhow::anyhow!("Gap {} not found", gap_id))?;
+
+    match &gap.suggestion {
+        feedback::GapSuggestion::ActivateExpert { name } => {
+            println!("Activating expert '{}'...", name);
+            #[cfg(feature = "expert")]
+            crate::features::expert::activate(name)?;
+            #[cfg(not(feature = "expert"))]
+            println!("(expert feature not enabled — run with --features expert)");
+        }
+        feedback::GapSuggestion::WireSkill { path } => {
+            println!("Generating skill stub at '{}'...", path);
+            let path = feedback::generate_skill_stub(gap)?;
+            println!("Created: {}", path.display());
+        }
+        feedback::GapSuggestion::PromoteWeight { node_id } => {
+            println!("Promoting weight for node {}...", node_id);
+            let conn = feedback::db()?;
+            conn.execute(
+                "UPDATE context_nodes SET weight = 0.5 WHERE id = ?",
+                rusqlite::params![node_id],
+            )?;
+            println!("Weight reset to 0.5");
+        }
+        feedback::GapSuggestion::BuildExpert { domain } => {
+            println!(
+                "Domain gap detected: no expert covers '{}'.\nSuggested action: build new expert for domain '{}'",
+                domain, domain
+            );
+        }
+    }
+    Ok(())
 }
 
 fn current_pct() -> Option<u8> {
