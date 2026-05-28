@@ -48,6 +48,9 @@ pub enum Command {
     /// Render the status line for Claude Code
     #[cfg(feature = "status")]
     Status,
+    /// Search past sessions and inject relevant context (requires --features memory)
+    #[cfg(feature = "memory")]
+    Memory(MemoryArgs),
     /// Run deterministic story loops through planning and implementation phases
     #[cfg(feature = "factory")]
     Factory(FactoryArgs),
@@ -100,6 +103,34 @@ pub struct GainArgs {
     pub ab: bool,
     #[arg(long)]
     pub expert: bool,
+    /// Run LoCoMo quality benchmark (measures information retention after compression)
+    #[arg(long)]
+    pub locomo: bool,
+    /// Path to custom LoCoMo dataset JSON (required if not using bundled testdata)
+    #[arg(long)]
+    pub dataset: Option<std::path::PathBuf>,
+    /// Compression level to benchmark: trim, cut, buzz, or all (default: all)
+    #[arg(long, value_enum, default_value = "all")]
+    pub compression_level: CompressionBenchLevel,
+    /// Output format: human or json (default: human)
+    #[arg(long, value_enum, default_value = "human")]
+    pub format: GainFormat,
+}
+
+#[derive(clap::ValueEnum, Clone, Default, Debug)]
+pub enum CompressionBenchLevel {
+    #[default]
+    All,
+    Trim,
+    Cut,
+    Buzz,
+}
+
+#[derive(clap::ValueEnum, Clone, Default, Debug)]
+pub enum GainFormat {
+    #[default]
+    Human,
+    Json,
 }
 
 #[derive(Args)]
@@ -132,6 +163,15 @@ pub enum GraphCmd {
     Stats {
         #[arg(long, value_enum, default_value = "human")]
         format: OutputFormatArg,
+    },
+    /// Watch a directory for changes and incrementally update the graph index
+    Watch {
+        /// Directory to watch (default: current directory)
+        #[arg(default_value = ".")]
+        path: std::path::PathBuf,
+        /// Run once then exit (useful for CI)
+        #[arg(long)]
+        once: bool,
     },
 }
 
@@ -216,6 +256,57 @@ pub enum ExportFormat {
 pub struct ExpertArgs {
     #[command(subcommand)]
     pub cmd: ExpertCmd,
+}
+
+/// Memory subcommands
+#[cfg(feature = "memory")]
+#[derive(Subcommand)]
+pub enum MemoryCmd {
+    /// Full-text search over past sessions (FTS5/BM25)
+    Search {
+        /// Search query string
+        query: String,
+        /// Filter by project name
+        #[arg(long)]
+        project: Option<String>,
+        /// Maximum results to return (default 10)
+        #[arg(long, default_value = "10")]
+        limit: usize,
+        /// Output format
+        #[arg(long, value_enum, default_value = "human")]
+        format: OutputFormatArg,
+    },
+    /// Generate a compact context block from memory for hook injection
+    Recall {
+        /// Filter by project name
+        #[arg(long)]
+        project: Option<String>,
+        /// Filter by persona
+        #[arg(long)]
+        persona: Option<String>,
+        /// Filter by task
+        #[arg(long)]
+        task: Option<String>,
+        /// Maximum output tokens (default 500)
+        #[arg(long, default_value = "500")]
+        max_tokens: usize,
+    },
+}
+
+/// Output format for memory commands
+#[cfg(feature = "memory")]
+#[derive(clap::ValueEnum, Clone)]
+pub enum OutputFormatArg {
+    Human,
+    Json,
+}
+
+/// Memory args (requires --features memory)
+#[cfg(feature = "memory")]
+#[derive(Args)]
+pub struct MemoryArgs {
+    #[command(subcommand)]
+    pub cmd: MemoryCmd,
 }
 
 #[derive(Args)]
