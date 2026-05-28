@@ -19,15 +19,17 @@ pub mod features {
     #[cfg(feature = "graph")]
     pub mod graph;
     pub mod index;
+    #[cfg(feature = "loop")]
+    pub mod loop_cmd;
     pub mod install;
     pub mod lineup;
     pub mod model_metadata;
     #[cfg(feature = "route")]
     pub mod providers;
-    #[cfg(feature = "status")]
-    pub mod rates;
     #[cfg(feature = "route")]
     pub mod route;
+    #[cfg(feature = "status")]
+    pub mod rates;
     #[cfg(feature = "status")]
     pub mod status;
     #[cfg(feature = "trim")]
@@ -76,7 +78,17 @@ fn main() -> anyhow::Result<()> {
         #[cfg(feature = "factory")]
         Command::Factory(args) => factory_cmd(args),
         #[cfg(feature = "status")]
-        Command::Status => status_cmd(),
+        Command::Status(args) => status_cmd(args),
+        #[cfg(feature = "loop")]
+        Command::Detect(args) => features::loop_cmd::cmd_detect(args),
+        #[cfg(feature = "loop")]
+        Command::Plan(args) => features::loop_cmd::cmd_plan(args),
+        #[cfg(feature = "loop")]
+        Command::Build(args) => features::loop_cmd::cmd_build(args),
+        #[cfg(feature = "loop")]
+        Command::Lesson(args) => features::loop_cmd::cmd_lesson(args),
+        #[cfg(feature = "loop")]
+        Command::Gates(args) => features::loop_cmd::cmd_gates(args),
     }
 }
 
@@ -277,10 +289,36 @@ fn factory_cmd(_args: cli::FactoryArgs) -> anyhow::Result<()> {
 }
 
 #[cfg(feature = "status")]
-fn status_cmd() -> anyhow::Result<()> {
+fn status_cmd(args: cli::StatusArgs) -> anyhow::Result<()> {
+    use cli::StatusCmd;
     use features::status::gradient::terminal_width;
+    use features::status::resolve_theme;
+
+    let width = terminal_width();
+    let theme = resolve_theme("claude-dark");
+
+    match args.cmd {
+        StatusCmd::Show => {
+            show_status(width, &theme)
+        }
+        StatusCmd::Demo { scenario } => {
+            features::status::demo::run(scenario.as_deref(), &theme, width)
+        }
+        StatusCmd::Monitor { interval, directory } => {
+            let dir = directory.unwrap_or_else(|| {
+                dirs::home_dir()
+                    .unwrap_or_default()
+                    .join(".claude")
+            });
+            features::status::mon::run(&dir, interval, &theme, width)
+        }
+    }
+}
+
+#[cfg(feature = "status")]
+fn show_status(width: usize, theme: &features::status::Theme) -> anyhow::Result<()> {
     use features::status::session::SessionInfo;
-    use features::status::{build_session_info, resolve_theme, StatusInput};
+    use features::status::{build_session_info, StatusInput};
 
     // Try reading session JSON from stdin first (Claude Code pipes it).
     // If valid, use it as the primary data source — it has the real model,
@@ -292,15 +330,12 @@ fn status_cmd() -> anyhow::Result<()> {
         buf
     };
 
-    let width = terminal_width();
-    let theme = resolve_theme("claude-dark");
-
     if !stdin_json.trim().is_empty() {
         if let Ok(session) = serde_json::from_str::<SessionInfo>(&stdin_json) {
             let ccb = StatusInput::load();
             let session = enrich_from_ccb(session, &ccb);
             update_session_env(&session.session_id, &session.model.id);
-            let output = features::status::render(&session, &theme, width, "wide");
+            let output = features::status::render(&session, theme, width, "wide");
             println!("{}", output);
             return Ok(());
         }
@@ -309,7 +344,7 @@ fn status_cmd() -> anyhow::Result<()> {
     // Fallback: use CCB-only data (route usage, session env)
     let input = StatusInput::load();
     let session_info = build_session_info(&input);
-    let output = features::status::render(&session_info, &theme, width, "wide");
+    let output = features::status::render(&session_info, theme, width, "wide");
     println!("{}", output);
     Ok(())
 }

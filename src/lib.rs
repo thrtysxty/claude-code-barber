@@ -19,6 +19,8 @@ pub mod features {
     #[cfg(feature = "graph")]
     pub mod graph;
     pub mod index;
+    #[cfg(feature = "loop")]
+    pub mod loop_cmd;
     pub mod install;
     pub mod lineup;
     pub mod model_metadata;
