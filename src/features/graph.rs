@@ -1,9 +1,11 @@
 use anyhow::Result;
 
+use notify::{Config, RecursiveMode, Watcher};
 use rusqlite::{params, Connection};
 use std::collections::HashMap;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tree_sitter::Parser;
 
 const DB_PATH: &str = "/.cache/ccb/graph.db";
@@ -935,6 +937,168 @@ pub fn symbols_in_file(file_path: &str) -> Result<Vec<(String, String, i64)>> {
         .mapped(|row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(results)
+}
+
+// ── Watch mode ────────────────────────────────────────────────────────────────
+
+/// Re-index a single file: delete stale symbols/edges for it, then insert fresh ones.
+fn reindex_file(db: &Connection, path: &Path) -> Result<usize> {
+    let lang = match detect_lang(path) {
+        Some(l) => l,
+        None => return Ok(0),
+    };
+
+    let path_str = path.display().to_string();
+    let file_id: Option<i64> = db
+        .query_row(
+            "SELECT id FROM files WHERE path = ?",
+            params![&path_str],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let mut count = 0;
+    if let Some(fid) = file_id {
+        // Delete stale symbols and edges for this file
+        db.execute("DELETE FROM edges WHERE source_id IN (SELECT id FROM symbols WHERE file_id = ?)", params![fid])?;
+        db.execute("DELETE FROM symbols WHERE file_id = ?", params![fid])?;
+        db.execute("DELETE FROM files WHERE id = ?", params![fid])?;
+    }
+
+    // Extract fresh symbols
+    let symbols = extract_symbols(path, lang)?;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    db.execute(
+        "INSERT OR REPLACE INTO files (path, lang, indexed) VALUES (?, ?, ?)",
+        params![&path_str, lang, now],
+    )?;
+    let file_id = db.last_insert_rowid();
+
+    // Insert symbols
+    let mut symbol_ids: HashMap<String, i64> = HashMap::new();
+    for (name, kind, line) in symbols {
+        db.execute(
+            "INSERT INTO symbols (file_id, name, kind, line) VALUES (?, ?, ?, ?)",
+            params![file_id, name, kind, line],
+        )
+        .ok();
+        if let Ok(id) = db.query_row("SELECT last_insert_rowid()", [], |r| r.get::<_, i64>(0))
+        {
+            symbol_ids.insert(name.clone(), id);
+        }
+        count += 1;
+    }
+
+    // Extract fresh edges
+    let edges = extract_edges(path, lang)?;
+    for (src_name, tgt_name, kind, line) in edges {
+        if let Some(src_id) = symbol_ids.get(&src_name).copied() {
+            db.execute(
+                "INSERT INTO edges (source_id, target_name, kind, line) VALUES (?, ?, ?, ?)",
+                params![src_id, tgt_name, kind, line],
+            )
+            .ok();
+        }
+    }
+
+    Ok(count)
+}
+
+/// Watch a directory for file changes and incrementally update the graph index.
+pub fn watch(path: &Path, once: bool) -> Result<()> {
+    // Initial full index
+    println!("Indexing {}...", path.display());
+    index(path)?;
+
+    let (tx, rx): (Sender<Vec<std::path::PathBuf>>, Receiver<Vec<std::path::PathBuf>>) = channel();
+
+    let watcher_result: Result<notify::RecommendedWatcher, notify::Error> = Watcher::new(
+        move |res: Result<notify::Event, notify::Error>| {
+            if let Ok(event) = res {
+                let _ = tx.send(event.paths);
+            }
+        },
+        Config::default(),
+    );
+
+    let mut watcher: notify::RecommendedWatcher = match watcher_result {
+        Ok(w) => w,
+        Err(e) => return Err(anyhow::anyhow!("Failed to create watcher: {}", e)),
+    };
+
+    watcher.watch(path, RecursiveMode::Recursive)?;
+
+    println!("Watching {} for changes (Ctrl+C to stop)...", path.display());
+
+    let debounce_ms = 500;
+    let mut pending: Vec<std::path::PathBuf> = Vec::new();
+    let mut last_batch = std::time::Instant::now();
+
+    loop {
+        let timeout = Duration::from_millis(debounce_ms);
+        match rx.recv_timeout(timeout) {
+            Ok(paths) => {
+                // Collect all paths from this event
+                for path_buf in paths {
+                    if path_buf.is_file() {
+                        if detect_lang(&path_buf).is_some() {
+                            pending.push(path_buf);
+                        }
+                    }
+                }
+                last_batch = std::time::Instant::now();
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                // Process if we have pending files and enough time has passed
+                let elapsed = last_batch.elapsed().as_millis() as u64;
+                if !pending.is_empty() && elapsed >= debounce_ms {
+                    // Deduplicate
+                    let unique: Vec<_> = {
+                        let mut set = std::collections::HashSet::new();
+                        pending.retain(|p| set.insert(p.clone()));
+                        pending.clone()
+                    };
+                    pending.clear();
+
+                    let db = db()?;
+                    let mut total = 0;
+                    for p in &unique {
+                        if let Ok(n) = reindex_file(&db, p) {
+                            total += n;
+                        }
+                    }
+                    // Resolve edges after incremental update
+                    resolve_edges(&db)?;
+
+                    let total_syms: i64 =
+                        db.query_row("SELECT COUNT(*) FROM symbols", [], |row| row.get(0))?;
+                    let total_edges: i64 =
+                        db.query_row("SELECT COUNT(*) FROM edges", [], |row| row.get(0))?;
+                    println!(
+                        "Updated {} files: {} new symbols (total: {} sym, {} edges)",
+                        unique.len(),
+                        total,
+                        total_syms,
+                        total_edges
+                    );
+
+                    if once {
+                        println!("--once mode: exiting after first update");
+                        return Ok(());
+                    }
+                }
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                break;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 // ── Unit tests for edge extraction ─────────────────────────────────────────────

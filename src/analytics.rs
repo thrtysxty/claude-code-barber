@@ -1,7 +1,23 @@
+#[cfg(feature = "bench")]
+use crate::cli::{CompressionBenchLevel, GainFormat};
 use crate::log::CompressionEvent;
 use std::collections::HashMap;
 
-#[allow(dead_code)]
+// GainMode is conditional based on bench feature
+#[cfg(feature = "bench")]
+#[derive(Debug, Clone)]
+pub enum GainMode {
+    Default,
+    AbTest,
+    ExpertDelta,
+    Locomo {
+        dataset_path: Option<std::path::PathBuf>,
+        compression_level: CompressionBenchLevel,
+        format: GainFormat,
+    },
+}
+
+#[cfg(not(feature = "bench"))]
 #[derive(Debug, Clone, Copy)]
 pub enum GainMode {
     Default,
@@ -11,8 +27,23 @@ pub enum GainMode {
 
 #[allow(dead_code)]
 pub fn gain(mode: GainMode) -> anyhow::Result<()> {
-    let events = load_events();
+    #[cfg(feature = "bench")]
+    {
+        if let GainMode::Locomo {
+            dataset_path,
+            compression_level,
+            format,
+        } = &mode
+        {
+            return crate::features::bench::run_locomo(
+                dataset_path.as_ref().map(|p| p.as_path()),
+                compression_level.clone(),
+                format.clone(),
+            );
+        }
+    }
 
+    let events = load_events();
     if events.is_empty() {
         println!("╭─────────────────────────────────────────╮");
         println!("│  No sessions logged yet.                │");
@@ -22,10 +53,13 @@ pub fn gain(mode: GainMode) -> anyhow::Result<()> {
     }
 
     match mode {
-        GainMode::AbTest => gain_ab(&events),
-        GainMode::ExpertDelta => gain_expert_delta(&events),
-        GainMode::Default => gain_default(&events),
+        GainMode::Default => gain_default(&events)?,
+        GainMode::AbTest => gain_ab(&events)?,
+        GainMode::ExpertDelta => gain_expert_delta(&events)?,
+        #[cfg(feature = "bench")]
+        GainMode::Locomo { .. } => unreachable!(),
     }
+    Ok(())
 }
 
 #[allow(dead_code)]

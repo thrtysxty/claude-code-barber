@@ -5,6 +5,8 @@ mod log;
 mod utils;
 
 pub mod features {
+    #[cfg(feature = "bench")]
+    pub mod bench;
     pub mod buzz;
     #[cfg(feature = "classify")]
     pub mod classify;
@@ -21,6 +23,8 @@ pub mod features {
     pub mod index;
     pub mod install;
     pub mod lineup;
+    #[cfg(feature = "memory")]
+    pub mod session_mem;
     pub mod model_metadata;
     #[cfg(feature = "route")]
     pub mod providers;
@@ -54,7 +58,20 @@ fn main() -> anyhow::Result<()> {
         Command::Context(c) => features::context::run(c.cmd),
         Command::Buzz => features::buzz::run(),
         Command::Gain(args) => {
-            let mode = if args.ab {
+            let mode = if args.locomo {
+                #[cfg(feature = "bench")]
+                {
+                    analytics::GainMode::Locomo {
+                        dataset_path: args.dataset.clone(),
+                        compression_level: args.compression_level.clone(),
+                        format: args.format.clone(),
+                    }
+                }
+                #[cfg(not(feature = "bench"))]
+                    {
+                        anyhow::bail!("ccb was built without the 'bench' feature (see Cargo.toml)")
+                    }
+            } else if args.ab {
                 analytics::GainMode::AbTest
             } else if args.expert {
                 analytics::GainMode::ExpertDelta
@@ -77,6 +94,8 @@ fn main() -> anyhow::Result<()> {
         Command::Factory(args) => factory_cmd(args),
         #[cfg(feature = "status")]
         Command::Status => status_cmd(),
+        #[cfg(feature = "memory")]
+        Command::Memory(args) => memory_cmd(args),
     }
 }
 
@@ -157,6 +176,7 @@ fn graph_cmd(_args: cli::GraphArgs) -> anyhow::Result<()> {
         GraphCmd::Search { pattern, format } => features::graph::search(&pattern, fmt(&format)),
         GraphCmd::Show { file, format } => features::graph::show(&file, fmt(&format)),
         GraphCmd::Stats { format } => features::graph::stats(fmt(&format)),
+        GraphCmd::Watch { path, once } => features::graph::watch(&path, once),
     }
 }
 
@@ -412,5 +432,111 @@ fn update_session_env(session_id: &str, model_id: &str) {
     }
     if let Ok(mut f) = std::fs::File::create(&path) {
         let _ = f.write_all(output.as_bytes());
+    }
+}
+
+#[cfg(feature = "memory")]
+fn memory_cmd(args: cli::MemoryArgs) -> anyhow::Result<()> {
+    use cli::{MemoryCmd, OutputFormatArg};
+    use features::memory::{recall, search};
+
+    match args.cmd {
+        MemoryCmd::Search {
+            query,
+            project,
+            limit,
+            format,
+        } => {
+            let proj_filter = project.as_deref();
+            let results = search(&query, proj_filter, limit)?;
+
+            // AC12: no results → "No matching sessions found"
+            if results.is_empty() {
+                println!("No matching sessions found.");
+                return Ok(());
+            }
+
+            match format {
+                OutputFormatArg::Human => {
+                    println!("Found {} results for '{}':", results.len(), query);
+                    for r in &results {
+                        println!("  {}", r.human());
+                    }
+                }
+                OutputFormatArg::Json => {
+                    let json = serde_json::json!({
+                        "query": query,
+                        "results": results.iter().map(|r| {
+                            serde_json::json!({
+                                "session_id": r.session_id,
+                                "name": r.name,
+                                "kind": r.kind,
+                                "metadata": r.metadata,
+                                "timestamp": r.timestamp,
+                                "score": r.score,
+                            })
+                        }).collect::<Vec<_>>()
+                    });
+                    println!("{}", json);
+                }
+            }
+            Ok(())
+        }
+        MemoryCmd::Recall {
+            project,
+            persona,
+            task,
+            max_tokens,
+        } => {
+            let proj_filter = project.as_deref();
+            let pers_filter = persona.as_deref();
+            let task_filter = task.as_deref();
+            let output = recall(proj_filter, pers_filter, task_filter, max_tokens)?;
+            println!("{}", output);
+            Ok(())
+        }
+        MemoryCmd::Mine { min_frequency, dry_run } => {
+            use features::memory::mine::{self, run_mine};
+            use features::memory::db;
+            let conn = db::init()?;
+            let (stats, patterns) = run_mine(&conn, min_frequency, dry_run)?;
+
+            if dry_run {
+                println!("[DRY RUN] Would generate {} patterns:", stats.tool_sequences + stats.file_clusters + stats.error_fixes + stats.persona_domains);
+                for p in &patterns {
+                    println!("  [{}] {} (freq={})", p.pattern_type, p.description, p.frequency);
+                }
+                println!("\nNo files written. Run without --dry-run to generate skill files.");
+            } else {
+                use features::memory::skills;
+                let skill_paths = skills::generate_all_skills(&patterns)?;
+                for (p, path) in patterns.iter().zip(skill_paths.iter()) {
+                    skills::link_skill_path(p, path, &conn)?;
+                }
+                if !skill_paths.is_empty() {
+                    skills::rebuild_index()?;
+                    println!("✓ Generated {} skill file(s) in ~/.claude/skills/auto/", skill_paths.len());
+                    println!("  tool_sequences={}, file_clusters={}, error_fixes={}, persona_domains={}",
+                        stats.tool_sequences, stats.file_clusters, stats.error_fixes, stats.persona_domains);
+                    println!("  INDEX.md rebuilt.");
+                } else {
+                    println!("No new patterns above threshold.");
+                }
+            }
+            Ok(())
+        }
+        MemoryCmd::Patterns { pattern_type } => {
+            use features::memory::db::{self, PatternType};
+            let conn = db::init()?;
+            let filter = pattern_type.as_ref().and_then(|t| PatternType::from_str(t));
+            db::list_patterns(&conn, filter)
+        }
+        MemoryCmd::Suppress { id } => {
+            use features::memory::db;
+            let conn = db::init()?;
+            db::suppress_pattern(&conn, id)?;
+            println!("Suppressed pattern {}", id);
+            Ok(())
+        }
     }
 }
