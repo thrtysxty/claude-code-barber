@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+#### Model Router — Gateway Discovery & Multi-Provider `/model` Integration
+
+- **Gateway discovery**: The router now serves a `/v1/models` endpoint that aggregates models from all configured providers. Claude Code's gateway model discovery fetches this list at startup and populates the `/model` picker with every available model.
+- **Claude-prefix trick**: All model IDs returned by `/v1/models` are prefixed with `claude-` to pass Claude Code's gateway filter (`/^(claude|anthropic)/i`). The router strips the prefix on incoming requests before forwarding to the backend.
+- **Auto-discovery**: Providers with `discover = true` (e.g., Ollama) auto-populate from the backend's model list. Pull a new model in Ollama and it appears in the picker on the next `claude` launch — no config changes needed. Static entries in `providers.toml` serve as metadata overrides (display name, tier) matched via `backend_id`.
+- **Tier auto-assignment**: Discovered models without a static override get auto-assigned tiers based on parameter count: 200B+ Opus, 30B+ Sonnet, 10B+ Haiku, <10B Local.
+- **Auth mode preservation**: Router works with `ANTHROPIC_AUTH_TOKEN` (OAuth) instead of `ANTHROPIC_API_KEY`, keeping Claude Code in subscription mode with the full model picker. OAuth tokens are forwarded as `Authorization: Bearer` to Anthropic.
+- **Prefix routing in `pick()`**: The routing function is now async and resolves `claude-`-prefixed model IDs through both static catalog and discovery backends.
+- **GET request logging**: `/v1/models` requests are now logged to stderr for diagnostics.
+- **Shell setup**: Documentation updated — router env vars must go in `~/.zshenv` (not `.zprofile`) because interactive non-login shells (terminals, VS Code) only source `.zshenv` and `.zshrc`.
+
 ## [0.1.0] — 2026-05-24
 
 ### Added

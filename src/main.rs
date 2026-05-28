@@ -12,6 +12,8 @@ pub mod features {
     pub mod cut;
     #[cfg(feature = "expert")]
     pub mod expert;
+    #[cfg(feature = "factory")]
+    pub mod factory;
     #[cfg(feature = "fade")]
     pub mod fade;
     #[cfg(feature = "graph")]
@@ -19,8 +21,15 @@ pub mod features {
     pub mod index;
     pub mod install;
     pub mod lineup;
+    pub mod model_metadata;
+    #[cfg(feature = "route")]
+    pub mod providers;
+    #[cfg(feature = "status")]
+    pub mod rates;
     #[cfg(feature = "route")]
     pub mod route;
+    #[cfg(feature = "status")]
+    pub mod status;
     #[cfg(feature = "trim")]
     pub mod trim;
 }
@@ -55,6 +64,7 @@ fn main() -> anyhow::Result<()> {
             analytics::gain(mode)
         }
         Command::Install(args) => features::install::run(args.auto, args.dry_run),
+        Command::Models => models_cmd(),
         #[cfg(feature = "graph")]
         Command::Graph(args) => graph_cmd(args),
         #[cfg(feature = "expert")]
@@ -63,6 +73,42 @@ fn main() -> anyhow::Result<()> {
         Command::Route(args) => route_cmd(args),
         #[cfg(feature = "classify")]
         Command::Classify => features::classify::run(),
+        #[cfg(feature = "factory")]
+        Command::Factory(args) => factory_cmd(args),
+        #[cfg(feature = "status")]
+        Command::Status => status_cmd(),
+    }
+}
+
+fn models_cmd() -> anyhow::Result<()> {
+    let url =
+        std::env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "http://localhost:9001".to_string());
+    let endpoint = format!("{}/v1/models", url.trim_end_matches('/'));
+
+    let client = reqwest::blocking::Client::new();
+    let resp = client.get(&endpoint).send();
+    match resp {
+        Ok(resp) if resp.status().is_success() => {
+            let body: serde_json::Value = resp.json()?;
+            if let Some(data) = body["data"].as_array() {
+                for m in data {
+                    let id = m["id"].as_str().unwrap_or("");
+                    let display = m["display_name"].as_str().unwrap_or(id);
+                    if id.starts_with("──") {
+                        println!("\n  \x1b[1m{}\x1b[0m", display);
+                    } else {
+                        println!("    {:<35} claude --model {}", display, id);
+                    }
+                }
+                println!();
+            }
+            Ok(())
+        }
+        _ => {
+            eprintln!("ccb-route not reachable at {}", endpoint);
+            eprintln!("Start it with: ccb-route &");
+            std::process::exit(1);
+        }
     }
 }
 
@@ -143,4 +189,235 @@ fn route_cmd(args: cli::RouteArgs) -> anyhow::Result<()> {
     use features::route::run_router;
     run_router(args.cmd).map_err(|e| anyhow::anyhow!("Router error: {}", e))?;
     Ok(())
+}
+
+#[cfg(feature = "factory")]
+fn factory_cmd(_args: cli::FactoryArgs) -> anyhow::Result<()> {
+    use cli::FactoryCmd;
+    use features::factory;
+    match &_args.cmd {
+        FactoryCmd::New {
+            title,
+            loop_type,
+            description,
+        } => {
+            let lt = match loop_type.as_str() {
+                "planning" => factory::LoopType::Planning,
+                "implementation" => factory::LoopType::Implementation,
+                _ => anyhow::bail!("loop_type must be 'planning' or 'implementation'"),
+            };
+            let desc = description.as_deref().unwrap_or("");
+            let story = factory::create_story(title, desc, lt)?;
+            println!("Created story: {}", story.id);
+            println!("  title: {}", story.title);
+            println!("  loop: {}", story.loop_type);
+            println!("  state: {}", story.state);
+        }
+        FactoryCmd::Advance { story_id, note } => {
+            let story = factory::advance_story(story_id, note.as_ref().map(|s| s.as_str()))?;
+            println!("Advanced {} → {}", story.id, story.state);
+        }
+        FactoryCmd::Kickback { story_id, note } => {
+            let story = factory::kickback_story(story_id, note.as_ref().map(|s| s.as_str()))?;
+            println!("Kicked back {} → {}", story.id, story.state);
+        }
+        FactoryCmd::Escalate {
+            story_id,
+            target,
+            note,
+        } => {
+            let story =
+                factory::escalate_story(story_id, target, note.as_ref().map(|s| s.as_str()))?;
+            println!("Escalated {} → {} (@{})", story.id, story.state, target);
+        }
+        FactoryCmd::Approve { story_id, note } => {
+            let story = factory::approve_story(story_id, note.as_ref().map(|s| s.as_str()))?;
+            println!("Approved {} → {}", story.id, story.state);
+        }
+        FactoryCmd::Status { story_id } => {
+            let story = factory::story_status(story_id)?;
+            println!("{}", factory::format_story(&story));
+            println!("\nHistory:");
+            for h in &story.history {
+                println!(
+                    "  [{}] {} --[{}]--> {} @{}",
+                    h.timestamp, h.from, h.trigger, h.to, h.expert
+                );
+                if let Some(n) = &h.note {
+                    println!("    note: {}", n);
+                }
+            }
+        }
+        FactoryCmd::List { loop_type } => {
+            let lt = match loop_type.as_deref() {
+                Some("planning") => Some(factory::LoopType::Planning),
+                Some("implementation") => Some(factory::LoopType::Implementation),
+                Some(_) => anyhow::bail!("loop_type must be 'planning' or 'implementation'"),
+                None => None,
+            };
+            let stories = factory::list_stories(lt)?;
+            if stories.is_empty() {
+                println!("No stories found.");
+            } else {
+                for s in &stories {
+                    println!("{}", factory::format_story(s));
+                }
+            }
+        }
+        FactoryCmd::Show { loop_type } => {
+            let loop_def = match loop_type.as_str() {
+                "planning" => &factory::PLANNING_LOOP,
+                "implementation" => &factory::IMPLEMENTATION_LOOP,
+                _ => anyhow::bail!("loop_type must be 'planning' or 'implementation'"),
+            };
+            println!("{}", factory::format_state_machine(loop_def));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "status")]
+fn status_cmd() -> anyhow::Result<()> {
+    use features::status::gradient::terminal_width;
+    use features::status::session::SessionInfo;
+    use features::status::{build_session_info, resolve_theme, StatusInput};
+
+    // Try reading session JSON from stdin first (Claude Code pipes it).
+    // If valid, use it as the primary data source — it has the real model,
+    // real tokens, real rate limits from the live session.
+    let stdin_json = {
+        use std::io::Read;
+        let mut buf = String::new();
+        let _ = std::io::stdin().read_to_string(&mut buf);
+        buf
+    };
+
+    let width = terminal_width();
+    let theme = resolve_theme("claude-dark");
+
+    if !stdin_json.trim().is_empty() {
+        if let Ok(session) = serde_json::from_str::<SessionInfo>(&stdin_json) {
+            // Enrich with CCB data (git, transcript, token logs, etc.)
+            let ccb = StatusInput::load();
+            let session = enrich_from_ccb(session, &ccb);
+            // Keep session_env.sh in sync with the live model + session from Claude Code
+            update_session_env(&session.session_id, &session.model.id);
+            let output = features::status::render(&session, &theme, width, "wide");
+            println!("{}", output);
+            return Ok(());
+        }
+    }
+
+    // Fallback: use CCB-only data (route usage, session env)
+    let input = StatusInput::load();
+    let session_info = build_session_info(&input);
+    let output = features::status::render(&session_info, &theme, width, "wide");
+    println!("{}", output);
+    Ok(())
+}
+
+#[cfg(feature = "status")]
+fn enrich_from_ccb(
+    mut session: features::status::SessionInfo,
+    ccb: &features::status::StatusInput,
+) -> features::status::SessionInfo {
+    use features::status::session::GitInfo;
+
+    // Fill in git details if missing from session JSON
+    if session.git.is_none()
+        || session
+            .git
+            .as_ref()
+            .and_then(|g| g.branch.as_deref())
+            .is_none()
+    {
+        let git_info = GitInfo::from_cwd(session.cwd.as_deref().unwrap_or(""));
+        session.git = Some(features::status::session::GitState {
+            branch: Some(git_info.branch),
+            is_dirty: Some(git_info.modified > 0 || git_info.untracked > 0),
+            commit_hash: Some(git_info.commit),
+            commit_message: None,
+            ahead: None,
+            behind: None,
+        });
+    }
+
+    // Fill in rate limits from CCB route data when Claude Code's JSON omits them
+    if session.rate_limits.is_none() && (ccb.rate_5h_pct > 0.0 || ccb.rate_7d_pct > 0.0) {
+        session.rate_limits = Some(features::status::session::RateLimits {
+            five_hour: features::status::session::FiveHourLimit {
+                used_percentage: ccb.rate_5h_pct,
+                resets_at: ccb.rate_resets_at.as_ref().and_then(|s| {
+                    chrono::DateTime::parse_from_rfc3339(s)
+                        .map(|dt| dt.timestamp() as u64)
+                        .ok()
+                }),
+            },
+            seven_day: features::status::session::SevenDayLimit {
+                used_percentage: ccb.rate_7d_pct,
+                resets_at: None,
+            },
+        });
+    }
+
+    // If session JSON didn't provide a display name, derive one
+    if session.model.display_name.is_none() {
+        let id = &session.model.id;
+        let display = if id.contains("qwopus") {
+            "Qwopus 3.5"
+        } else if id.contains("opus") {
+            "Opus 4.7"
+        } else if id.contains("sonnet") {
+            "Sonnet 4.6"
+        } else if id.contains("haiku") {
+            "Haiku 4.5"
+        } else if id.contains("minimax") {
+            "MiniMax-M2.7"
+        } else if id == "unknown" {
+            "Unknown"
+        } else {
+            id
+        };
+        session.model.display_name = Some(display.to_string());
+    }
+
+    session
+}
+
+#[cfg(feature = "status")]
+fn update_session_env(session_id: &str, model_id: &str) {
+    use std::io::Write;
+    let path = dirs::cache_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .join("ccb")
+        .join("session_env.sh");
+
+    // Read existing content, or start fresh
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let _has_session_id = content
+        .lines()
+        .any(|l| l.starts_with("export CCB_SESSION_ID="));
+    let updated = content
+        .lines()
+        .filter(|l| !l.starts_with("export CCB_MODEL=") && !l.starts_with("export CCB_SESSION_ID="))
+        .chain(std::iter::once(""))
+        .fold(String::new(), |mut acc, l| {
+            if !l.is_empty() {
+                acc.push_str(l);
+                acc.push('\n');
+            }
+            acc
+        });
+    let mut lines: Vec<String> = updated.lines().map(|l| l.to_string()).collect();
+    lines.push(format!("export CCB_SESSION_ID=\"{}\"", session_id));
+    lines.push(format!("export CCB_MODEL=\"{}\"", model_id));
+    let output = lines.join("\n") + "\n";
+
+    // Ensure parent directory exists
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(mut f) = std::fs::File::create(&path) {
+        let _ = f.write_all(output.as_bytes());
+    }
 }

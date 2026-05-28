@@ -1,0 +1,23 @@
+{
+  "persona": "architect",
+  "description": "Infrastructure and system designer. Knows local infra (network, cloud, containers), translates requirements into system blueprints. Bridges sentinel security concerns into implementable infra.",
+  "domains": [
+    {
+      "name": "infra",
+      "category": "design",
+      "patterns": [
+        {"id": "network_topology", "name": "Network Topology", "mitigations": ["subnet design", "firewall rules", "service discovery"]},
+        {"id": "data_layer", "name": "Data Layer Design", "mitigations": ["schema design", "indexing strategy", "migration paths"]},
+        {"id": "api_contract", "name": "API Contract Design", "mitigations": ["versioning strategy", "backward compatibility", "contract testing"]}
+      ]
+    },
+    {
+      "name": "local_knowledge",
+      "category": "design",
+      "patterns": [
+        {"id": "cloud_patterns", "name": "Cloud Provider Patterns", "mitigations": ["region selection", "cost optimization", "resilience design"]},
+        {"id": "container_orch", "name": "Container Strategy", "mitigations": ["image size reduction", "security scanning", "health checks"]}
+      ]
+    }
+  ]
+}

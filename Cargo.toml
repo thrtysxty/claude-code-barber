@@ -31,6 +31,21 @@ name = "expert_integration"
 path = "tests/expert_integration.rs"
 required-features = ["expert"]
 
+[[test]]
+name = "status_unit"
+path = "tests/status_unit.rs"
+required-features = ["status"]
+
+[[test]]
+name = "status_integration"
+path = "tests/status_integration.rs"
+required-features = ["status"]
+
+[[test]]
+name = "route_integration"
+path = "tests/route_integration.rs"
+required-features = ["route"]
+
 [features]
 default = ["trim", "fade", "route"]
 trim    = []
@@ -42,8 +57,13 @@ graph   = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-python",
            "dep:rusqlite", "dep:walkdir", "dep:ignore"]
 route   = ["dep:tokio", "dep:axum", "dep:reqwest", "dep:bytes", "dep:futures-util", "dep:uuid"]
 full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert", "classify"]
+# WIP features — not included in `full` until stable:
+# factory = ["dep:rusqlite", "expert"]   — story factory pipeline
+# status  = [...]                        — status line renderer
 expert  = ["dep:rusqlite", "dep:serde_yaml"]
 classify = ["dep:reqwest", "dep:regex-lite"]
+factory = ["dep:rusqlite", "expert"]
+status  = ["dep:notify", "dep:shellexpand", "dep:regex-lite", "dep:libc"]
 
 [dependencies]
 clap               = { version = "4", features = ["derive", "color"] }
@@ -75,6 +95,11 @@ reqwest      = { version = "0.12", features = ["stream", "json", "blocking"], op
 bytes        = { version = "1",                                          optional = true }
 futures-util = { version = "0.3",                                        optional = true }
 uuid         = { version = "1",    features = ["v4"],                    optional = true }
+
+# status feature deps (was yasr)
+notify       = { version = "6",    optional = true }
+shellexpand  = { version = "3",    optional = true }
+libc         = { version = "0.2",  optional = true }
 
 [dev-dependencies]
 assert_cmd = "2"

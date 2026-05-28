@@ -31,18 +31,26 @@ pub enum Command {
     Gain(GainArgs),
     /// Wire ccb hooks into ~/.claude/settings.json (use --auto to apply without prompting)
     Install(InstallArgs),
+    /// Render session statusline using CCB data (requires --features status)
+    #[cfg(feature = "status")]
+    Status,
     /// Manage expert personas and the knowledge graph (requires --features expert)
     #[cfg(feature = "expert")]
     Expert(ExpertArgs),
     /// Build and query a code symbol graph (requires --features graph)
     #[cfg(feature = "graph")]
     Graph(GraphArgs),
+    /// List all available models from the running router
+    Models,
     /// Model router — routes Claude Code API calls to local or Anthropic backends
     #[cfg(feature = "route")]
     Route(RouteArgs),
     /// Classify tool calls for safety (reads hook JSON from stdin)
     #[cfg(feature = "classify")]
     Classify,
+    /// Run deterministic story loops through planning and implementation phases
+    #[cfg(feature = "factory")]
+    Factory(FactoryArgs),
 }
 
 #[derive(Args)]
@@ -243,4 +251,84 @@ pub enum RouteCmd {
     Status,
     /// Print export block for shell
     Env,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Factory / story loop commands
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Factory subcommands
+#[cfg(feature = "factory")]
+#[derive(Subcommand)]
+pub enum FactoryCmd {
+    /// Create a new story in the backlog
+    New {
+        /// Story title
+        title: String,
+        /// Planning or implementation loop
+        #[arg(short, long, default_value = "planning")]
+        loop_type: String,
+        /// Optional description
+        #[arg(short, long)]
+        description: Option<String>,
+    },
+    /// Advance story to next state (requires matching expert active)
+    Advance {
+        /// Story ID
+        story_id: String,
+        /// Optional note
+        #[arg(short, long)]
+        note: Option<String>,
+    },
+    /// Kick story back to previous state (sentinel/architect authority)
+    Kickback {
+        /// Story ID
+        story_id: String,
+        /// Optional note
+        #[arg(short, long)]
+        note: Option<String>,
+    },
+    /// Escalate story for architect/sentinel review
+    Escalate {
+        /// Story ID
+        story_id: String,
+        /// Escalation target
+        target: String,
+        /// Optional note
+        #[arg(short, long)]
+        note: Option<String>,
+    },
+    /// Approve story and advance to next state
+    Approve {
+        /// Story ID
+        story_id: String,
+        /// Optional note
+        #[arg(short, long)]
+        note: Option<String>,
+    },
+    /// Show story status and history
+    Status {
+        /// Story ID
+        story_id: String,
+    },
+    /// List all stories (optionally filtered by loop)
+    List {
+        /// Filter by loop type: planning | implementation
+        #[arg(short, long)]
+        loop_type: Option<String>,
+    },
+    /// Show the state machine for a loop
+    Show {
+        /// planning | implementation
+        #[arg(default_value = "planning")]
+        loop_type: String,
+    },
+}
+
+/// Factory args (requires --features factory)
+#[cfg(feature = "factory")]
+#[derive(Args)]
+pub struct FactoryArgs {
+    #[command(subcommand)]
+    pub cmd: FactoryCmd,
 }

@@ -18,20 +18,27 @@ struct DefaultConfig {
     haiku: (String, String),
     sonnet: (String, String),
     opus: (String, String),
+    minimax: (String, String),
+    ollama: (String, String),
 }
 
 impl DefaultConfig {
     fn new() -> Self {
         let aibox = env::var("AIBOX_URL").unwrap_or_else(|_| "http://aibox:8080".to_string());
         let aibox_model = env::var("AIBOX_MODEL").unwrap_or_else(|_| "qwopus3.5-9b-v3".to_string());
-        let ollama =
+        let minimax_url = env::var("MINIMAX_URL")
+            .unwrap_or_else(|_| "https://api.minimax.io/anthropic".to_string());
+        let minimax_model =
+            env::var("MINIMAX_MODEL").unwrap_or_else(|_| "MiniMax-M2.7".to_string());
+        let ollama_url =
             env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
-        let ollama_model = env::var("OLLAMA_MODEL").unwrap_or_else(|_| "glm-5.1:cloud".to_string());
 
         Self {
             haiku: (aibox, aibox_model),
-            sonnet: (ollama, ollama_model),
+            sonnet: (ollama_url, "ollama".to_string()),
             opus: ("https://api.anthropic.com".to_string(), "opus".to_string()),
+            minimax: (minimax_url, minimax_model),
+            ollama: ("http://localhost:11434".to_string(), "ollama".to_string()),
         }
     }
 }
@@ -81,6 +88,8 @@ struct Config {
     haiku: (String, String),
     sonnet: (String, String),
     opus: (String, String),
+    minimax: (String, String),
+    ollama: (String, String),
     port: u16,
 }
 
@@ -90,6 +99,8 @@ impl Config {
             haiku: (cfg.haiku.0, cfg.haiku.1),
             sonnet: (cfg.sonnet.0, cfg.sonnet.1),
             opus: (cfg.opus.0, cfg.opus.1),
+            minimax: (cfg.minimax.0, cfg.minimax.1),
+            ollama: (cfg.ollama.0, cfg.ollama.1),
             port: DEFAULT_PORT,
         }
     }
@@ -99,6 +110,8 @@ impl Config {
             haiku: (defaults.haiku.0, config.haiku.1),
             sonnet: (defaults.sonnet.0, config.sonnet.1),
             opus: (defaults.opus.0, config.opus.1),
+            minimax: (defaults.minimax.0, config.minimax.1),
+            ollama: (defaults.ollama.0, config.ollama.1),
             port: config.port,
         }
     }
@@ -123,41 +136,48 @@ impl Config {
             }
         }
 
-        // Load real Anthropic key
-        let real_key = load_real_key()?;
+        // Find the ccb-route binary
+        let router_exe = dirs::home_dir()
+            .unwrap_or_default()
+            .join("Projects")
+            .join("claude-code-barber")
+            .join("target")
+            .join("release")
+            .join("ccb-route");
 
-        // Determine API key for each route
-        let opus_key = if real_key.is_empty() {
-            "MISSING".to_string()
+        let router_exe = if router_exe.exists() {
+            router_exe
         } else {
-            real_key.to_string()
+            let debug_exe = dirs::home_dir()
+                .unwrap_or_default()
+                .join("Projects")
+                .join("claude-code-barber")
+                .join("target")
+                .join("debug")
+                .join("ccb-route");
+            if debug_exe.exists() {
+                debug_exe
+            } else {
+                return Err(anyhow::anyhow!(
+                    "ccb-route binary not found. Run: cargo build --features route"
+                ));
+            }
         };
 
-        // Shell out to the Python model-router (the working implementation)
-        let python_router =
-            std::path::PathBuf::from("/Users/dadmin/Projects/scripts/model-router.py");
-        if !python_router.exists() {
-            return Err(anyhow::anyhow!(
-                "router script not found at {}",
-                python_router.display()
-            ));
-        }
-
-        let mut cmd = Command::new("python3");
-        cmd.arg(&python_router);
+        let mut cmd = Command::new(&router_exe);
+        cmd.env("CCB_ROUTE_PORT", self.port.to_string());
         cmd.env("AIBOX_URL", &self.haiku.0);
         cmd.env("AIBOX_MODEL", &self.haiku.1);
-        cmd.env("OLLAMA_URL", &self.sonnet.0);
-        cmd.env("OLLAMA_MODEL", &self.sonnet.1);
-        cmd.env("ANTHROPIC_API_KEY", &opus_key);
-        cmd.env("PORT", self.port.to_string());
+        cmd.env("OLLAMA_URL", &self.ollama.0);
+        cmd.env("CCB_SONNET_BACKEND", "ollama");
+        cmd.env("ANTHROPIC_API_KEY_REAL", load_real_key()?);
         cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::null());
         cmd.stderr(Stdio::null());
 
         let status = cmd
             .spawn()
-            .with_context(|| "failed to spawn python3 model-router.py")?;
+            .with_context(|| format!("failed to spawn {}", router_exe.display()))?;
 
         // Wait for startup
         std::thread::sleep(std::time::Duration::from_secs(2));
@@ -217,6 +237,8 @@ impl Config {
         println!("    haiku  → {} → {}", self.haiku.0, self.haiku.1);
         println!("    sonnet → {} → {}", self.sonnet.0, self.sonnet.1);
         println!("    opus   → {} → {}", self.opus.0, self.opus.1);
+        println!("    minimax → {} → {}", self.minimax.0, self.minimax.1);
+        println!("    ollama  → {} → {}", self.ollama.0, self.ollama.1);
 
         if !running {
             fs::remove_file(ROUTER_PID_FILE)
@@ -298,7 +320,9 @@ mod tests {
         assert_eq!(cfg.haiku.0, "http://aibox:8080");
         assert_eq!(cfg.haiku.1, "qwopus3.5-9b-v3");
         assert_eq!(cfg.sonnet.0, "http://localhost:11434");
-        assert_eq!(cfg.sonnet.1, "glm-5.1:cloud");
+        assert_eq!(cfg.minimax.0, "https://api.minimax.io/anthropic");
+        assert_eq!(cfg.minimax.1, "MiniMax-M2.7");
+        assert_eq!(cfg.ollama.0, "http://localhost:11434");
     }
 
     #[test]

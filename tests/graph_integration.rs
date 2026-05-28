@@ -1,4 +1,4 @@
-use assert_cmd::{assert::OutputAssertExt, cargo::CommandCargoExt, Command};
+use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
@@ -292,6 +292,7 @@ fn test_skip_target_dir() {
 
 #[test]
 #[cfg(unix)]
+#[allow(unreachable_code, unused_imports)]
 fn test_no_follow_symlinks() {
     // NOTE: skipped — fs::read_to_string on a symlink reads through to the target
     // on macOS/Unix, so the symlink target's content IS indexed regardless of

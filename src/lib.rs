@@ -12,6 +12,8 @@ pub mod features {
     pub mod cut;
     #[cfg(feature = "expert")]
     pub mod expert;
+    #[cfg(feature = "factory")]
+    pub mod factory;
     #[cfg(feature = "fade")]
     pub mod fade;
     #[cfg(feature = "graph")]
@@ -19,10 +21,15 @@ pub mod features {
     pub mod index;
     pub mod install;
     pub mod lineup;
+    pub mod model_metadata;
+    #[cfg(feature = "route")]
+    pub mod providers;
+    #[cfg(feature = "status")]
+    pub mod rates;
     #[cfg(feature = "route")]
     pub mod route;
+    #[cfg(feature = "status")]
+    pub mod status;
     #[cfg(feature = "trim")]
     pub mod trim;
 }
-
-pub use cli::{Cli, Command, StyleCmd};
