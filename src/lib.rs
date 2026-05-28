@@ -4,6 +4,9 @@ mod config;
 mod log;
 mod utils;
 
+#[cfg(feature = "hooks")]
+pub mod hooks;
+
 pub mod features {
     pub mod buzz;
     #[cfg(feature = "classify")]
