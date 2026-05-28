@@ -540,6 +540,9 @@ fn strip_ollama_unsupported(body: &mut Value) {
 /// Per https://platform.minimax.io/docs/api-reference/text-anthropic-api:
 ///   Ignored: top_k, stop_sequences, service_tier, mcp_servers, context_management, container
 ///   Unsupported message types: image, document (text, tool_use, tool_result, thinking only)
+///
+/// Also sanitizes message roles: MiniMax rejects "system" role in the messages array.
+/// Any system-role messages are merged into the top-level `system` field.
 fn strip_minimax_unsupported(body: &mut Value) {
     if let Some(obj) = body.as_object_mut() {
         obj.remove("top_k");
@@ -551,6 +554,56 @@ fn strip_minimax_unsupported(body: &mut Value) {
     }
 
     strip_unsupported_content_types(body, &["image", "document"]);
+    sanitize_system_messages(body);
+}
+
+/// MiniMax's Anthropic adapter rejects messages with role "system" in the messages array.
+/// Extract them, merge into the top-level `system` field, and remove from messages.
+fn sanitize_system_messages(body: &mut Value) {
+    let mut system_parts: Vec<Value> = Vec::new();
+
+    // Collect existing top-level system
+    if let Some(sys) = body.get("system") {
+        if let Some(s) = sys.as_str() {
+            if !s.is_empty() {
+                system_parts.push(json!({"type": "text", "text": s}));
+            }
+        } else if let Some(arr) = sys.as_array() {
+            system_parts.extend(arr.iter().cloned());
+        }
+    }
+
+    // Extract system-role messages from messages array
+    if let Some(msgs) = body.get_mut("messages") {
+        if let Some(arr) = msgs.as_array_mut() {
+            let mut i = 0;
+            while i < arr.len() {
+                if let Some(role) = arr[i].get("role").and_then(|r| r.as_str()) {
+                    if role == "system" {
+                        // Extract content and merge into system parts
+                        if let Some(content) = arr[i].get("content") {
+                            if let Some(s) = content.as_str() {
+                                if !s.is_empty() {
+                                    system_parts.push(json!({"type": "text", "text": s}));
+                                }
+                            } else if let Some(blocks) = content.as_array() {
+                                system_parts.extend(blocks.iter().cloned());
+                            }
+                        }
+                        arr.remove(i);
+                        continue; // Don't increment i, next element shifted down
+                    }
+                }
+                i += 1;
+            }
+        }
+    }
+
+    // Write merged system back if we have anything
+    if !system_parts.is_empty() {
+        let obj = body.as_object_mut().expect("body is object");
+        obj.insert("system".to_string(), json!(system_parts));
+    }
 }
 
 fn strip_cache_control(body: &mut Value) {
