@@ -31,9 +31,6 @@ pub enum Command {
     Gain(GainArgs),
     /// Wire ccb hooks into ~/.claude/settings.json (use --auto to apply without prompting)
     Install(InstallArgs),
-    /// Render session statusline using CCB data (requires --features status)
-    #[cfg(feature = "status")]
-    Status,
     /// Manage expert personas and the knowledge graph (requires --features expert)
     #[cfg(feature = "expert")]
     Expert(ExpertArgs),

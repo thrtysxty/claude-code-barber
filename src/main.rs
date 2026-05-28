@@ -24,12 +24,8 @@ pub mod features {
     pub mod model_metadata;
     #[cfg(feature = "route")]
     pub mod providers;
-    #[cfg(feature = "status")]
-    pub mod rates;
     #[cfg(feature = "route")]
     pub mod route;
-    #[cfg(feature = "status")]
-    pub mod status;
     #[cfg(feature = "trim")]
     pub mod trim;
 }
@@ -75,8 +71,6 @@ fn main() -> anyhow::Result<()> {
         Command::Classify => features::classify::run(),
         #[cfg(feature = "factory")]
         Command::Factory(args) => factory_cmd(args),
-        #[cfg(feature = "status")]
-        Command::Status => status_cmd(),
     }
 }
 
@@ -276,148 +270,5 @@ fn factory_cmd(_args: cli::FactoryArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "status")]
-fn status_cmd() -> anyhow::Result<()> {
-    use features::status::gradient::terminal_width;
-    use features::status::session::SessionInfo;
-    use features::status::{build_session_info, resolve_theme, StatusInput};
-
-    // Try reading session JSON from stdin first (Claude Code pipes it).
-    // If valid, use it as the primary data source — it has the real model,
-    // real tokens, real rate limits from the live session.
-    let stdin_json = {
-        use std::io::Read;
-        let mut buf = String::new();
-        let _ = std::io::stdin().read_to_string(&mut buf);
-        buf
-    };
-
-    let width = terminal_width();
-    let theme = resolve_theme("claude-dark");
-
-    if !stdin_json.trim().is_empty() {
-        if let Ok(session) = serde_json::from_str::<SessionInfo>(&stdin_json) {
-            // Enrich with CCB data (git, transcript, token logs, etc.)
-            let ccb = StatusInput::load();
-            let session = enrich_from_ccb(session, &ccb);
-            // Keep session_env.sh in sync with the live model + session from Claude Code
-            update_session_env(&session.session_id, &session.model.id);
-            let output = features::status::render(&session, &theme, width, "wide");
-            println!("{}", output);
-            return Ok(());
-        }
-    }
-
-    // Fallback: use CCB-only data (route usage, session env)
-    let input = StatusInput::load();
-    let session_info = build_session_info(&input);
-    let output = features::status::render(&session_info, &theme, width, "wide");
-    println!("{}", output);
-    Ok(())
-}
-
-#[cfg(feature = "status")]
-fn enrich_from_ccb(
-    mut session: features::status::SessionInfo,
-    ccb: &features::status::StatusInput,
-) -> features::status::SessionInfo {
-    use features::status::session::GitInfo;
-
-    // Fill in git details if missing from session JSON
-    if session.git.is_none()
-        || session
-            .git
-            .as_ref()
-            .and_then(|g| g.branch.as_deref())
-            .is_none()
-    {
-        let git_info = GitInfo::from_cwd(session.cwd.as_deref().unwrap_or(""));
-        session.git = Some(features::status::session::GitState {
-            branch: Some(git_info.branch),
-            is_dirty: Some(git_info.modified > 0 || git_info.untracked > 0),
-            commit_hash: Some(git_info.commit),
-            commit_message: None,
-            ahead: None,
-            behind: None,
-        });
-    }
-
-    // Fill in rate limits from CCB route data when Claude Code's JSON omits them
-    if session.rate_limits.is_none() && (ccb.rate_5h_pct > 0.0 || ccb.rate_7d_pct > 0.0) {
-        session.rate_limits = Some(features::status::session::RateLimits {
-            five_hour: features::status::session::FiveHourLimit {
-                used_percentage: ccb.rate_5h_pct,
-                resets_at: ccb.rate_resets_at.as_ref().and_then(|s| {
-                    chrono::DateTime::parse_from_rfc3339(s)
-                        .map(|dt| dt.timestamp() as u64)
-                        .ok()
-                }),
-            },
-            seven_day: features::status::session::SevenDayLimit {
-                used_percentage: ccb.rate_7d_pct,
-                resets_at: None,
-            },
-        });
-    }
-
-    // If session JSON didn't provide a display name, derive one
-    if session.model.display_name.is_none() {
-        let id = &session.model.id;
-        let display = if id.contains("qwopus") {
-            "Qwopus 3.5"
-        } else if id.contains("opus") {
-            "Opus 4.7"
-        } else if id.contains("sonnet") {
-            "Sonnet 4.6"
-        } else if id.contains("haiku") {
-            "Haiku 4.5"
-        } else if id.contains("minimax") {
-            "MiniMax-M2.7"
-        } else if id == "unknown" {
-            "Unknown"
-        } else {
-            id
-        };
-        session.model.display_name = Some(display.to_string());
-    }
-
-    session
-}
-
-#[cfg(feature = "status")]
-fn update_session_env(session_id: &str, model_id: &str) {
-    use std::io::Write;
-    let path = dirs::cache_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
-        .join("ccb")
-        .join("session_env.sh");
-
-    // Read existing content, or start fresh
-    let content = std::fs::read_to_string(&path).unwrap_or_default();
-    let _has_session_id = content
-        .lines()
-        .any(|l| l.starts_with("export CCB_SESSION_ID="));
-    let updated = content
-        .lines()
-        .filter(|l| !l.starts_with("export CCB_MODEL=") && !l.starts_with("export CCB_SESSION_ID="))
-        .chain(std::iter::once(""))
-        .fold(String::new(), |mut acc, l| {
-            if !l.is_empty() {
-                acc.push_str(l);
-                acc.push('\n');
-            }
-            acc
-        });
-    let mut lines: Vec<String> = updated.lines().map(|l| l.to_string()).collect();
-    lines.push(format!("export CCB_SESSION_ID=\"{}\"", session_id));
-    lines.push(format!("export CCB_MODEL=\"{}\"", model_id));
-    let output = lines.join("\n") + "\n";
-
-    // Ensure parent directory exists
-    if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    if let Ok(mut f) = std::fs::File::create(&path) {
-        let _ = f.write_all(output.as_bytes());
-    }
-}
+// status feature (WIP) — status_cmd, enrich_from_ccb, update_session_env
+// will be added back when the status feature is stable.

@@ -238,7 +238,7 @@ pub fn create_story(title: &str, description: &str, loop_type: LoopType) -> Resu
         &id,
         "created",
         None,
-        Some(&state),
+        Some(state),
         Some("create"),
         None,
         None,
@@ -545,6 +545,7 @@ fn update_story_state(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn log_event(
     conn: &Connection,
     story_id: &str,

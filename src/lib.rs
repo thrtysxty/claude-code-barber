@@ -24,12 +24,8 @@ pub mod features {
     pub mod model_metadata;
     #[cfg(feature = "route")]
     pub mod providers;
-    #[cfg(feature = "status")]
-    pub mod rates;
     #[cfg(feature = "route")]
     pub mod route;
-    #[cfg(feature = "status")]
-    pub mod status;
     #[cfg(feature = "trim")]
     pub mod trim;
 }
