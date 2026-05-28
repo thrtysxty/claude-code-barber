@@ -87,7 +87,7 @@ fn gain_ab(events: &[CompressionEvent]) -> anyhow::Result<()> {
     let ccb_total_in: usize = ccb_events.iter().map(|e| e.tokens_in).sum();
     let ccb_total_out: usize = ccb_events.iter().map(|e| e.tokens_out).sum();
     let ccb_saved = ccb_total_in.saturating_sub(ccb_total_out);
-    #[allow(clippy::manual_hash_one)]
+    #[allow(unknown_lints, clippy::manual_checked_ops)]
     let ccb_pct = if ccb_total_in > 0 {
         ccb_saved * 100 / ccb_total_in
     } else {
@@ -107,7 +107,7 @@ fn gain_ab(events: &[CompressionEvent]) -> anyhow::Result<()> {
     let bp_total_in: usize = bypass_events.iter().map(|e| e.tokens_in).sum();
     let bp_total_out: usize = bypass_events.iter().map(|e| e.tokens_out).sum();
     let bp_saved = bp_total_in.saturating_sub(bp_total_out);
-    #[allow(clippy::manual_hash_one)]
+    #[allow(unknown_lints, clippy::manual_checked_ops)]
     let _bp_pct = if bp_total_in > 0 {
         bp_saved * 100 / bp_total_in
     } else {
@@ -159,7 +159,7 @@ fn gain_expert_delta(events: &[CompressionEvent]) -> anyhow::Result<()> {
     let exp_total_in: usize = expert_events.iter().map(|e| e.tokens_in).sum();
     let exp_total_out: usize = expert_events.iter().map(|e| e.tokens_out).sum();
     let exp_saved = exp_total_in.saturating_sub(exp_total_out);
-    #[allow(clippy::manual_hash_one)]
+    #[allow(unknown_lints, clippy::manual_checked_ops)]
     let exp_pct = if exp_total_in > 0 {
         exp_saved * 100 / exp_total_in
     } else {
@@ -179,7 +179,7 @@ fn gain_expert_delta(events: &[CompressionEvent]) -> anyhow::Result<()> {
     let no_exp_total_in: usize = no_expert_events.iter().map(|e| e.tokens_in).sum();
     let no_exp_total_out: usize = no_expert_events.iter().map(|e| e.tokens_out).sum();
     let no_exp_saved = no_exp_total_in.saturating_sub(no_exp_total_out);
-    #[allow(clippy::manual_hash_one)]
+    #[allow(unknown_lints, clippy::manual_checked_ops)]
     let no_exp_pct = if no_exp_total_in > 0 {
         no_exp_saved * 100 / no_exp_total_in
     } else {
