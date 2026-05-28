@@ -42,7 +42,7 @@ fn setup_rate_limits(five: f64, seven: f64) {
 fn status_command_exits_zero() {
     clean_cache();
     let mut cmd = Command::cargo_bin("ccb").unwrap();
-    cmd.arg("status").assert().success();
+    cmd.arg("status").arg("show").assert().success();
 }
 
 /// `ccb status` outputs non-empty ANSI-rendered statusline
@@ -52,6 +52,7 @@ fn status_outputs_ansi_content() {
     let output = Command::cargo_bin("ccb")
         .unwrap()
         .arg("status")
+        .arg("show")
         .output()
         .unwrap();
     assert!(!output.stdout.is_empty());
@@ -74,6 +75,7 @@ fn status_shows_tokens_from_usage_file() {
     let output = Command::cargo_bin("ccb")
         .unwrap()
         .arg("status")
+        .arg("show")
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -96,6 +98,7 @@ fn status_shows_rate_limits() {
     let output = Command::cargo_bin("ccb")
         .unwrap()
         .arg("status")
+        .arg("show")
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -116,6 +119,7 @@ fn status_shows_cost() {
     let output = Command::cargo_bin("ccb")
         .unwrap()
         .arg("status")
+        .arg("show")
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -130,6 +134,7 @@ fn status_shows_git_branch() {
     let output = Command::cargo_bin("ccb")
         .unwrap()
         .arg("status")
+        .arg("show")
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -146,6 +151,7 @@ fn status_works_without_cache_files() {
     let output = Command::cargo_bin("ccb")
         .unwrap()
         .arg("status")
+        .arg("show")
         .output()
         .unwrap();
     assert!(output.status.success());

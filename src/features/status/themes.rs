@@ -106,6 +106,10 @@ fn make_model_colors(
     }
 }
 
+fn make_theme_from_str() -> Theme {
+    make_theme("claude-dark")
+}
+
 fn make_theme(name: &str) -> Theme {
     let models = HashMap::from([
         (
@@ -210,10 +214,10 @@ fn make_theme(name: &str) -> Theme {
 // Bundled themes
 // ---------------------------------------------------------------------------
 
-static CLAUDE_DARK: LazyLock<Theme> = LazyLock::new(|| make_theme("claude-dark"));
-static CLAUDE_LIGHT: LazyLock<Theme> = LazyLock::new(|| make_claude_light());
-static CATPPUCCIN_LATTE: LazyLock<Theme> = LazyLock::new(|| make_catppuccin_latte());
-static CATPPUCCIN_MOCHA: LazyLock<Theme> = LazyLock::new(|| make_catppuccin_mocha());
+static CLAUDE_DARK: LazyLock<Theme> = LazyLock::new(make_theme_from_str);
+static CLAUDE_LIGHT: LazyLock<Theme> = LazyLock::new(make_claude_light);
+static CATPPUCCIN_LATTE: LazyLock<Theme> = LazyLock::new(make_catppuccin_latte);
+static CATPPUCCIN_MOCHA: LazyLock<Theme> = LazyLock::new(make_catppuccin_mocha);
 
 fn make_claude_light() -> Theme {
     let models = HashMap::from([
@@ -594,7 +598,7 @@ pub fn gradient_color(theme: &Theme, ratio: f64) -> RGB {
         return theme.grey_rgb;
     }
 
-    let ratio = ratio.max(0.0).min(1.0);
+    let ratio = ratio.clamp(0.0, 1.0);
 
     for i in 0..stops.len() - 1 {
         if ratio >= stops[i].0 && ratio <= stops[i + 1].0 {

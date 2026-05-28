@@ -49,7 +49,11 @@ pub fn detect(cwd: Option<&Path>) -> Result<RepoType> {
         Some(p) => p.to_path_buf(),
         None => std::env::current_dir()?,
     };
-    for entry in WalkDir::new(&start).max_depth(20).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(&start)
+        .max_depth(20)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         let name = entry.file_name();
         if name == "Cargo.toml" {
             return Ok(RepoType::Rust);
@@ -73,8 +77,18 @@ pub fn detect(cwd: Option<&Path>) -> Result<RepoType> {
 /// Return the quality gates for a detected repo type.
 pub fn gates_for(repo_type: RepoType) -> Vec<String> {
     match repo_type {
-        RepoType::Rust => vec!["cargo fmt --check".to_string(), "cargo clippy".to_string(), "cargo test".to_string(), "cargo build".to_string()],
-        RepoType::TypeScript => vec!["tsc --noEmit".to_string(), "npm run lint".to_string(), "npm test".to_string(), "npm run build".to_string()],
+        RepoType::Rust => vec![
+            "cargo fmt --check".to_string(),
+            "cargo clippy".to_string(),
+            "cargo test".to_string(),
+            "cargo build".to_string(),
+        ],
+        RepoType::TypeScript => vec![
+            "tsc --noEmit".to_string(),
+            "npm run lint".to_string(),
+            "npm test".to_string(),
+            "npm run build".to_string(),
+        ],
         RepoType::Swift => vec!["swift build".to_string(), "swift test".to_string()],
         RepoType::Python => vec!["pyright".to_string(), "pytest".to_string()],
         RepoType::Makefile => vec!["make".to_string()],
@@ -168,7 +182,8 @@ fn group_acs_by_scope(acs: &[StoryAC]) -> HashMap<String, Vec<StoryAC>> {
     let mut groups: HashMap<String, Vec<StoryAC>> = HashMap::new();
     for ac in acs {
         // Simple scope inference: first word before common separators
-        let scope = if ac.statement.contains("feature flag") || ac.statement.contains("Cargo.toml") {
+        let scope = if ac.statement.contains("feature flag") || ac.statement.contains("Cargo.toml")
+        {
             "infrastructure"
         } else if ac.statement.contains("test") {
             "testing"
@@ -179,7 +194,10 @@ fn group_acs_by_scope(acs: &[StoryAC]) -> HashMap<String, Vec<StoryAC>> {
         } else {
             "core"
         };
-        groups.entry(scope.to_string()).or_default().push(ac.clone());
+        groups
+            .entry(scope.to_string())
+            .or_default()
+            .push(ac.clone());
     }
     groups
 }
@@ -240,9 +258,7 @@ fn check_git_log() -> String {
         .args(["log", "--oneline", "-10"])
         .output();
     match output {
-        Ok(o) if o.status.success() => {
-            String::from_utf8_lossy(&o.stdout).trim().to_string()
-        }
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
         _ => "no git log available".to_string(),
     }
 }
@@ -321,7 +337,10 @@ fn save_failure(record: &FailureRecord) -> Result<()> {
 fn run_gate(gate: &str) -> Result<(), String> {
     let mut parts = gate.splitn(2, ' ');
     let cmd = parts.next().unwrap_or(gate);
-    let args: Vec<&str> = parts.next().map(|a| a.split_whitespace().collect()).unwrap_or_default();
+    let args: Vec<&str> = parts
+        .next()
+        .map(|a| a.split_whitespace().collect())
+        .unwrap_or_default();
 
     let output = std::process::Command::new(cmd).args(&args).output();
     match output {
@@ -389,12 +408,15 @@ fn push_and_pr(branch: &str) -> Result<()> {
 
 /// Main build loop: create branch → run gates for each phase → persist failures → commit on success.
 pub fn build_story(plan: Option<&StoryPlan>, story_path: Option<&Path>) -> Result<BuildResult> {
-    let story_id = plan.map(|p| p.story_id.clone())
+    let story_id = plan
+        .map(|p| p.story_id.clone())
         .or_else(|| story_path.map(slug_from_path))
         .unwrap_or_else(|| "unknown".to_string());
 
     let repo_type = detect(None)?;
-    let gates = plan.map(|p| p.gates.clone()).unwrap_or_else(|| gates_for(repo_type).to_vec());
+    let gates = plan
+        .map(|p| p.gates.clone())
+        .unwrap_or_else(|| gates_for(repo_type).to_vec());
 
     // Create branch
     let branch = create_branch(&story_id)?;
@@ -544,7 +566,12 @@ pub fn list_lessons(repo_filter: Option<&str>) -> Result<Vec<Lesson>> {
         if entry.path().is_dir() {
             for lesson_entry in std::fs::read_dir(entry.path())? {
                 let lesson_entry = lesson_entry?;
-                if lesson_entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+                if lesson_entry
+                    .path()
+                    .extension()
+                    .map(|e| e == "md")
+                    .unwrap_or(false)
+                {
                     let content = std::fs::read_to_string(lesson_entry.path())?;
                     // Extract description from first line after title
                     let desc = content.lines().nth(3).unwrap_or("").to_string();
@@ -614,10 +641,7 @@ pub fn cmd_build(args: cli::BuildArgs) -> Result<()> {
 pub fn cmd_lesson(args: cli::LessonArgs) -> Result<()> {
     let repo = detect(None)?.to_string();
     let lesson = capture_lesson(&repo, &args.description)?;
-    println!(
-        "Lesson captured: {}/{}",
-        lesson.repo, lesson.slug
-    );
+    println!("Lesson captured: {}/{}", lesson.repo, lesson.slug);
     Ok(())
 }
 

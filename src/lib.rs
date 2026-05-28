@@ -19,15 +19,19 @@ pub mod features {
     #[cfg(feature = "graph")]
     pub mod graph;
     pub mod index;
-    #[cfg(feature = "loop")]
-    pub mod loop_cmd;
     pub mod install;
     pub mod lineup;
+    #[cfg(feature = "loop")]
+    pub mod loop_cmd;
     pub mod model_metadata;
     #[cfg(feature = "route")]
     pub mod providers;
+    #[cfg(feature = "status")]
+    pub mod rates;
     #[cfg(feature = "route")]
     pub mod route;
+    #[cfg(feature = "status")]
+    pub mod status;
     #[cfg(feature = "trim")]
     pub mod trim;
 }

@@ -19,17 +19,17 @@ pub mod features {
     #[cfg(feature = "graph")]
     pub mod graph;
     pub mod index;
-    #[cfg(feature = "loop")]
-    pub mod loop_cmd;
     pub mod install;
     pub mod lineup;
+    #[cfg(feature = "loop")]
+    pub mod loop_cmd;
     pub mod model_metadata;
     #[cfg(feature = "route")]
     pub mod providers;
-    #[cfg(feature = "route")]
-    pub mod route;
     #[cfg(feature = "status")]
     pub mod rates;
+    #[cfg(feature = "route")]
+    pub mod route;
     #[cfg(feature = "status")]
     pub mod status;
     #[cfg(feature = "trim")]
@@ -298,18 +298,16 @@ fn status_cmd(args: cli::StatusArgs) -> anyhow::Result<()> {
     let theme = resolve_theme("claude-dark");
 
     match args.cmd {
-        StatusCmd::Show => {
-            show_status(width, &theme)
-        }
+        StatusCmd::Show => show_status(width, &theme),
         StatusCmd::Demo { scenario } => {
             features::status::demo::run(scenario.as_deref(), &theme, width)
         }
-        StatusCmd::Monitor { interval, directory } => {
-            let dir = directory.unwrap_or_else(|| {
-                dirs::home_dir()
-                    .unwrap_or_default()
-                    .join(".claude")
-            });
+        StatusCmd::Monitor {
+            interval,
+            directory,
+        } => {
+            let dir =
+                directory.unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".claude"));
             features::status::mon::run(&dir, interval, &theme, width)
         }
     }

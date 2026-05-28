@@ -71,7 +71,7 @@ const BOLD: &str = "\x1b[1m";
 const ITALIC: &str = "\x1b[3m";
 
 // Default spec gradient palettes (12 palettes, 3 RGB stops each)
-const DEFAULT_SPEC_GRADIENTS: &[(RGB, RGB, RGB); 12] = &[
+const DEFAULT_SPEC_GRADIENTS: &[(Rgb, Rgb, Rgb); 12] = &[
     ((70, 130, 180), (100, 149, 237), (30, 144, 255)), // Ocean
     ((255, 99, 71), (255, 165, 0), (255, 215, 0)),     // Sunset
     ((34, 139, 34), (50, 205, 50), (144, 238, 144)),   // Forest
@@ -86,7 +86,7 @@ const DEFAULT_SPEC_GRADIENTS: &[(RGB, RGB, RGB); 12] = &[
     ((178, 34, 34), (233, 150, 122), (255, 228, 181)), // Salmon
 ];
 
-type RGB = (u8, u8, u8);
+type Rgb = (u8, u8, u8);
 
 // ---------------------------------------------------------------------------
 // Helper functions
@@ -650,8 +650,7 @@ fn render_wide(
     if empty_count > 0 {
         let fade = empty_fade_colors(theme.bar_empty_rgb);
         let fade_cells = std::cmp::min(3, empty_count);
-        for i in 0..fade_cells {
-            let (r, g, b) = fade[i];
+        for (r, g, b) in fade.iter().take(fade_cells) {
             write!(ctx_line, "\x1b[48;2;{};{};{}m░", r, g, b).unwrap();
         }
         if empty_count > 3 {
@@ -711,7 +710,7 @@ fn render_wide(
     let skill_names: Vec<String> = skills
         .names
         .iter()
-        .map(|s| s.split(':').last().unwrap_or(s).to_string())
+        .map(|s| s.split(':').next_back().unwrap_or(s).to_string())
         .collect();
     let plugin_names = s.plugin_names();
     if !skill_names.is_empty() || !plugin_names.is_empty() {
