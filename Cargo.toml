@@ -32,6 +32,16 @@ path = "tests/expert_integration.rs"
 required-features = ["expert"]
 
 [[test]]
+name = "status_unit"
+path = "tests/status_unit.rs"
+required-features = ["status"]
+
+[[test]]
+name = "status_integration"
+path = "tests/status_integration.rs"
+required-features = ["status"]
+
+[[test]]
 name = "route_integration"
 path = "tests/route_integration.rs"
 required-features = ["route"]
@@ -50,6 +60,7 @@ full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert", "clas
 expert  = ["dep:rusqlite", "dep:serde_yaml"]
 classify = ["dep:reqwest", "dep:regex-lite"]
 factory = ["dep:rusqlite", "expert"]
+status  = ["dep:notify", "dep:shellexpand", "dep:regex-lite", "dep:libc"]
 
 [dependencies]
 clap               = { version = "4", features = ["derive", "color"] }
@@ -73,6 +84,11 @@ rusqlite               = { version = "0.31", features = ["bundled"], optional = 
 walkdir                = { version = "2",    optional = true }
 ignore                 = { version = "0.4",  optional = true }
 regex-lite             = { version = "0.1",  optional = true }
+
+# status feature deps
+notify       = { version = "6",    optional = true }
+shellexpand  = { version = "3",    optional = true }
+libc         = { version = "0.2",  optional = true }
 
 # route feature deps
 tokio        = { version = "1",    features = ["full"],                  optional = true }

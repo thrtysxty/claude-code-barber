@@ -45,6 +45,9 @@ pub enum Command {
     /// Classify tool calls for safety (reads hook JSON from stdin)
     #[cfg(feature = "classify")]
     Classify,
+    /// Render the status line for Claude Code
+    #[cfg(feature = "status")]
+    Status,
     /// Run deterministic story loops through planning and implementation phases
     #[cfg(feature = "factory")]
     Factory(FactoryArgs),
