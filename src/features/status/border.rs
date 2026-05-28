@@ -257,7 +257,6 @@ impl BorderRenderer {
     }
 
     /// Content line: │content│ with gradient-colored borders.
-    #[allow(clippy::too_many_arguments)]
     pub fn border_line(
         &self,
         content: &str,

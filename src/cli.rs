@@ -47,25 +47,10 @@ pub enum Command {
     Classify,
     /// Render the status line for Claude Code
     #[cfg(feature = "status")]
-    Status(StatusArgs),
+    Status,
     /// Run deterministic story loops through planning and implementation phases
     #[cfg(feature = "factory")]
     Factory(FactoryArgs),
-    /// Detect repo type and run quality gates (loop feature)
-    #[cfg(feature = "loop")]
-    Detect(DetectArgs),
-    /// Parse story markdown and output phased plan
-    #[cfg(feature = "loop")]
-    Plan(PlanArgs),
-    /// Build story with gate runs, failure persistence, and retry
-    #[cfg(feature = "loop")]
-    Build(BuildArgs),
-    /// Capture failure lesson to cache
-    #[cfg(feature = "loop")]
-    Lesson(LessonArgs),
-    /// Show or run quality gates for detected repo type
-    #[cfg(feature = "loop")]
-    Gates(GatesArgs),
 }
 
 #[derive(Args)]
@@ -269,40 +254,6 @@ pub enum RouteCmd {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Statusline command
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Statusline subcommands
-#[cfg(feature = "status")]
-#[derive(Subcommand)]
-pub enum StatusCmd {
-    /// Render the statusline once to stdout
-    Show,
-    /// Render demo scenarios with mock data
-    Demo {
-        /// Scenario name to run (default: all)
-        scenario: Option<String>,
-    },
-    /// Monitor mode — live refresh from session files
-    Monitor {
-        /// Polling interval in seconds
-        #[arg(short, long, default_value = "5")]
-        interval: u64,
-        /// Path to Claude projects directory
-        #[arg(short, long)]
-        directory: Option<std::path::PathBuf>,
-    },
-}
-
-/// Statusline args
-#[cfg(feature = "status")]
-#[derive(Args)]
-pub struct StatusArgs {
-    #[command(subcommand)]
-    pub cmd: StatusCmd,
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Factory / story loop commands
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -380,52 +331,4 @@ pub enum FactoryCmd {
 pub struct FactoryArgs {
     #[command(subcommand)]
     pub cmd: FactoryCmd,
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Loop / plan-build-gate commands (AC12-32)
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[cfg(feature = "loop")]
-#[derive(clap::ValueEnum, Clone)]
-pub enum DetectFormat {
-    Json,
-    Human,
-}
-
-#[cfg(feature = "loop")]
-#[derive(Args)]
-pub struct DetectArgs {
-    #[arg(long, value_enum, default_value = "json")]
-    pub format: DetectFormat,
-}
-
-#[cfg(feature = "loop")]
-#[derive(Args)]
-pub struct PlanArgs {
-    pub story_file: std::path::PathBuf,
-    #[arg(long)]
-    pub save: bool,
-}
-
-#[cfg(feature = "loop")]
-#[derive(Args)]
-pub struct BuildArgs {
-    #[arg(long)]
-    pub plan: Option<std::path::PathBuf>,
-    #[arg(long)]
-    pub story: Option<std::path::PathBuf>,
-}
-
-#[cfg(feature = "loop")]
-#[derive(Args)]
-pub struct LessonArgs {
-    pub description: String,
-}
-
-#[cfg(feature = "loop")]
-#[derive(Args)]
-pub struct GatesArgs {
-    #[arg(long)]
-    pub run: bool,
 }

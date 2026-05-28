@@ -561,15 +561,11 @@ impl GitInfo {
             if x == b'?' && y == b'?' {
                 untracked += 1;
             } else if x == b'A' || y == b'A' {
-                renamed += 1;
-                i += 2;
-                continue;
+                untracked += 1;
             } else if x == b'D' || y == b'D' {
                 deleted += 1;
             } else if x == b'M' || y == b'M' {
                 modified += 1;
-            } else if x.is_ascii_uppercase() || y.is_ascii_uppercase() {
-                untracked += 1;
             }
             i += 1;
         }
@@ -658,7 +654,7 @@ fn find_tasks_md(dir: &Path, results: &mut Vec<PathBuf>) {
 // TranscriptUsage — parses JSONL for token breakdowns
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct TranscriptUsage {
     pub input_tokens: u64,
     pub cache_creation_input_tokens: u64,
@@ -728,6 +724,17 @@ impl TranscriptUsage {
 
     pub fn billed_in(&self) -> u64 {
         self.input_tokens + self.cache_creation_input_tokens
+    }
+}
+
+impl Default for TranscriptUsage {
+    fn default() -> Self {
+        Self {
+            input_tokens: 0,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            output_tokens: 0,
+        }
     }
 }
 
@@ -1005,21 +1012,23 @@ impl TokenAccounting {
     pub fn session_cost(model: &Model, usage: &TranscriptUsage) -> f64 {
         let (rate_in, rate_out) =
             Self::rates_for(model.display_name.as_deref().unwrap_or(&model.id));
-        (usage.input_tokens as f64 * rate_in
+        let cost = (usage.input_tokens as f64 * rate_in
             + usage.cache_creation_input_tokens as f64 * rate_in * 1.25
             + usage.cache_read_input_tokens as f64 * rate_in * 0.1
             + usage.output_tokens as f64 * rate_out)
-            / 1_000_000.0
+            / 1_000_000.0;
+        cost
     }
 
     /// Day cost from TokenLog with cache weighting
     pub fn day_cost(model: &Model, log: &TokenLog) -> f64 {
         let (rate_in, rate_out) =
             Self::rates_for(model.display_name.as_deref().unwrap_or(&model.id));
-        (log.day_in as f64 * rate_in
+        let cost = (log.day_in as f64 * rate_in
             + log.day_cache_read as f64 * rate_in * 0.1
             + log.day_out as f64 * rate_out)
-            / 1_000_000.0
+            / 1_000_000.0;
+        cost
     }
 }
 
@@ -1040,7 +1049,7 @@ pub struct RunningSubagent {
     pub last_activity: SubagentActivity,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub enum SubagentActivity {
     ToolUse {
         name: String,
@@ -1049,8 +1058,13 @@ pub enum SubagentActivity {
     },
     Thinking,
     Text,
-    #[default]
     None,
+}
+
+impl Default for SubagentActivity {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 /// Discover running subagents from the filesystem.
@@ -1274,7 +1288,11 @@ fn parse_subagent_transcript(path: &Path) -> (u64, u64, u64, f64, String, Subage
 fn parse_iso_to_epoch(ts: &str) -> f64 {
     // Handle ISO timestamps like "2026-05-26T21:07:00.000Z" or "2026-05-26T21:07:00+00:00"
     let ts = ts.trim();
-    let ts = ts.strip_suffix('Z').unwrap_or(ts);
+    let ts = if ts.ends_with('Z') {
+        &ts[..ts.len() - 1]
+    } else {
+        ts
+    };
     // Try parsing with chrono
     chrono::NaiveDateTime::parse_from_str(ts, "%Y-%m-%dT%H:%M:%S%.f")
         .ok()
@@ -1328,7 +1346,7 @@ impl TaskList {
                     let ts = json
                         .get("timestamp")
                         .and_then(|v| v.as_str())
-                        .map(parse_iso_to_epoch)
+                        .map(|s| parse_iso_to_epoch(s))
                         .unwrap_or(0.0);
                     let content = match json
                         .get("message")
@@ -1456,7 +1474,7 @@ impl Default for TaskList {
 // LoadedSkills — extracts skill invocations from transcript JSONL
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct LoadedSkills {
     pub names: Vec<String>,
 }
@@ -1493,6 +1511,12 @@ impl LoadedSkills {
         }
 
         Self { names }
+    }
+}
+
+impl Default for LoadedSkills {
+    fn default() -> Self {
+        Self { names: Vec::new() }
     }
 }
 

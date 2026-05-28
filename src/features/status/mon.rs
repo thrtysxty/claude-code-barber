@@ -60,7 +60,7 @@ fn find_sessions(claude_dir: &Path) -> Vec<SessionFile> {
         if let Ok(dir_entries) = fs::read_dir(&sessions_dir) {
             for session_entry in dir_entries.filter_map(Result::ok) {
                 let file_path = session_entry.path();
-                if file_path.extension().is_some_and(|e| e == "json") {
+                if file_path.extension().map_or(false, |e| e == "json") {
                     if let Ok(metadata) = fs::metadata(&file_path) {
                         let modified = metadata.modified().unwrap_or(UNIX_EPOCH);
                         sessions.push(SessionFile {
@@ -495,7 +495,7 @@ fn render_session_box(s: &MiniSession, width: usize, theme: &Theme) -> Option<St
 }
 
 fn gradient_color_hex(theme: &Theme, ratio: f64) -> String {
-    let ratio = ratio.clamp(0.0, 1.0);
+    let ratio = ratio.max(0.0).min(1.0);
     let stops = &theme.grad_stops;
     if stops.is_empty() {
         return "\x1b[38;5;240m".to_string();
@@ -679,8 +679,11 @@ pub fn run(directory: &Path, interval: u64, theme: &Theme, columns: usize) -> an
 
     loop {
         // Always render on timer tick, but prioritize watcher-triggered redraws
-        let _ = dirty.swap(false, Ordering::SeqCst);
-        tick(&directory, theme, columns, idle_after, remove_after);
+        if dirty.swap(false, Ordering::SeqCst) {
+            tick(&directory, theme, columns, idle_after, remove_after);
+        } else {
+            tick(&directory, theme, columns, idle_after, remove_after);
+        }
 
         // Sleep in 100ms increments, break early on watcher signal
         let deadline = std::time::Instant::now() + Duration::from_secs(interval);
