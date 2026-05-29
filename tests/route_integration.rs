@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 fn cache_dir() -> PathBuf {
     dirs::home_dir()
-        .unwrap_or_default()
+        .unwrap_or_else(|| std::env::var("HOME").map(PathBuf::from).unwrap_or_default())
         .join(".cache")
         .join("ccb")
 }
