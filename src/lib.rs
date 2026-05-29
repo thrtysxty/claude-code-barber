@@ -4,9 +4,10 @@ mod config;
 mod log;
 mod utils;
 
+#[cfg(any(feature = "hooks", feature = "context"))]
+pub mod hooks;
+
 pub mod features {
-    #[cfg(feature = "bench")]
-    pub mod bench;
     pub mod buzz;
     #[cfg(feature = "classify")]
     pub mod classify;
@@ -23,6 +24,8 @@ pub mod features {
     pub mod index;
     pub mod install;
     pub mod lineup;
+    #[cfg(feature = "loop")]
+    pub mod loop_cmd;
     pub mod model_metadata;
     #[cfg(feature = "route")]
     pub mod providers;

@@ -48,9 +48,6 @@ pub enum Command {
     /// Render the status line for Claude Code
     #[cfg(feature = "status")]
     Status,
-    /// Search past sessions and inject relevant context (requires --features memory)
-    #[cfg(feature = "memory")]
-    Memory(MemoryArgs),
     /// Run deterministic story loops through planning and implementation phases
     #[cfg(feature = "factory")]
     Factory(FactoryArgs),
@@ -90,6 +87,63 @@ pub enum ContextCmd {
         #[arg(default_value = "60")]
         threshold: u8,
     },
+    /// Inject structured context at a hook point (session-start | pre-tool)
+    Inject {
+        /// Hook type: session-start or pre-tool
+        #[arg(long)]
+        hook: String,
+        /// Tool name (for pre-tool hook)
+        #[arg(long)]
+        tool: Option<String>,
+        /// Tool input as JSON string (for pre-tool hook)
+        #[arg(long)]
+        input: Option<String>,
+        /// Read hook payload from stdin instead of --tool/--input flags
+        #[arg(long)]
+        stdin: bool,
+    },
+    /// Trace a tool call result (PostToolUse hook)
+    Trace,
+    /// Tune context node weights from session traces (EMA update)
+    Tune {
+        /// Dry run: show proposed changes without applying them
+        #[arg(long)]
+        dry_run: bool,
+        /// Run LoCoMo validation after applying changes
+        #[arg(long)]
+        validate: bool,
+        /// Override the validation threshold (percentage points)
+        #[arg(long)]
+        threshold: Option<f64>,
+        /// Override the EMA decay factor (default 0.7)
+        #[arg(long)]
+        alpha: Option<f64>,
+    },
+    /// Detect gaps: built-but-unused experts, missing coverage for active domains
+    Gaps {
+        /// Minimum sessions before flagging as gap (default 3)
+        #[arg(long)]
+        min_sessions: Option<i64>,
+        /// Apply a suggestion by gap ID
+        #[arg(long)]
+        apply: Option<i64>,
+    },
+    /// Show weight distribution, top gainers/losers, active gaps, and LoCoMo trend
+    Report {
+        /// Output format: human or json (default human)
+        #[arg(long, value_enum, default_value = "human")]
+        format: ContextReportFormat,
+        /// Filter by node name
+        #[arg(long)]
+        node: Option<String>,
+    },
+}
+
+#[derive(clap::ValueEnum, Clone, Default, Debug)]
+pub enum ContextReportFormat {
+    #[default]
+    Human,
+    Json,
 }
 
 #[derive(Args)]
@@ -103,34 +157,6 @@ pub struct GainArgs {
     pub ab: bool,
     #[arg(long)]
     pub expert: bool,
-    /// Run LoCoMo quality benchmark (measures information retention after compression)
-    #[arg(long)]
-    pub locomo: bool,
-    /// Path to custom LoCoMo dataset JSON (required if not using bundled testdata)
-    #[arg(long)]
-    pub dataset: Option<std::path::PathBuf>,
-    /// Compression level to benchmark: trim, cut, buzz, or all (default: all)
-    #[arg(long, value_enum, default_value = "all")]
-    pub compression_level: CompressionBenchLevel,
-    /// Output format: human or json (default: human)
-    #[arg(long, value_enum, default_value = "human")]
-    pub format: GainFormat,
-}
-
-#[derive(clap::ValueEnum, Clone, Default, Debug)]
-pub enum CompressionBenchLevel {
-    #[default]
-    All,
-    Trim,
-    Cut,
-    Buzz,
-}
-
-#[derive(clap::ValueEnum, Clone, Default, Debug)]
-pub enum GainFormat {
-    #[default]
-    Human,
-    Json,
 }
 
 #[derive(Args)]
@@ -163,15 +189,6 @@ pub enum GraphCmd {
     Stats {
         #[arg(long, value_enum, default_value = "human")]
         format: OutputFormatArg,
-    },
-    /// Watch a directory for changes and incrementally update the graph index
-    Watch {
-        /// Directory to watch (default: current directory)
-        #[arg(default_value = ".")]
-        path: std::path::PathBuf,
-        /// Run once then exit (useful for CI)
-        #[arg(long)]
-        once: bool,
     },
 }
 
@@ -256,57 +273,6 @@ pub enum ExportFormat {
 pub struct ExpertArgs {
     #[command(subcommand)]
     pub cmd: ExpertCmd,
-}
-
-/// Memory subcommands
-#[cfg(feature = "memory")]
-#[derive(Subcommand)]
-pub enum MemoryCmd {
-    /// Full-text search over past sessions (FTS5/BM25)
-    Search {
-        /// Search query string
-        query: String,
-        /// Filter by project name
-        #[arg(long)]
-        project: Option<String>,
-        /// Maximum results to return (default 10)
-        #[arg(long, default_value = "10")]
-        limit: usize,
-        /// Output format
-        #[arg(long, value_enum, default_value = "human")]
-        format: OutputFormatArg,
-    },
-    /// Generate a compact context block from memory for hook injection
-    Recall {
-        /// Filter by project name
-        #[arg(long)]
-        project: Option<String>,
-        /// Filter by persona
-        #[arg(long)]
-        persona: Option<String>,
-        /// Filter by task
-        #[arg(long)]
-        task: Option<String>,
-        /// Maximum output tokens (default 500)
-        #[arg(long, default_value = "500")]
-        max_tokens: usize,
-    },
-}
-
-/// Output format for memory commands
-#[cfg(feature = "memory")]
-#[derive(clap::ValueEnum, Clone)]
-pub enum OutputFormatArg {
-    Human,
-    Json,
-}
-
-/// Memory args (requires --features memory)
-#[cfg(feature = "memory")]
-#[derive(Args)]
-pub struct MemoryArgs {
-    #[command(subcommand)]
-    pub cmd: MemoryCmd,
 }
 
 #[derive(Args)]
