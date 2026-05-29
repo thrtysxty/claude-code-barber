@@ -1,6 +1,6 @@
 # Projects Queue
 
-**Last updated:** 2026-05-29 (PR #12 sprint 6 merged, all tests green 222/222)
+**Last updated:** 2026-05-29 (PR #13 CCB-029 merged, PR #14 CCB-023 merged, 245/245 tests green)
 
 ### Discussion Presence
 Stories live in their repos (`*/docs/stories/`). Discussion, planning, and exploration live here in `Projects/QUEUE.md`. Every item below was discussed or is fair game for next session.
@@ -131,7 +131,7 @@ Stories live in their repos (`*/docs/stories/`). Discussion, planning, and explo
 
 **State:** GitHub MCP plugin fails every session (needs `GITHUB_PERSONAL_ACCESS_TOKEN`). Cloudflare has 4/5 sub-servers unauthenticated. Asana removed. 20 → 8 plugins after audit.
 
-- [ ] story_ccb_023_plugin_auth_wiring.md — Create PAT, wire GitHub MCP, authenticate Cloudflare (13 ACs, partly human-gated)
+- [x] story_ccb_023_plugin_auth_wiring.md — Create PAT, wire GitHub MCP, authenticate Cloudflare — **PR #14 merged**
 
 ---
 
@@ -139,9 +139,9 @@ Stories live in their repos (`*/docs/stories/`). Discussion, planning, and explo
 
 Run from: `/Users/dadmin/Projects/claude-code-barber`
 
-**Context:** The Agent tool only accepts `sonnet`/`opus`/`haiku` as model tiers, which get mapped to Anthropic model IDs. ccb-route has tier metadata in providers.toml but the resolution logic uses HashMap iteration (non-deterministic) and collapses back to Anthropic. This story adds an explicit `[tier_routing]` table of ranked model IDs per tier so subagents can dispatch to MiniMax, Ollama, or aibox in-session without tmux.
+**Merged: PR #13.** Tier routing table in providers.toml, resolve_tier_route() in providers.rs/ccb-route.rs, `ccb route tiers` CLI, hot-reload via mtime.
 
-- [ ] story_ccb_029_router_tier_resolution.md — Deterministic tier → model routing for in-session subagent dispatch (29 ACs)
+- [x] story_ccb_029_router_tier_resolution.md — Deterministic tier → model routing — **PR #13 merged**
 
 ---
 
