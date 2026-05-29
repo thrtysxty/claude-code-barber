@@ -33,6 +33,8 @@ pub mod features {
     pub mod route;
     #[cfg(feature = "status")]
     pub mod status;
+    #[cfg(feature = "plugins")]
+    pub mod plugins;
     #[cfg(feature = "trim")]
     pub mod trim;
 }
@@ -67,6 +69,8 @@ fn main() -> anyhow::Result<()> {
             analytics::gain(mode)
         }
         Command::Install(args) => features::install::run(args.auto, args.dry_run),
+        #[cfg(feature = "plugins")]
+        Command::Plugins => features::plugins::run(),
         Command::Models => models_cmd(),
         #[cfg(feature = "graph")]
         Command::Graph(args) => graph_cmd(args),

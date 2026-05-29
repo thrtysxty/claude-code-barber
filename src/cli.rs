@@ -21,6 +21,9 @@ pub enum Command {
     Context(ContextArgs),
     /// Run all active features at maximum compression
     Cut,
+    /// Check plugin auth status (GitHub MCP, Cloudflare OAuth)
+    #[cfg(feature = "plugins")]
+    Plugins,
     /// Show what's currently loaded in the context budget
     Lineup,
     /// Configure ccb — build index, set conversation mode, toggle features
@@ -308,6 +311,12 @@ pub enum RouteCmd {
     Status,
     /// Print export block for shell
     Env,
+    /// Show tier routing table with resolved model → provider mappings
+    Tiers {
+        /// Test which model would handle a specific tier (opus, sonnet, haiku)
+        #[arg(long)]
+        test: Option<String>,
+    },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

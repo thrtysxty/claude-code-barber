@@ -372,6 +372,105 @@ pub fn run_router(args: RouteCmd) -> Result<()> {
         RouteCmd::Stop => cfg.stop()?,
         RouteCmd::Status => cfg.status()?,
         RouteCmd::Env => cfg.env()?,
+        RouteCmd::Tiers { test } => show_tier_routing(&cfg, test.as_deref())?,
     }
+    Ok(())
+}
+
+/// Show the tier routing table with resolved model → provider mappings.
+/// Implements: ccb route tiers (AC18, AC19)
+fn show_tier_routing(_cfg: &Config, test_tier: Option<&str>) -> Result<()> {
+    use crate::features::providers::{ProviderConfig, Tier};
+
+    let pcfg = ProviderConfig::get();
+
+    // Override: if set, show it and skip individual tier lists
+    if let Some(ref override_model) = pcfg.tier_routing.override_all {
+        println!("  override_all: {}", override_model);
+        if let Some((pname, _, entry)) = pcfg.resolve_model(override_model) {
+            println!("    → {} ({})\n", pname, entry.id);
+        } else {
+            println!("    [WARNING: override model not found in any provider]\n");
+        }
+    }
+
+    if let Some(tier_str) = test_tier {
+        // AC19: --test flag shows which model would handle a specific tier
+        let tier = match tier_str.to_lowercase().as_str() {
+            "opus" => Tier::Opus,
+            "sonnet" => Tier::Sonnet,
+            "haiku" => Tier::Haiku,
+            _ => {
+                anyhow::bail!(
+                    "Unknown tier: {}. Use opus, sonnet, or haiku.",
+                    tier_str
+                );
+            }
+        };
+
+        let models = pcfg.tier_routing.models_for_tier(&tier);
+        if models.is_empty() {
+            println!("No tier_routing config for {:?}. Using fallback (first available).", tier);
+            // Fall back to first matching provider
+            for (name, provider) in &pcfg.providers {
+                for entry in &provider.models {
+                    if provider.effective_tier(entry) == tier {
+                        println!(
+                            "  {} → {} ({})",
+                            tier,
+                            name,
+                            entry.backend_model()
+                        );
+                        return Ok(());
+                    }
+                }
+            }
+        } else {
+            println!("{} tier preference list ({} models):", tier, models.len());
+            for (i, model_id) in models.iter().enumerate() {
+                let pos = i + 1;
+                if let Some((pname, _, entry)) = pcfg.resolve_model(model_id) {
+                    let tag = if pos == 1 { " → " } else { "   " };
+                    println!("  {}{} via {} [{}]", tag, model_id, pname, entry.backend_model());
+                } else {
+                    println!("  [INVALID] {} — not found in any provider", model_id);
+                }
+            }
+        }
+        return Ok(());
+    }
+
+    // AC18: show full tier routing table
+    println!("Tier Routing Table");
+    println!("=================");
+    println!();
+
+    for tier in [Tier::Opus, Tier::Sonnet, Tier::Haiku] {
+        let models = pcfg.tier_routing.models_for_tier(&tier);
+        println!("{:>6} tier:", tier);
+        if models.is_empty() {
+            println!("  (none — fallback to first available)");
+        } else {
+            for (i, model_id) in models.iter().enumerate() {
+                let pos = i + 1;
+                if let Some((pname, _, entry)) = pcfg.resolve_model(model_id) {
+                    println!(
+                        "  [{}/{}] {} via {} [{}]",
+                        pos,
+                        models.len(),
+                        model_id,
+                        pname,
+                        entry.backend_model()
+                    );
+                } else {
+                    println!("  [{}/{}] {} — [INVALID: not in any provider]", pos, models.len(), model_id);
+                }
+            }
+        }
+        println!();
+    }
+
+    println!("Note: tier_routing section in providers.toml controls these preferences.");
+    println!("Router must be restarted for config changes to take effect.");
     Ok(())
 }
