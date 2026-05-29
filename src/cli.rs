@@ -144,6 +144,7 @@ pub enum ContextReportFormat {
     #[default]
     Human,
     Json,
+}
 
 #[derive(Args)]
 pub struct TrimArgs {

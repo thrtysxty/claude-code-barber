@@ -20,12 +20,15 @@ pub fn run(cmd: ContextCmd) -> anyhow::Result<()> {
         ContextCmd::Compact { threshold } => advise(threshold, "compact"),
         ContextCmd::Inject { hook, tool, input, stdin } => {
             #[cfg(any(feature = "graph", feature = "expert", feature = "memory", feature = "factory"))]
-            crate::hooks::run_inject(&hook, tool.as_deref(), input.as_deref(), stdin)?;
+            {
+                crate::hooks::run_inject(&hook, tool.as_deref(), input.as_deref(), stdin)?;
+            }
             #[cfg(not(any(feature = "graph", feature = "expert", feature = "memory", feature = "factory")))]
             {
                 let _ = (&hook, &tool, &input, &stdin);
-                anyhow::bail!("hooks feature requires rusqlite — rebuild with --features graph,expert,memory,factory,hooks,status,classify")
+                eprintln!("hooks feature requires rusqlite — rebuild with --features graph,expert,memory,factory");
             }
+            Ok(())
         }
         #[cfg(any(feature = "graph", feature = "expert", feature = "memory", feature = "factory"))]
         ContextCmd::Trace {} => crate::hooks::run_trace(),

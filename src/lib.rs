@@ -4,7 +4,7 @@ mod config;
 mod log;
 mod utils;
 
-#[cfg(feature = "hooks")]
+#[cfg(any(feature = "hooks", feature = "context"))]
 pub mod hooks;
 
 pub mod features {

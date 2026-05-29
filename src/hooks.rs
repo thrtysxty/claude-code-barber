@@ -190,8 +190,8 @@ fn retrieve_tier2(topic_signals: &[&str], budget: usize) -> Vec<Tier2Node> {
             let weight: f64 = row.get(2)?;
             Ok((name, category, weight))
         })
-        .filter_map(|r| r.ok())
-        .collect();
+        .and_then(|rows| rows.collect::<Result<Vec<_>, _>>())
+        .unwrap_or_default();
 
     let scored: Vec<(f64, Tier2Node)> = candidates
         .into_iter()

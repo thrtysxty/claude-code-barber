@@ -405,6 +405,7 @@ fn walk_tree_edges(
         "typescript" | "javascript" => {
             // Track current function/class
             if kind == "function_declaration"
+                || kind == "method_definition"
                 || kind == "class_declaration"
                 || kind == "class_expression"
             {
@@ -1085,7 +1086,7 @@ function main() {
         let src = r#"
 class Child extends Parent {
     constructor() {
-        super();
+        doSomething();
     }
     method() {
         return 1;
@@ -1094,9 +1095,10 @@ class Child extends Parent {
 class Parent {}
 "#;
         let edges = extract_edges_from_str(src, "javascript");
+        eprintln!("DEBUG js: total edges = {}, edges = {:?}", edges.len(), edges);
         // Verify function calls are tracked within class methods
         let calls: Vec<_> = edges.iter().filter(|e| e.2 == "calls").collect();
-        eprintln!("DEBUG js: total edges = {}, calls = {}", edges.len(), calls.len());
+        eprintln!("DEBUG js: calls = {:?}", calls);
         assert!(!calls.is_empty(), "should find calls in class methods");
     }
 

@@ -332,7 +332,9 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
     }
 
     changes.sort_by(|a, b| {
-        (b.new_weight - b.old_weight).abs().partial_cmp(&(a.new_weight - a.old_weight).unwrap())
+        let a_delta = (a.new_weight - a.old_weight).abs();
+        let b_delta = (b.new_weight - b.old_weight).abs();
+        b_delta.partial_cmp(&a_delta).unwrap_or(std::cmp::Ordering::Equal)
     });
 
     if options.dry_run {
@@ -689,16 +691,20 @@ fn print_report_human(nodes: &[ContextNode]) {
     println!("\nWeight distribution: avg={:.3} high={:.3} low={:.3}", avg, high, low);
 
     if let Ok(history) = load_weight_history() {
-        if let Some((last, prev)) = history.len().checked_sub(2).map(|i| (&history[history.len() - 1], &history[i])) {
+        if history.len() >= 2 {
+            let last_idx = history.len() - 1;
+            let prev_idx = last_idx - 1;
+            let last_slice: &[WeightChange] = &history[last_idx..=last_idx];
+            let prev_slice: &[WeightChange] = &history[prev_idx..=prev_idx];
             let mut diffs: Vec<_> = nodes.iter().filter_map(|n| {
-                let last_w = last.iter().find(|c| c.node_id == n.id).map(|c| c.new_weight);
-                let prev_w = prev.iter().find(|c| c.node_id == n.id).map(|c| c.new_weight);
+                let last_w = last_slice.first().and_then(|c| if c.node_id == n.id { Some(c.new_weight) } else { None });
+                let prev_w = prev_slice.first().and_then(|c| if c.node_id == n.id { Some(c.new_weight) } else { None });
                 match (last_w, prev_w) {
                     (Some(l), Some(p)) if (l - p).abs() > 0.001 => Some((&n.name, l - p)),
                     _ => None,
                 }
             }).collect();
-            diffs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            diffs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
             if !diffs.is_empty() {
                 println!("\nTop gainers:");
                 for (name, diff) in diffs.iter().take(3) {
