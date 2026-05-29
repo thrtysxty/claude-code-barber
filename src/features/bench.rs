@@ -246,15 +246,16 @@ fn fuzzy_match(candidate: &str, expected: &str, threshold: usize) -> bool {
     let c_lower = candidate.to_lowercase();
     let e_lower = expected.to_lowercase();
 
-    // If exact match already, it's not a fuzzy match (exact takes precedence)
-    if c_lower.contains(&e_lower) {
+    // If candidate fully contains expected as a substring, that's an exact match — not fuzzy
+    // (exact_match takes precedence; fuzzy is for partial/reformatted content)
+    if c_lower.contains(&e_lower) || e_lower.contains(&c_lower) {
         return false;
     }
 
     // For QA-style fuzzy matching, check if any significant word in expected
     // approximately matches a word in candidate
     let e_words: Vec<&str> = e_lower.split_whitespace().collect();
-    let c_words: Vec<&str> = c_lower.split_whitespace();
+    let c_words: Vec<&str> = c_lower.split_whitespace().collect();
 
     for e_word in &e_words {
         // Skip very short words for matching (articles, prepositions)
