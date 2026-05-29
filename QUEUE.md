@@ -1,6 +1,6 @@
 # Projects Queue
 
-**Last updated:** 2026-05-29 (PR #11 sprint 6 merge + cleanup, sprint 4/5 verified in git, sprint 0 dispatch)
+**Last updated:** 2026-05-29 (PR #12 sprint 6 merged, all tests green 222/222)
 
 ### Discussion Presence
 Stories live in their repos (`*/docs/stories/`). Discussion, planning, and exploration live here in `Projects/QUEUE.md`. Every item below was discussed or is fair game for next session.
@@ -81,15 +81,13 @@ Stories live in their repos (`*/docs/stories/`). Discussion, planning, and explo
 
 ## 2.5 — CCB: Sprint 6 — Context Authority `@any`
 
-Run from: `/Users/dadmin/Projects/claude-code-barber`
+*Shipped: PR #12 merged 2026-05-29. 222/222 tests pass.*
 
-**PR #11 open — fixups committed, all tests passing, 182/182 green locally.**
-
-### Stories
-- [x] story_ccb_024_context_authority_index.md — Unified knowledge index: `context_nodes` + `context_edges`, CLAUDE.md decomposition, weighted nodes — **PR #11, fixup committed**
-- [x] story_ccb_025_context_authority_hooks.md — Hook interception: SessionStart/PreToolUse/PostToolUse structured injection, two-tier model, token budget — **PR #11**
-- [x] story_ccb_026_context_authority_feedback.md — Weight feedback via EMA, LoCoMo validation gate, gap detection, auto skill/expert suggestions — **PR #11**
-- [x] story_ccb_027_context_dashboard.md — TUI + web dashboard: node inventory, injection log, weight explorer, gap report, token treemap — **PR #11**
+### Stories — COMPLETED (merged to main)
+- [x] story_ccb_024_context_authority_index.md — Unified knowledge index: `context_nodes` + `context_edges`, CLAUDE.md decomposition, weighted nodes — **PR #12 merged**
+- [x] story_ccb_025_context_authority_hooks.md — Hook interception: SessionStart/PreToolUse/PostToolUse structured injection, two-tier model, token budget — **PR #12 merged**
+- [x] story_ccb_026_context_authority_feedback.md — Weight feedback via EMA, LoCoMo validation gate, gap detection, auto skill/expert suggestions — **PR #12 merged**
+- [x] story_ccb_027_context_dashboard.md — TUI + web dashboard: node inventory, injection log, weight explorer, gap report, token treemap — **PR #12 merged**
 
 ### Cross-Sprint Dependencies
 ```
