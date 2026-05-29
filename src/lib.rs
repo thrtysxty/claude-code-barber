@@ -35,6 +35,7 @@ pub mod features {
     pub mod route;
     #[cfg(feature = "status")]
     pub mod status;
+    pub mod plugins;
     #[cfg(feature = "trim")]
     pub mod trim;
 }

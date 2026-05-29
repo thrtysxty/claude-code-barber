@@ -409,7 +409,8 @@ async fn pick(model: &str, cfg: &Cfg, _original_headers: &HeaderMap) -> Route {
         }
     }
 
-    // 2. Resolve through provider catalog (exact match → case-insensitive → tier fallback)
+    // 2. Resolve through provider catalog (exact match → case-insensitive → tier fallback).
+    //    Direct model requests bypass tier routing entirely.
     if let Some((provider_name, provider, entry)) = pcfg.resolve_model(model) {
         let backend_model = entry.backend_model();
         eprintln!(
@@ -419,7 +420,27 @@ async fn pick(model: &str, cfg: &Cfg, _original_headers: &HeaderMap) -> Route {
         return route_from_provider(provider_name, provider, backend_model);
     }
 
-    // 2b. Check discovered models on discover-enabled providers.
+    // 3. Tier routing: if this looks like a tier request (claude-opus-4-7,
+    //    claude-sonnet-4-6, claude-haiku-4-5), walk the tier_routing preference list.
+    if let Some(tier) = Tier::extract_from_model_id(model) {
+        if let Some((provider_name, provider, entry, pos, total)) =
+            pcfg.resolve_tier_route(tier)
+        {
+            let backend_model = entry.backend_model();
+            eprintln!(
+                "  tier_route: {} → {}/{} (pref {}/{})",
+                tier, provider_name, backend_model, pos, total
+            );
+            return route_from_provider(provider_name, provider, backend_model);
+        }
+        // No model in tier list resolved — log warning and fall through
+        eprintln!(
+            "  tier_route: {} exhausted → falling back to anthropic",
+            tier
+        );
+    }
+
+    // 3b. Check discovered models on discover-enabled providers.
     //     Matches user-facing clean names (e.g. "deepseek-v3.1") against
     //     discovered raw names (e.g. "deepseek-v3.1:671b-cloud").
     //     Also handles the "claude-" gateway prefix (e.g. "claude-deepseek-v3.1:671b").
@@ -456,7 +477,7 @@ async fn pick(model: &str, cfg: &Cfg, _original_headers: &HeaderMap) -> Route {
         }
     }
 
-    // 3. Fallback: default to Anthropic with OAuth passthrough
+    // 4. Fallback: default to Anthropic with OAuth passthrough
     eprintln!("  fallback → anthropic [{model}] (not in any provider catalog)");
     Route {
         kind: BackendKind::Anthropic,
