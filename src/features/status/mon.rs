@@ -734,7 +734,7 @@ fn tick(directory: &Path, theme: &Theme, columns: usize, idle_after: u64, remove
     }
 
     // Sort by modified time (newest first)
-    active.sort_by(|a, b| b.0.modified.cmp(&a.0.modified));
+    active.sort_by_key(|b| std::cmp::Reverse(b.0.modified));
 
     let n = active.len();
     let width = (cols - 8).max(40);

@@ -1022,11 +1022,7 @@ fn render_wide(
                 &theme.spec_empty_ansi,
             );
             let mut line = String::new();
-            let pct = if os.total > 0 {
-                os.done * 100 / os.total
-            } else {
-                0
-            };
+            let pct = (os.done * 100).checked_div(os.total).unwrap_or(0);
             write!(
                 line,
                 "{}{}{}{}{} {} {}/{} {}{:>3}%",
