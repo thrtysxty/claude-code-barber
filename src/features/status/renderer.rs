@@ -12,7 +12,7 @@ use super::gradient::{
     GradientEngine, Pill, GLYPH_ARROW_DOWN, GLYPH_ARROW_UP, GLYPH_BURN_FAST, GLYPH_BURN_SLOW,
     GLYPH_CONTINUATION, GLYPH_COST, GLYPH_FOLDER, GLYPH_HELPER, GLYPH_MEMBER, GLYPH_MODEL,
     GLYPH_PLUGINS, GLYPH_SKILLS, GLYPH_SUBAGENT, GLYPH_TASKS, GLYPH_THINKING, GLYPH_TOK_RATE,
-    GLYPH_VSEP, MEDIUM_WIDTH, MIN_WIDTH, NARROW_WIDTH, RESET,
+    GLYPH_VSEP, MEDIUM_WIDTH, NARROW_WIDTH, RESET,
 };
 use super::session::{
     self, discover_openspec, fmt_tok, GitInfo, LoadedSkills, SessionInfo, TaskList,
@@ -86,6 +86,7 @@ const DEFAULT_SPEC_GRADIENTS: &[(RGB, RGB, RGB); 12] = &[
     ((178, 34, 34), (233, 150, 122), (255, 228, 181)), // Salmon
 ];
 
+#[allow(clippy::upper_case_acronyms)]
 type RGB = (u8, u8, u8);
 
 // ---------------------------------------------------------------------------
@@ -182,10 +183,8 @@ fn burndown_trend(fh_pct: f64, resets_at: Option<u64>, ge: &GradientEngine) -> S
 
 pub fn render(session: &SessionInfo, theme: &Theme, columns: usize, _layout_str: &str) -> String {
     // Require minimum viable width; if terminal is too narrow fall back to empty
-    if columns < NARROW_WIDTH {
-        if columns < 20 {
-            return String::new();
-        }
+    if columns < 20 {
+        return String::new();
     }
 
     let ge = GradientEngine::new(theme);
@@ -653,8 +652,7 @@ fn render_wide(
     if empty_count > 0 {
         let fade = empty_fade_colors(theme.bar_empty_rgb);
         let fade_cells = std::cmp::min(3, empty_count);
-        for i in 0..fade_cells {
-            let (r, g, b) = fade[i];
+        for (r, g, b) in fade.iter().take(fade_cells) {
             write!(ctx_line, "\x1b[48;2;{};{};{}m░", r, g, b).unwrap();
         }
         if empty_count > 3 {
@@ -714,7 +712,8 @@ fn render_wide(
     let skill_names: Vec<String> = skills
         .names
         .iter()
-        .map(|s| s.split(':').last().unwrap_or(s).to_string())
+        .filter(|s| !s.contains(':'))
+        .map(|s| s.to_string())
         .collect();
     let plugin_names = s.plugin_names();
     if !skill_names.is_empty() || !plugin_names.is_empty() {

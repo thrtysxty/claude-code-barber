@@ -51,7 +51,7 @@ pub fn run(cmd: ContextCmd) -> anyhow::Result<()> {
             feature = "memory",
             feature = "factory"
         ))]
-        ContextCmd::Trace {} => crate::hooks::run_trace(),
+        ContextCmd::Trace => crate::hooks::run_trace(),
         // CCB-026: weight feedback commands
         ContextCmd::Tune {
             dry_run,

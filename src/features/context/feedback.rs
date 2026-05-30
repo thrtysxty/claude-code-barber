@@ -82,6 +82,7 @@ impl NodeKind {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "expert" => Some(NodeKind::Expert),
@@ -251,6 +252,7 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
     let mut node_stats: HashMap<i64, (i64, i64, i64, i64)> = HashMap::new();
     let mut session_ids: HashMap<i64, std::collections::HashSet<String>> = HashMap::new();
 
+    #[allow(clippy::type_complexity)]
     let rows: Vec<(Option<i64>, bool, Option<bool>, i64, String, Option<String>)> = stmt
         .query_map([], |row| {
             Ok((
@@ -289,7 +291,7 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
 
     let failure_sessions: Vec<String> = rows
         .iter()
-        .filter(|(_, _, succeeded, _, session_id, _)| matches!(succeeded, Some(false)))
+        .filter(|(_, _, succeeded, _, _session_id, _)| matches!(succeeded, Some(false)))
         .map(|(_, _, _, _, session_id, _)| session_id.clone())
         .collect();
 
@@ -313,7 +315,7 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
     let mut changes = Vec::new();
     let timestamp = chrono::Utc::now().to_rfc3339();
 
-    for (node_id, name, kind_str, current_weight, mut session_count) in nodes {
+    for (node_id, name, _kind_str, current_weight, mut session_count) in nodes {
         let stats = node_stats.get(&node_id).copied();
         let (injection_count, success_count, relevance_hits, sessions) =
             stats.unwrap_or((0, 0, 0, 0));
@@ -522,6 +524,7 @@ pub fn detect_gaps(config: TuneConfig) -> Result<Vec<GapReport>> {
         "#,
     )?;
 
+    #[allow(clippy::type_complexity)]
     let candidates: Vec<(i64, String, String, Option<String>, String, f64, i64)> = stmt
         .query_map(
             params![config.gap_weight_threshold, config.min_sessions_for_gap],

@@ -429,6 +429,7 @@ pub struct StatusArgs {
 }
 
 #[cfg(feature = "status")]
+#[allow(clippy::derivable_impls)]
 impl Default for StatusArgs {
     fn default() -> Self {
         Self { cmd: None }

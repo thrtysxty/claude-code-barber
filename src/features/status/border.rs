@@ -212,19 +212,7 @@ impl BorderRenderer {
             if let Some(ch) = p.border_char(col, pill_edge) {
                 parts.push(p.gradient_fg(col));
                 parts.push(ch.to_string());
-            } else if downs_set.contains(&col) && ups_set.contains(&col) {
-                parts.push(
-                    self.gradient
-                        .grad_at(i, width, dim_for_col(col, &elbow_cols), fill),
-                );
-                parts.push('+'.to_string());
-            } else if downs_set.contains(&col) {
-                parts.push(
-                    self.gradient
-                        .grad_at(i, width, dim_for_col(col, &elbow_cols), fill),
-                );
-                parts.push('+'.to_string());
-            } else if ups_set.contains(&col) {
+            } else if downs_set.contains(&col) || ups_set.contains(&col) {
                 parts.push(
                     self.gradient
                         .grad_at(i, width, dim_for_col(col, &elbow_cols), fill),
@@ -257,6 +245,7 @@ impl BorderRenderer {
     }
 
     /// Content line: │content│ with gradient-colored borders.
+    #[allow(clippy::too_many_arguments)]
     pub fn border_line(
         &self,
         content: &str,

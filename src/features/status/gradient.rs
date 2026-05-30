@@ -129,7 +129,7 @@ impl GradientEngine {
 
     /// Interpolate a color from gradient stops at position t (0.0–1.0).
     pub fn gradient_rgb(&self, t: f64, dim: f64) -> RGB {
-        let t = t.max(0.0).min(1.0);
+        let t = t.clamp(0.0, 1.0);
         for i in 0..self.grad_stops.len() - 1 {
             let (t0, c0) = self.grad_stops[i];
             let (t1, c1) = self.grad_stops[i + 1];
@@ -175,7 +175,7 @@ impl GradientEngine {
         }
         let (er, eg, eb) = self.gradient_rgb(t.min(fill), dim);
         let (gr, gg, gb) = self.grey_rgb;
-        let u = ((t - (fill - fade)) / (2.0 * fade)).max(0.0).min(1.0);
+        let u = ((t - (fill - fade)) / (2.0 * fade)).clamp(0.0, 1.0);
         let r = (er as f64 + (gr as f64 - er as f64) * u).round() as u8;
         let g = (eg as f64 + (gg as f64 - eg as f64) * u).round() as u8;
         let b = (eb as f64 + (gb as f64 - eb as f64) * u).round() as u8;
@@ -184,7 +184,7 @@ impl GradientEngine {
 
     /// Sparkline color at position t.
     pub fn spark_rgb(&self, t: f64, dim: f64) -> RGB {
-        let t = t.max(0.0).min(1.0);
+        let t = t.clamp(0.0, 1.0);
         for i in 0..self.spark_stops.len() - 1 {
             let (t0, c0) = self.spark_stops[i];
             let (t1, c1) = self.spark_stops[i + 1];
@@ -315,25 +315,13 @@ impl GradientEngine {
 // Pill
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Pill {
     pub start: usize,
     pub end: usize,
     pub anchor: RGB,
     pub shift: RGB,
     pub pct: i32,
-}
-
-impl Default for Pill {
-    fn default() -> Self {
-        Self {
-            start: 0,
-            end: 0,
-            anchor: (0, 0, 0),
-            shift: (0, 0, 0),
-            pct: 0,
-        }
-    }
 }
 
 impl Pill {
@@ -343,15 +331,15 @@ impl Pill {
 
     fn scale(rgb: RGB, pct: i32) -> RGB {
         (
-            (rgb.0 as i32 * pct / 100).min(255).max(0) as u8,
-            (rgb.1 as i32 * pct / 100).min(255).max(0) as u8,
-            (rgb.2 as i32 * pct / 100).min(255).max(0) as u8,
+            (rgb.0 as i32 * pct / 100).clamp(0, 255) as u8,
+            (rgb.1 as i32 * pct / 100).clamp(0, 255) as u8,
+            (rgb.2 as i32 * pct / 100).clamp(0, 255) as u8,
         )
     }
 
     pub fn gradient_fg(&self, col: usize) -> String {
         let span = (self.end - self.start).max(1) as f64;
-        let t = ((col as f64 - self.start as f64) / span).max(0.0).min(1.0);
+        let t = ((col as f64 - self.start as f64) / span).clamp(0.0, 1.0);
         let c0 = Self::scale(self.anchor, self.pct);
         let c1 = Self::scale(self.shift, self.pct);
         let r = (c0.0 as f64 + (c1.0 as f64 - c0.0 as f64) * t).round() as u8;
@@ -372,14 +360,12 @@ impl Pill {
             } else {
                 Some(PILL_TOP)
             }
+        } else if col == self.start {
+            Some(PILL_BL)
+        } else if col == self.end {
+            Some(PILL_BR)
         } else {
-            if col == self.start {
-                Some(PILL_BL)
-            } else if col == self.end {
-                Some(PILL_BR)
-            } else {
-                Some(PILL_BOT)
-            }
+            Some(PILL_BOT)
         }
     }
 }
@@ -526,16 +512,13 @@ pub fn pill_gradient_fg(
     let t = col as f64 / denom;
     let r = ((anchor.0 as f64 + (shift.0 as f64 - anchor.0 as f64) * t) * pct as f64 / 100.0)
         .round()
-        .min(255.0)
-        .max(0.0) as u8;
+        .clamp(0.0, 255.0) as u8;
     let g = ((anchor.1 as f64 + (shift.1 as f64 - anchor.1 as f64) * t) * pct as f64 / 100.0)
         .round()
-        .min(255.0)
-        .max(0.0) as u8;
+        .clamp(0.0, 255.0) as u8;
     let b = ((anchor.2 as f64 + (shift.2 as f64 - anchor.2 as f64) * t) * pct as f64 / 100.0)
         .round()
-        .min(255.0)
-        .max(0.0) as u8;
+        .clamp(0.0, 255.0) as u8;
     format!("\x1b[38;2;{r};{g};{b}m")
 }
 
@@ -562,7 +545,7 @@ pub fn empty_fade_colors(bar_empty_rgb: RGB) -> [RGB; 3] {
 
 /// Linearly interpolate through 3 color stops at position `t` (0.0–1.0).
 pub fn spec_rgb_at(t: f64, stops: &[(f64, RGB); 3]) -> RGB {
-    let t = t.max(0.0).min(1.0);
+    let t = t.clamp(0.0, 1.0);
     for i in 0..stops.len() - 1 {
         let (t0, c0) = stops[i];
         let (t1, c1) = stops[i + 1];
