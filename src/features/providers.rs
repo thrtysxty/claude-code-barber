@@ -359,29 +359,28 @@ impl ProviderConfig {
         let mut guard = PROVIDERS.write().unwrap();
 
         // Re-check after acquiring write lock (another thread may have loaded)
-        let needs_load = guard.is_none()
-            || {
-                let paths = [
-                    dirs::home_dir()
-                        .unwrap_or_default()
-                        .join(".claude")
-                        .join("providers.toml"),
-                    dirs::home_dir()
-                        .unwrap_or_default()
-                        .join("Projects")
-                        .join("claude-code-barber")
-                        .join("config")
-                        .join("providers.toml"),
-                    PathBuf::from("config/providers.toml"),
-                ];
-                let best_mtime = paths
-                    .iter()
-                    .filter_map(|p| p.metadata().ok().and_then(|m| m.modified().ok()))
-                    .max()
-                    .map(|t| t.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
-                let old_mtime = CONFIG_MTIME.load(Ordering::SeqCst);
-                best_mtime.map(|m| m > old_mtime).unwrap_or(true)
-            };
+        let needs_load = guard.is_none() || {
+            let paths = [
+                dirs::home_dir()
+                    .unwrap_or_default()
+                    .join(".claude")
+                    .join("providers.toml"),
+                dirs::home_dir()
+                    .unwrap_or_default()
+                    .join("Projects")
+                    .join("claude-code-barber")
+                    .join("config")
+                    .join("providers.toml"),
+                PathBuf::from("config/providers.toml"),
+            ];
+            let best_mtime = paths
+                .iter()
+                .filter_map(|p| p.metadata().ok().and_then(|m| m.modified().ok()))
+                .max()
+                .map(|t| t.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
+            let old_mtime = CONFIG_MTIME.load(Ordering::SeqCst);
+            best_mtime.map(|m| m > old_mtime).unwrap_or(true)
+        };
 
         if needs_load {
             let paths = [
@@ -692,7 +691,10 @@ mod tests {
 
     #[test]
     fn tier_extract_anthropic_opus() {
-        assert_eq!(Tier::extract_from_model_id("claude-opus-4-7"), Some(Tier::Opus));
+        assert_eq!(
+            Tier::extract_from_model_id("claude-opus-4-7"),
+            Some(Tier::Opus)
+        );
     }
 
     #[test]
@@ -727,12 +729,18 @@ mod tests {
         // returns the preference list. Sonnet has 3 models configured: MiniMax-M2.5, glm-5.1, claude-sonnet-4-6.
         let cfg = ProviderConfig::get();
         let result = cfg.resolve_tier_route(Tier::Sonnet);
-        assert!(result.is_some(), "should resolve sonnet tier with tier_routing config");
+        assert!(
+            result.is_some(),
+            "should resolve sonnet tier with tier_routing config"
+        );
         let (_, _, entry, pos, total) = result.unwrap();
         // First choice in sonnet list: MiniMax-M2.5
         assert_eq!(pos, 1);
         assert_eq!(total, 3, "sonnet tier has 3 models in tier_routing config");
-        assert_eq!(entry.id, "MiniMax-M2.5", "first sonnet choice should be MiniMax-M2.5");
+        assert_eq!(
+            entry.id, "MiniMax-M2.5",
+            "first sonnet choice should be MiniMax-M2.5"
+        );
     }
 
     // ── Direct model match bypasses tier routing (AC27) ─────────────────────

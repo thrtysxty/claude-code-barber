@@ -423,9 +423,7 @@ async fn pick(model: &str, cfg: &Cfg, _original_headers: &HeaderMap) -> Route {
     // 3. Tier routing: if this looks like a tier request (claude-opus-4-7,
     //    claude-sonnet-4-6, claude-haiku-4-5), walk the tier_routing preference list.
     if let Some(tier) = Tier::extract_from_model_id(model) {
-        if let Some((provider_name, provider, entry, pos, total)) =
-            pcfg.resolve_tier_route(tier)
-        {
+        if let Some((provider_name, provider, entry, pos, total)) = pcfg.resolve_tier_route(tier) {
             let backend_model = entry.backend_model();
             eprintln!(
                 "  tier_route: {} → {}/{} (pref {}/{})",

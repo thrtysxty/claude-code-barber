@@ -26,6 +26,8 @@ pub mod features {
     pub mod install;
     pub mod lineup;
     pub mod model_metadata;
+    #[cfg(feature = "plugins")]
+    pub mod plugins;
     #[cfg(feature = "route")]
     pub mod providers;
     #[cfg(feature = "status")]
@@ -34,8 +36,6 @@ pub mod features {
     pub mod route;
     #[cfg(feature = "status")]
     pub mod status;
-    #[cfg(feature = "plugins")]
-    pub mod plugins;
     #[cfg(feature = "trim")]
     pub mod trim;
 }
@@ -326,17 +326,15 @@ fn status_cmd(cmd: cli::StatusCmd) -> anyhow::Result<()> {
             println!("{}", output);
             Ok(())
         }
-        cli::StatusCmd::Demo { scenario } => {
-            features::status::demo::run(
-                if scenario.is_empty() {
-                    None
-                } else {
-                    Some(scenario.as_str())
-                },
-                &theme,
-                width,
-            )
-        }
+        cli::StatusCmd::Demo { scenario } => features::status::demo::run(
+            if scenario.is_empty() {
+                None
+            } else {
+                Some(scenario.as_str())
+            },
+            &theme,
+            width,
+        ),
         cli::StatusCmd::Mon { directory } => {
             let dir = if directory.is_empty() {
                 dirs::home_dir()

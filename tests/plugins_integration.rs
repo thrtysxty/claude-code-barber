@@ -87,7 +87,11 @@ fn cloudflare_auth_cache_detected() {
         }
     });
     let settings_path = tmp_home.join(".claude").join("settings.json");
-    std::fs::write(&settings_path, serde_json::to_string_pretty(&settings).unwrap()).unwrap();
+    std::fs::write(
+        &settings_path,
+        serde_json::to_string_pretty(&settings).unwrap(),
+    )
+    .unwrap();
 
     let mut cmd = Command::cargo_bin("ccb").unwrap();
     cmd.env("HOME", tmp_home);
@@ -122,7 +126,11 @@ fn settings_mcpservers_parsed() {
     });
     let settings_path = tmp_home.join(".claude").join("settings.json");
     std::fs::create_dir_all(settings_path.parent().unwrap()).unwrap();
-    std::fs::write(&settings_path, serde_json::to_string_pretty(&settings).unwrap()).unwrap();
+    std::fs::write(
+        &settings_path,
+        serde_json::to_string_pretty(&settings).unwrap(),
+    )
+    .unwrap();
 
     let mut cmd = Command::cargo_bin("ccb").unwrap();
     cmd.env("HOME", tmp_home);

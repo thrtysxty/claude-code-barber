@@ -28,6 +28,7 @@ pub mod features {
     #[cfg(feature = "loop")]
     pub mod loop_cmd;
     pub mod model_metadata;
+    pub mod plugins;
     #[cfg(feature = "route")]
     pub mod providers;
     #[cfg(feature = "status")]
@@ -36,7 +37,6 @@ pub mod features {
     pub mod route;
     #[cfg(feature = "status")]
     pub mod status;
-    pub mod plugins;
     #[cfg(feature = "trim")]
     pub mod trim;
 }

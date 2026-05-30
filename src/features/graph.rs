@@ -1035,7 +1035,11 @@ class Parent:
         let edges = extract_edges_from_str(src, "python");
         // Verify function calls are tracked within class methods
         let calls: Vec<_> = edges.iter().filter(|e| e.2 == "calls").collect();
-        eprintln!("DEBUG python: total edges = {}, calls = {}", edges.len(), calls.len());
+        eprintln!(
+            "DEBUG python: total edges = {}, calls = {}",
+            edges.len(),
+            calls.len()
+        );
         assert!(!calls.is_empty(), "should find calls in class methods");
     }
 
@@ -1095,7 +1099,11 @@ class Child extends Parent {
 class Parent {}
 "#;
         let edges = extract_edges_from_str(src, "javascript");
-        eprintln!("DEBUG js: total edges = {}, edges = {:?}", edges.len(), edges);
+        eprintln!(
+            "DEBUG js: total edges = {}, edges = {:?}",
+            edges.len(),
+            edges
+        );
         // Verify function calls are tracked within class methods
         let calls: Vec<_> = edges.iter().filter(|e| e.2 == "calls").collect();
         eprintln!("DEBUG js: calls = {:?}", calls);

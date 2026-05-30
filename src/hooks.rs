@@ -381,9 +381,18 @@ fn inject_pre_tool(tool_name: &str, tool_input: &serde_json::Value) -> Result<()
                                 *line > 0
                                     && matches!(
                                         kind.as_str(),
-                                        "function" | "fn" | "struct" | "enum" | "trait"
-                                            | "impl" | "method" | "interface" | "type_alias"
-                                            | "const" | "static" | "mod"
+                                        "function"
+                                            | "fn"
+                                            | "struct"
+                                            | "enum"
+                                            | "trait"
+                                            | "impl"
+                                            | "method"
+                                            | "interface"
+                                            | "type_alias"
+                                            | "const"
+                                            | "static"
+                                            | "mod"
                                     )
                             })
                             .take(10)
@@ -453,9 +462,7 @@ pub fn run_inject_stdin(hook: &str) -> Result<()> {
             let tool_input = payload.tool_input.unwrap_or(serde_json::Value::Null);
             inject_pre_tool(tool_name, &tool_input)
         }
-        _ => {
-            run_inject(hook, None, None, false)
-        }
+        _ => run_inject(hook, None, None, false),
     }
 }
 

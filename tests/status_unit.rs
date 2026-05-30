@@ -688,7 +688,10 @@ mod tests {
         let br = BorderRenderer::new(ge, &theme);
         let line = br.border_separator_dim(80, &[20], &[40], 0.5, None, "bottom");
         // Dim separator uses '+' for all connectors
-        assert!(line.contains('+'), "dim sep should contain + for all connectors");
+        assert!(
+            line.contains('+'),
+            "dim sep should contain + for all connectors"
+        );
     }
 
     #[test]

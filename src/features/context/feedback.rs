@@ -141,9 +141,16 @@ pub struct GapReport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum GapEvidence {
-    BuiltButUnused { domain_active: bool, sessions_seen: i64 },
-    NoCoverage { active_symbols: Vec<String> },
-    FailuresWithoutInjection { failure_count: i64 },
+    BuiltButUnused {
+        domain_active: bool,
+        sessions_seen: i64,
+    },
+    NoCoverage {
+        active_symbols: Vec<String>,
+    },
+    FailuresWithoutInjection {
+        failure_count: i64,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -267,7 +274,10 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
                 entry.1 += 1;
             }
             entry.2 += *relevance_hits;
-            session_ids.entry(*node_id).or_default().insert(session_id.clone());
+            session_ids
+                .entry(*node_id)
+                .or_default()
+                .insert(session_id.clone());
         }
     }
 
@@ -279,15 +289,22 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
 
     let failure_sessions: Vec<String> = rows
         .iter()
-        .filter(|(_, _, succeeded, _, session_id, _)| {
-            matches!(succeeded, Some(false))
-        })
+        .filter(|(_, _, succeeded, _, session_id, _)| matches!(succeeded, Some(false)))
         .map(|(_, _, _, _, session_id, _)| session_id.clone())
         .collect();
 
-    let mut node_stmt = conn.prepare("SELECT id, name, kind, weight, session_count FROM context_nodes")?;
+    let mut node_stmt =
+        conn.prepare("SELECT id, name, kind, weight, session_count FROM context_nodes")?;
     let nodes: Vec<(i64, String, String, f64, i64)> = node_stmt
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)))?
+        .query_map([], |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+            ))
+        })?
         .filter_map(|r| r.ok())
         .collect();
 
@@ -304,11 +321,14 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
         let success_rate = if injection_count > 0 {
             success_count as f64 / injection_count as f64
         } else {
-            let failures_in_session = failure_sessions.iter().filter(|s| {
-                rows.iter().any(|(_, _, succ, _, sid, _)| {
-                    *sid == **s && succ.map(|v| !v).unwrap_or(false)
+            let failures_in_session = failure_sessions
+                .iter()
+                .filter(|s| {
+                    rows.iter().any(|(_, _, succ, _, sid, _)| {
+                        *sid == **s && succ.map(|v| !v).unwrap_or(false)
+                    })
                 })
-            }).count() as f64;
+                .count() as f64;
             if failures_in_session > 0.0 {
                 (failures_in_session * 0.05).min(0.3)
             } else {
@@ -316,7 +336,12 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
             }
         };
 
-        let signal = session_signal(injection_count, success_rate, relevance_hits, total_injections.max(1));
+        let signal = session_signal(
+            injection_count,
+            success_rate,
+            relevance_hits,
+            total_injections.max(1),
+        );
         let new_weight = ema_update(current_weight, signal, config.alpha);
 
         session_count += sessions;
@@ -334,7 +359,9 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
     changes.sort_by(|a, b| {
         let a_delta = (a.new_weight - a.old_weight).abs();
         let b_delta = (b.new_weight - b.old_weight).abs();
-        b_delta.partial_cmp(&a_delta).unwrap_or(std::cmp::Ordering::Equal)
+        b_delta
+            .partial_cmp(&a_delta)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     if options.dry_run {
@@ -345,10 +372,15 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
         });
     }
 
-    let history_path = std::env::var("HOME").unwrap_or_else(|_| "/".to_string()) + "/.cache/ccb/weight_history.jsonl";
+    let history_path = std::env::var("HOME").unwrap_or_else(|_| "/".to_string())
+        + "/.cache/ccb/weight_history.jsonl";
     let history_dir = std::path::Path::new(&history_path).parent().unwrap();
     std::fs::create_dir_all(history_dir).ok();
-    if let Ok(file) = std::fs::OpenOptions::new().create(true).append(true).open(&history_path) {
+    if let Ok(file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&history_path)
+    {
         use std::io::Write;
         let mut file = std::io::BufWriter::new(file);
         for change in &changes {
@@ -358,11 +390,14 @@ pub fn tune(options: TuneOptions) -> Result<TuneReport> {
         }
     }
 
-    let mut update_stmt = conn.prepare(
-        "UPDATE context_nodes SET weight = ?, session_count = ? WHERE id = ?",
-    )?;
+    let mut update_stmt =
+        conn.prepare("UPDATE context_nodes SET weight = ?, session_count = ? WHERE id = ?")?;
     for change in &changes {
-        update_stmt.execute(params![change.new_weight, change.session_count, change.node_id])?;
+        update_stmt.execute(params![
+            change.new_weight,
+            change.session_count,
+            change.node_id
+        ])?;
     }
 
     let validation = if options.validate {
@@ -388,8 +423,8 @@ pub struct TuneReport {
 fn run_validation(threshold: f64) -> Result<ValidationResult> {
     #[cfg(feature = "bench")]
     {
-        use crate::features::bench::run_locomo;
         use crate::cli::{CompressionBenchLevel, GainFormat};
+        use crate::features::bench::run_locomo;
 
         let before = run_locomo(None, CompressionBenchLevel::All, GainFormat::Human)?;
         let after = run_locomo(None, CompressionBenchLevel::All, GainFormat::Human)?;
@@ -453,9 +488,15 @@ pub fn print_tune_report(report: &TuneReport) -> Result<()> {
     if let Some(ref v) = report.validation {
         println!();
         if v.accepted {
-            println!("✓ Validation PASSED — retention Δ={:.2}% (within ±{:.1}%)", v.delta, v.threshold);
+            println!(
+                "✓ Validation PASSED — retention Δ={:.2}% (within ±{:.1}%)",
+                v.delta, v.threshold
+            );
         } else {
-            println!("✗ Validation FAILED — retention Δ={:.2}% (exceeds ±{:.1}%)", v.delta, v.threshold);
+            println!(
+                "✗ Validation FAILED — retention Δ={:.2}% (exceeds ±{:.1}%)",
+                v.delta, v.threshold
+            );
             if v.changes_rolled_back {
                 println!("  Changes have been rolled back.");
             }
@@ -482,17 +523,20 @@ pub fn detect_gaps(config: TuneConfig) -> Result<Vec<GapReport>> {
     )?;
 
     let candidates: Vec<(i64, String, String, Option<String>, String, f64, i64)> = stmt
-        .query_map(params![config.gap_weight_threshold, config.min_sessions_for_gap], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-                row.get(5)?,
-                row.get(6)?,
-            ))
-        })?
+        .query_map(
+            params![config.gap_weight_threshold, config.min_sessions_for_gap],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                ))
+            },
+        )?
         .filter_map(|r| r.ok())
         .collect();
 
@@ -521,7 +565,9 @@ pub fn detect_gaps(config: TuneConfig) -> Result<Vec<GapReport>> {
                 path: format!("~/.claude/skills/auto/{}.md", name),
             },
             NodeKind::DocSection => GapSuggestion::PromoteWeight { node_id },
-            NodeKind::Domain => GapSuggestion::BuildExpert { domain: domain.clone() },
+            NodeKind::Domain => GapSuggestion::BuildExpert {
+                domain: domain.clone(),
+            },
         };
 
         reports.push(GapReport {
@@ -568,7 +614,10 @@ pub fn print_gaps(gaps: &[GapReport]) -> Result<()> {
 
     for (i, gap) in gaps.iter().enumerate() {
         let evidence_str = match &gap.evidence {
-            GapEvidence::BuiltButUnused { domain_active, sessions_seen } => {
+            GapEvidence::BuiltButUnused {
+                domain_active,
+                sessions_seen,
+            } => {
                 format!(
                     "built but {} sessions, domain {}",
                     sessions_seen,
@@ -576,21 +625,36 @@ pub fn print_gaps(gaps: &[GapReport]) -> Result<()> {
                 )
             }
             GapEvidence::NoCoverage { active_symbols } => {
-                format!("no expert covers this domain ({} active symbols)", active_symbols.len())
+                format!(
+                    "no expert covers this domain ({} active symbols)",
+                    active_symbols.len()
+                )
             }
             GapEvidence::FailuresWithoutInjection { failure_count } => {
-                format!("{} failures where injection would have helped", failure_count)
+                format!(
+                    "{} failures where injection would have helped",
+                    failure_count
+                )
             }
         };
 
         let suggestion_str = match &gap.suggestion {
             GapSuggestion::ActivateExpert { name } => format!("activate expert '{}'", name),
             GapSuggestion::WireSkill { path } => format!("generate skill stub at {}", path),
-            GapSuggestion::PromoteWeight { node_id } => format!("promote weight for node {}", node_id),
-            GapSuggestion::BuildExpert { domain } => format!("build new expert for domain '{}'", domain),
+            GapSuggestion::PromoteWeight { node_id } => {
+                format!("promote weight for node {}", node_id)
+            }
+            GapSuggestion::BuildExpert { domain } => {
+                format!("build new expert for domain '{}'", domain)
+            }
         };
 
-        println!("[{}] {:<20} weight={:.3}", i, &gap.node_name[..gap.node_name.len().min(20)], gap.current_weight);
+        println!(
+            "[{}] {:<20} weight={:.3}",
+            i,
+            &gap.node_name[..gap.node_name.len().min(20)],
+            gap.current_weight
+        );
         println!("    evidence: {}", evidence_str);
         println!("    suggestion: {}", suggestion_str);
         println!();
@@ -611,10 +675,7 @@ pub enum ReportFormat {
     Json,
 }
 
-pub fn print_report(
-    format: ReportFormat,
-    node_name_filter: Option<&str>,
-) -> Result<()> {
+pub fn print_report(format: ReportFormat, node_name_filter: Option<&str>) -> Result<()> {
     let conn = db()?;
 
     let mut stmt = conn.prepare(
@@ -640,7 +701,10 @@ pub fn print_report(
         .collect();
 
     let nodes: Vec<ContextNode> = if let Some(filter) = node_name_filter {
-        nodes.into_iter().filter(|n| n.name.contains(filter)).collect()
+        nodes
+            .into_iter()
+            .filter(|n| n.name.contains(filter))
+            .collect()
     } else {
         nodes
     };
@@ -669,15 +733,19 @@ fn print_report_human(nodes: &[ContextNode]) {
 
     for node in nodes {
         let kind_str = node.kind.as_str();
-        let name_trunc = if node.name.len() > 12 { &node.name[..12] } else { &node.name };
-        let domain_trunc = if node.domain.len() > 12 { &node.domain[..12] } else { &node.domain };
+        let name_trunc = if node.name.len() > 12 {
+            &node.name[..12]
+        } else {
+            &node.name
+        };
+        let domain_trunc = if node.domain.len() > 12 {
+            &node.domain[..12]
+        } else {
+            &node.domain
+        };
         println!(
             "│ {:<12} │ {:<8} │ {:>7.3} │ {:>9} │ {:<12} │",
-            name_trunc,
-            kind_str,
-            node.weight,
-            node.session_count,
-            domain_trunc
+            name_trunc, kind_str, node.weight, node.session_count, domain_trunc
         );
     }
 
@@ -688,7 +756,10 @@ fn print_report_human(nodes: &[ContextNode]) {
     let high = weights.iter().cloned().fold(0.0, f64::max);
     let low = weights.iter().cloned().fold(1.0, f64::min);
 
-    println!("\nWeight distribution: avg={:.3} high={:.3} low={:.3}", avg, high, low);
+    println!(
+        "\nWeight distribution: avg={:.3} high={:.3} low={:.3}",
+        avg, high, low
+    );
 
     if let Ok(history) = load_weight_history() {
         if history.len() >= 2 {
@@ -696,14 +767,29 @@ fn print_report_human(nodes: &[ContextNode]) {
             let prev_idx = last_idx - 1;
             let last_slice: &[WeightChange] = &history[last_idx..=last_idx];
             let prev_slice: &[WeightChange] = &history[prev_idx..=prev_idx];
-            let mut diffs: Vec<_> = nodes.iter().filter_map(|n| {
-                let last_w = last_slice.first().and_then(|c| if c.node_id == n.id { Some(c.new_weight) } else { None });
-                let prev_w = prev_slice.first().and_then(|c| if c.node_id == n.id { Some(c.new_weight) } else { None });
-                match (last_w, prev_w) {
-                    (Some(l), Some(p)) if (l - p).abs() > 0.001 => Some((&n.name, l - p)),
-                    _ => None,
-                }
-            }).collect();
+            let mut diffs: Vec<_> = nodes
+                .iter()
+                .filter_map(|n| {
+                    let last_w = last_slice.first().and_then(|c| {
+                        if c.node_id == n.id {
+                            Some(c.new_weight)
+                        } else {
+                            None
+                        }
+                    });
+                    let prev_w = prev_slice.first().and_then(|c| {
+                        if c.node_id == n.id {
+                            Some(c.new_weight)
+                        } else {
+                            None
+                        }
+                    });
+                    match (last_w, prev_w) {
+                        (Some(l), Some(p)) if (l - p).abs() > 0.001 => Some((&n.name, l - p)),
+                        _ => None,
+                    }
+                })
+                .collect();
             diffs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
             if !diffs.is_empty() {
                 println!("\nTop gainers:");
@@ -720,7 +806,8 @@ fn print_report_human(nodes: &[ContextNode]) {
 }
 
 fn load_weight_history() -> Result<Vec<WeightChange>> {
-    let path = std::env::var("HOME").unwrap_or_else(|_| "/".to_string()) + "/.cache/ccb/weight_history.jsonl";
+    let path = std::env::var("HOME").unwrap_or_else(|_| "/".to_string())
+        + "/.cache/ccb/weight_history.jsonl";
     let content = std::fs::read_to_string(&path)?;
     let history: Vec<WeightChange> = content
         .lines()
@@ -734,7 +821,8 @@ fn load_weight_history() -> Result<Vec<WeightChange>> {
 // ---------------------------------------------------------------------------
 
 pub fn generate_skill_stub(gap: &GapReport) -> Result<std::path::PathBuf> {
-    let skill_dir = std::env::var("HOME").unwrap_or_else(|_| "/".to_string()) + "/.claude/skills/auto";
+    let skill_dir =
+        std::env::var("HOME").unwrap_or_else(|_| "/".to_string()) + "/.claude/skills/auto";
     std::fs::create_dir_all(&skill_dir)?;
 
     let filename = format!("{}.md", gap.node_name.replace(' ', "-").to_lowercase());
@@ -771,12 +859,7 @@ This skill was auto-generated to fill a gap in context coverage.
 - Weight: {:.3}
 - Sessions seen: {}
 "#,
-        gap.node_id,
-        gap.domain,
-        gap.node_name,
-        gap.domain,
-        gap.current_weight,
-        gap.session_count,
+        gap.node_id, gap.domain, gap.node_name, gap.domain, gap.current_weight, gap.session_count,
     );
 
     std::fs::write(&path, content)?;

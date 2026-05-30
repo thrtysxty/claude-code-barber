@@ -107,7 +107,10 @@ fn settings_path() -> Result<PathBuf> {
 }
 
 fn plugin_cache_dir() -> Result<PathBuf> {
-    Ok(claude_home()?.join("plugins").join("cache").join("claude-plugins-official"))
+    Ok(claude_home()?
+        .join("plugins")
+        .join("cache")
+        .join("claude-plugins-official"))
 }
 
 /// Path where Cloudflare OAuth tokens are cached
@@ -137,12 +140,7 @@ fn github_mcp_config() -> Result<PathBuf> {
         .iter()
         .find(|p| p.exists())
         .map(|p| p.clone())
-        .with_context(|| {
-            format!(
-                "GitHub MCP config not found in any of: {:?}",
-                candidates
-            )
-        })
+        .with_context(|| format!("GitHub MCP config not found in any of: {:?}", candidates))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -154,7 +152,10 @@ fn check_github_pat() -> (bool, String) {
     // First check env
     if let Ok(v) = std::env::var("GITHUB_PERSONAL_ACCESS_TOKEN") {
         if !v.is_empty() {
-            return (true, format!("env:$GITHUB_PERSONAL_ACCESS_TOKEN ({} chars)", v.len()));
+            return (
+                true,
+                format!("env:$GITHUB_PERSONAL_ACCESS_TOKEN ({} chars)", v.len()),
+            );
         }
     }
 
@@ -174,7 +175,10 @@ fn check_github_pat() -> (bool, String) {
         }
     }
 
-    (false, "GITHUB_PERSONAL_ACCESS_TOKEN not found in env or ~/.secrets".into())
+    (
+        false,
+        "GITHUB_PERSONAL_ACCESS_TOKEN not found in env or ~/.secrets".into(),
+    )
 }
 
 /// Check if Cloudflare OAuth has been completed (cache file exists)
@@ -325,7 +329,10 @@ pub fn check_all() -> Result<PluginSummary> {
             PluginAuth::None => (PluginStatus::Ok, "no auth required".into()),
             PluginAuth::Unknown => {
                 if cached.contains_key(name) {
-                    (PluginStatus::Ok, "plugin configured (unknown auth type)".into())
+                    (
+                        PluginStatus::Ok,
+                        "plugin configured (unknown auth type)".into(),
+                    )
                 } else {
                     (PluginStatus::NotFound, "plugin not found in cache".into())
                 }
@@ -377,8 +384,18 @@ pub fn print_summary(summary: &PluginSummary) {
     }
 
     println!();
-    println!("  GitHub MCP:    {}", if summary.github_ok { "OK" } else { "MISSING" });
-    println!("  Cloudflare MCP: {}", if summary.cloudflare_ok { "OK" } else { "MISSING" });
+    println!(
+        "  GitHub MCP:    {}",
+        if summary.github_ok { "OK" } else { "MISSING" }
+    );
+    println!(
+        "  Cloudflare MCP: {}",
+        if summary.cloudflare_ok {
+            "OK"
+        } else {
+            "MISSING"
+        }
+    );
     println!();
 }
 
@@ -407,10 +424,7 @@ mod tests {
 
     #[test]
     fn plugin_auth_classification() {
-        assert_eq!(
-            PluginAuth::for_plugin("github"),
-            PluginAuth::GitHubPat
-        );
+        assert_eq!(PluginAuth::for_plugin("github"), PluginAuth::GitHubPat);
         assert_eq!(
             PluginAuth::for_plugin("cloudflare-api"),
             PluginAuth::CloudflareOAuth
@@ -433,7 +447,10 @@ mod tests {
         );
         assert_eq!(PluginAuth::for_plugin("playwright"), PluginAuth::None);
         assert_eq!(PluginAuth::for_plugin("hookify"), PluginAuth::None);
-        assert_eq!(PluginAuth::for_plugin("unknown-plugin"), PluginAuth::Unknown);
+        assert_eq!(
+            PluginAuth::for_plugin("unknown-plugin"),
+            PluginAuth::Unknown
+        );
     }
 
     #[test]

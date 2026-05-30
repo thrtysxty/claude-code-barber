@@ -401,26 +401,21 @@ fn show_tier_routing(_cfg: &Config, test_tier: Option<&str>) -> Result<()> {
             "sonnet" => Tier::Sonnet,
             "haiku" => Tier::Haiku,
             _ => {
-                anyhow::bail!(
-                    "Unknown tier: {}. Use opus, sonnet, or haiku.",
-                    tier_str
-                );
+                anyhow::bail!("Unknown tier: {}. Use opus, sonnet, or haiku.", tier_str);
             }
         };
 
         let models = pcfg.tier_routing.models_for_tier(&tier);
         if models.is_empty() {
-            println!("No tier_routing config for {:?}. Using fallback (first available).", tier);
+            println!(
+                "No tier_routing config for {:?}. Using fallback (first available).",
+                tier
+            );
             // Fall back to first matching provider
             for (name, provider) in &pcfg.providers {
                 for entry in &provider.models {
                     if provider.effective_tier(entry) == tier {
-                        println!(
-                            "  {} → {} ({})",
-                            tier,
-                            name,
-                            entry.backend_model()
-                        );
+                        println!("  {} → {} ({})", tier, name, entry.backend_model());
                         return Ok(());
                     }
                 }
@@ -431,7 +426,13 @@ fn show_tier_routing(_cfg: &Config, test_tier: Option<&str>) -> Result<()> {
                 let pos = i + 1;
                 if let Some((pname, _, entry)) = pcfg.resolve_model(model_id) {
                     let tag = if pos == 1 { " → " } else { "   " };
-                    println!("  {}{} via {} [{}]", tag, model_id, pname, entry.backend_model());
+                    println!(
+                        "  {}{} via {} [{}]",
+                        tag,
+                        model_id,
+                        pname,
+                        entry.backend_model()
+                    );
                 } else {
                     println!("  [INVALID] {} — not found in any provider", model_id);
                 }
@@ -463,7 +464,12 @@ fn show_tier_routing(_cfg: &Config, test_tier: Option<&str>) -> Result<()> {
                         entry.backend_model()
                     );
                 } else {
-                    println!("  [{}/{}] {} — [INVALID: not in any provider]", pos, models.len(), model_id);
+                    println!(
+                        "  [{}/{}] {} — [INVALID: not in any provider]",
+                        pos,
+                        models.len(),
+                        model_id
+                    );
                 }
             }
         }

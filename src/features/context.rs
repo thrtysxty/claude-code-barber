@@ -18,19 +18,39 @@ pub fn run(cmd: ContextCmd) -> anyhow::Result<()> {
         ContextCmd::Show => show(),
         ContextCmd::Clear { threshold } => advise(threshold, "clear"),
         ContextCmd::Compact { threshold } => advise(threshold, "compact"),
-        ContextCmd::Inject { hook, tool, input, stdin } => {
-            #[cfg(any(feature = "graph", feature = "expert", feature = "memory", feature = "factory"))]
+        ContextCmd::Inject {
+            hook,
+            tool,
+            input,
+            stdin,
+        } => {
+            #[cfg(any(
+                feature = "graph",
+                feature = "expert",
+                feature = "memory",
+                feature = "factory"
+            ))]
             {
                 crate::hooks::run_inject(&hook, tool.as_deref(), input.as_deref(), stdin)?;
             }
-            #[cfg(not(any(feature = "graph", feature = "expert", feature = "memory", feature = "factory")))]
+            #[cfg(not(any(
+                feature = "graph",
+                feature = "expert",
+                feature = "memory",
+                feature = "factory"
+            )))]
             {
                 let _ = (&hook, &tool, &input, &stdin);
                 eprintln!("hooks feature requires rusqlite — rebuild with --features graph,expert,memory,factory");
             }
             Ok(())
         }
-        #[cfg(any(feature = "graph", feature = "expert", feature = "memory", feature = "factory"))]
+        #[cfg(any(
+            feature = "graph",
+            feature = "expert",
+            feature = "memory",
+            feature = "factory"
+        ))]
         ContextCmd::Trace {} => crate::hooks::run_trace(),
         // CCB-026: weight feedback commands
         ContextCmd::Tune {
@@ -49,7 +69,10 @@ pub fn run(cmd: ContextCmd) -> anyhow::Result<()> {
             feedback::print_tune_report(&report)?;
             Ok(())
         }
-        ContextCmd::Gaps { min_sessions, apply } => {
+        ContextCmd::Gaps {
+            min_sessions,
+            apply,
+        } => {
             let config = feedback::TuneConfig {
                 min_sessions_for_gap: min_sessions.unwrap_or(3),
                 ..Default::default()
