@@ -50,7 +50,7 @@ pub enum Command {
     Classify,
     /// Render the status line for Claude Code
     #[cfg(feature = "status")]
-    Status,
+    Status(StatusArgs),
     /// Run deterministic story loops through planning and implementation phases
     #[cfg(feature = "factory")]
     Factory(FactoryArgs),
@@ -397,4 +397,38 @@ pub enum FactoryCmd {
 pub struct FactoryArgs {
     #[command(subcommand)]
     pub cmd: FactoryCmd,
+}
+
+/// Status subcommands
+#[cfg(feature = "status")]
+#[derive(Subcommand)]
+pub enum StatusCmd {
+    /// Render the statusline once to stdout (live session data or CCB fallback)
+    Show,
+    /// Render with mock/demo data — no live session needed
+    Demo {
+        /// Scenario name to run (e.g. sonnet-thinking, kitchen-sink)
+        #[arg(default_value = "")]
+        scenario: String,
+    },
+    /// Enter live-refresh monitoring mode
+    Mon {
+        /// Directory to watch (defaults to ~/.claude)
+        #[arg(default_value = "")]
+        directory: String,
+    },
+}
+
+/// Status args — StatusCmd with default to Show
+#[cfg(feature = "status")]
+#[derive(Args)]
+pub struct StatusArgs {
+    #[command(subcommand)]
+    pub cmd: Option<StatusCmd>,
+}
+
+impl Default for StatusArgs {
+    fn default() -> Self {
+        Self { cmd: None }
+    }
 }
