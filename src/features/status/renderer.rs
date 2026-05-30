@@ -181,8 +181,11 @@ fn burndown_trend(fh_pct: f64, resets_at: Option<u64>, ge: &GradientEngine) -> S
 // ---------------------------------------------------------------------------
 
 pub fn render(session: &SessionInfo, theme: &Theme, columns: usize, _layout_str: &str) -> String {
-    if columns < MIN_WIDTH {
-        return String::new();
+    // Require minimum viable width; if terminal is too narrow fall back to empty
+    if columns < NARROW_WIDTH {
+        if columns < 20 {
+            return String::new();
+        }
     }
 
     let ge = GradientEngine::new(theme);
@@ -1339,17 +1342,17 @@ fn render_pill(name: &str, model_family: &str, theme: &Theme, effort: &str) -> S
     };
 
     if pct > 0 {
-        // Pill with gradient ▐/▌ edge chars
+        // Pill with gradient [ / ] edge chars
         let pill_l = pill_gradient_fg(0, name.len() + 4, anchor, shift, pct);
         let pill_r = pill_gradient_fg(name.len() + 4, name.len() + 4, anchor, shift, pct);
         format!(
-            "{}▐\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m {} {}▌{}",
-            pill_l, eff_bg.0, eff_bg.1, eff_bg.2, fg_rgb.0, fg_rgb.1, fg_rgb.2, name, pill_r, RESET
+            "{}[\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m {} {}]\x1b[0m",
+            pill_l, eff_bg.0, eff_bg.1, eff_bg.2, fg_rgb.0, fg_rgb.1, fg_rgb.2, name, pill_r
         )
     } else {
         format!(
-            "\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m {} {}",
-            eff_bg.0, eff_bg.1, eff_bg.2, fg_rgb.0, fg_rgb.1, fg_rgb.2, name, RESET
+            "\x1b[48;2;{};{};{}m\x1b[38;2;{};{};{}m {} \x1b[0m",
+            eff_bg.0, eff_bg.1, eff_bg.2, fg_rgb.0, fg_rgb.1, fg_rgb.2, name
         )
     }
 }

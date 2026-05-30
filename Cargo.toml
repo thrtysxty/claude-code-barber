@@ -56,7 +56,7 @@ graph   = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-python",
            "dep:tree-sitter-typescript", "dep:tree-sitter-javascript",
            "dep:rusqlite", "dep:walkdir", "dep:ignore"]
 route   = ["dep:tokio", "dep:axum", "dep:reqwest", "dep:bytes", "dep:futures-util", "dep:uuid"]
-full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert", "classify", "factory", "hooks", "context", "plugins"]
+full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert", "classify", "factory", "hooks", "context", "status", "plugins"]
 expert  = ["dep:rusqlite", "dep:serde_yaml"]
 memory  = ["dep:rusqlite"]
 classify = ["dep:reqwest", "dep:regex-lite"]

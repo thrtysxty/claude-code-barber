@@ -64,7 +64,7 @@ impl BorderRenderer {
             parts.push(PILL_TL.to_string());
         } else {
             parts.push(self.gradient.grad_at(0, width, 1.0, fill));
-            parts.push('╭'.to_string());
+            parts.push('+'.to_string());
         }
 
         // Session ID or fill
@@ -99,10 +99,10 @@ impl BorderRenderer {
                     parts.push(ch.to_string());
                 } else if downs_set.contains(&col) {
                     parts.push(self.gradient.grad_at(col - 1, width, 1.0, fill));
-                    parts.push('┬'.to_string());
+                    parts.push('+'.to_string());
                 } else {
                     parts.push(self.gradient.grad_at(col - 1, width, 1.0, fill));
-                    parts.push('─'.to_string());
+                    parts.push('-'.to_string());
                 }
             }
         } else {
@@ -113,10 +113,10 @@ impl BorderRenderer {
                     parts.push(ch.to_string());
                 } else if downs_set.contains(&col) {
                     parts.push(self.gradient.grad_at(i, width, 1.0, fill));
-                    parts.push('┬'.to_string());
+                    parts.push('+'.to_string());
                 } else {
                     parts.push(self.gradient.grad_at(i, width, 1.0, fill));
-                    parts.push('─'.to_string());
+                    parts.push('-'.to_string());
                 }
             }
         }
@@ -124,54 +124,54 @@ impl BorderRenderer {
         // Right corner
         if p.active() && p.start <= width && width <= p.end {
             parts.push(p.gradient_fg(width));
-            parts.push(p.border_char(width, "top").unwrap_or('╮').to_string());
+            parts.push(p.border_char(width, "top").unwrap_or('+').to_string());
         } else {
             parts.push(self.gradient.grad_at(width - 1, width, 1.0, fill));
-            parts.push('╮'.to_string());
+            parts.push('+'.to_string());
         }
         parts.push(RESET.to_string());
 
         parts.join("")
     }
 
-    /// Bottom border: ╰─┴─────╯ with optional T-up connectors.
+    /// Bottom border: +-+-----+ with optional T-up connectors.
     pub fn border_bottom(&self, width: usize, ups: &[usize], fill: f64) -> String {
         let mut parts = Vec::new();
         parts.push(self.gradient.grad_at(0, width, 0.6, fill));
-        parts.push('╰'.to_string());
+        parts.push('+'.to_string());
         for i in 1..(width - 1) {
             let col = i + 1;
             if ups.contains(&col) {
                 parts.push(self.gradient.grad_at(i, width, 0.6, fill));
-                parts.push('┴'.to_string());
+                parts.push('+'.to_string());
             } else {
                 parts.push(self.gradient.grad_at(i, width, 0.6, fill));
-                parts.push('─'.to_string());
+                parts.push('-'.to_string());
             }
         }
         parts.push(self.gradient.grad_at(width - 1, width, 0.6, fill));
-        parts.push('╯'.to_string());
+        parts.push('+'.to_string());
         parts.push(RESET.to_string());
         parts.join("")
     }
 
-    /// Solid separator: ├───┤ with T-up connectors.
+    /// Solid separator: +---+ with T-up connectors.
     pub fn border_separator(&self, width: usize, ups: &[usize], fill: f64) -> String {
         let mut parts = Vec::new();
         parts.push(self.gradient.grad_at(0, width, 1.0, fill));
-        parts.push('├'.to_string());
+        parts.push('+'.to_string());
         for i in 1..(width - 1) {
             let col = i + 1;
             if ups.contains(&col) {
                 parts.push(self.gradient.grad_at(i, width, 1.0, fill));
-                parts.push('┴'.to_string());
+                parts.push('+'.to_string());
             } else {
                 parts.push(self.gradient.grad_at(i, width, 1.0, fill));
-                parts.push('─'.to_string());
+                parts.push('-'.to_string());
             }
         }
         parts.push(self.gradient.grad_at(width - 1, width, 1.0, fill));
-        parts.push('┤'.to_string());
+        parts.push('+'.to_string());
         parts.push(RESET.to_string());
         parts.join("")
     }
@@ -198,13 +198,13 @@ impl BorderRenderer {
         // Left corner
         if p.active() && p.start <= 1 {
             parts.push(p.gradient_fg(p.start));
-            parts.push(p.border_char(p.start, pill_edge).unwrap_or('├').to_string());
+            parts.push(p.border_char(p.start, pill_edge).unwrap_or('+').to_string());
         } else {
             parts.push(
                 self.gradient
                     .grad_at(0, width, dim_for_col(1, &elbow_cols), fill),
             );
-            parts.push('├'.to_string());
+            parts.push('+'.to_string());
         }
 
         for i in 1..(width - 1) {
@@ -217,32 +217,32 @@ impl BorderRenderer {
                     self.gradient
                         .grad_at(i, width, dim_for_col(col, &elbow_cols), fill),
                 );
-                parts.push('┼'.to_string());
+                parts.push('+'.to_string());
             } else if downs_set.contains(&col) {
                 parts.push(
                     self.gradient
                         .grad_at(i, width, dim_for_col(col, &elbow_cols), fill),
                 );
-                parts.push('┬'.to_string());
+                parts.push('+'.to_string());
             } else if ups_set.contains(&col) {
                 parts.push(
                     self.gradient
                         .grad_at(i, width, dim_for_col(col, &elbow_cols), fill),
                 );
-                parts.push('┴'.to_string());
+                parts.push('+'.to_string());
             } else {
                 parts.push(
                     self.gradient
                         .grad_at(i, width, dim_for_col(col, &elbow_cols), fill),
                 );
-                parts.push('┄'.to_string());
+                parts.push('-'.to_string());
             }
         }
 
         // Right corner
         if p.active() && p.start <= width && width <= p.end {
             parts.push(p.gradient_fg(width));
-            parts.push(p.border_char(width, pill_edge).unwrap_or('┤').to_string());
+            parts.push(p.border_char(width, pill_edge).unwrap_or('+').to_string());
         } else {
             parts.push(self.gradient.grad_at(
                 width - 1,
@@ -250,7 +250,7 @@ impl BorderRenderer {
                 dim_for_col(width, &elbow_cols),
                 fill,
             ));
-            parts.push('┤'.to_string());
+            parts.push('+'.to_string());
         }
         parts.push(RESET.to_string());
         parts.join("")
@@ -282,7 +282,7 @@ impl BorderRenderer {
                 " ".to_string()
             };
             return format!(
-                "{left}│{RESET}{lead}{content}{}{right_pill}{RESET}",
+                "{left}|{RESET}{lead}{content}{}{right_pill}{RESET}",
                 " ".repeat(pad)
             );
         }
@@ -290,7 +290,7 @@ impl BorderRenderer {
         if pill_flush {
             let pad = width.saturating_sub(1).saturating_sub(content_w);
             let right = self.gradient.grad_at(width - 1, width, 1.0, fill);
-            return format!("{content}{}{right}│{RESET}", " ".repeat(pad));
+            return format!("{content}{}{right}|{RESET}", " ".repeat(pad));
         }
 
         let pad = width.saturating_sub(3).saturating_sub(content_w);
@@ -306,7 +306,7 @@ impl BorderRenderer {
         } else {
             " ".repeat(pad)
         };
-        format!("{left}│{RESET}{lead}{content}{pad_str}{right}│{RESET}")
+        format!("{left}|{RESET}{lead}{content}{pad_str}{right}|{RESET}")
     }
 }
 

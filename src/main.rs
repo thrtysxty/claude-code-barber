@@ -83,7 +83,7 @@ fn main() -> anyhow::Result<()> {
         #[cfg(feature = "factory")]
         Command::Factory(args) => factory_cmd(args),
         #[cfg(feature = "status")]
-        Command::Status => status_cmd(),
+        Command::Status(args) => status_cmd(args.cmd.unwrap_or(cli::StatusCmd::Show)),
     }
 }
 
@@ -284,41 +284,68 @@ fn factory_cmd(_args: cli::FactoryArgs) -> anyhow::Result<()> {
 }
 
 #[cfg(feature = "status")]
-fn status_cmd() -> anyhow::Result<()> {
+fn status_cmd(cmd: cli::StatusCmd) -> anyhow::Result<()> {
     use features::status::gradient::terminal_width;
     use features::status::session::SessionInfo;
     use features::status::{build_session_info, resolve_theme, StatusInput};
 
-    // Try reading session JSON from stdin first (Claude Code pipes it).
-    // If valid, use it as the primary data source — it has the real model,
-    // real tokens, real rate limits from the live session.
-    let stdin_json = {
-        use std::io::Read;
-        let mut buf = String::new();
-        let _ = std::io::stdin().read_to_string(&mut buf);
-        buf
-    };
-
-    let width = terminal_width();
+    // Use max of detected terminal width and 80 to ensure consistent layout
+    // even in narrow terminals (MIN_WIDTH for statusline is 40, so 80 is safe)
+    let width = terminal_width().max(80);
     let theme = resolve_theme("claude-dark");
 
-    if !stdin_json.trim().is_empty() {
-        if let Ok(session) = serde_json::from_str::<SessionInfo>(&stdin_json) {
-            let ccb = StatusInput::load();
-            let session = enrich_from_ccb(session, &ccb);
-            update_session_env(&session.session_id, &session.model.id);
-            let output = features::status::render(&session, &theme, width, "wide");
+    match cmd {
+        cli::StatusCmd::Show => {
+            // Try reading session JSON from stdin first (Claude Code pipes it).
+            // If valid, use it as the primary data source — it has the real model,
+            // real tokens, real rate limits from the live session.
+            let stdin_json = {
+                use std::io::Read;
+                let mut buf = String::new();
+                let _ = std::io::stdin().read_to_string(&mut buf);
+                buf
+            };
+
+            if !stdin_json.trim().is_empty() {
+                if let Ok(session) = serde_json::from_str::<SessionInfo>(&stdin_json) {
+                    let ccb = StatusInput::load();
+                    let session = enrich_from_ccb(session, &ccb);
+                    update_session_env(&session.session_id, &session.model.id);
+                    let output = features::status::render(&session, &theme, width, "wide");
+                    println!("{}", output);
+                    return Ok(());
+                }
+            }
+
+            // Fallback: use CCB-only data (route usage, session env)
+            let input = StatusInput::load();
+            let session_info = build_session_info(&input);
+            let output = features::status::render(&session_info, &theme, width, "wide");
             println!("{}", output);
-            return Ok(());
+            Ok(())
+        }
+        cli::StatusCmd::Demo { scenario } => {
+            features::status::demo::run(
+                if scenario.is_empty() {
+                    None
+                } else {
+                    Some(scenario.as_str())
+                },
+                &theme,
+                width,
+            )
+        }
+        cli::StatusCmd::Mon { directory } => {
+            let dir = if directory.is_empty() {
+                dirs::home_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    .join(".claude")
+            } else {
+                std::path::PathBuf::from(directory)
+            };
+            features::status::mon::run(&dir, 5, &theme, width)
         }
     }
-
-    // Fallback: use CCB-only data (route usage, session env)
-    let input = StatusInput::load();
-    let session_info = build_session_info(&input);
-    let output = features::status::render(&session_info, &theme, width, "wide");
-    println!("{}", output);
-    Ok(())
 }
 
 #[cfg(feature = "status")]

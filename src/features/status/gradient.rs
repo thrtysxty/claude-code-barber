@@ -21,34 +21,34 @@ pub const NARROW_WIDTH: usize = 55;
 pub const MEDIUM_WIDTH: usize = 80;
 pub const SOFT_LIMIT: u64 = 150_000;
 
-/// Unicode block/bar characters for progress bars
+/// Unicode block/bar characters for progress bars (ASCII-safe)
 pub struct BarChars;
 impl BarChars {
-    pub const FILLED: char = '█';
-    pub const HEAVY: char = '▆';
-    pub const MID: char = '▗';
-    pub const EMPTY: char = '░';
+    pub const FILLED: char = '*';
+    pub const HEAVY: char = '=';
+    pub const MID: char = '-';
+    pub const EMPTY: char = '_';
 }
 
-/// Unicode quadrant/half-block characters for pill borders
-pub const PILL_TL: char = '▗';
-pub const PILL_TOP: char = '▄';
-pub const PILL_TR: char = '▖';
-pub const PILL_LEFT: char = '▐';
-pub const PILL_RIGHT: char = '▌';
-pub const PILL_BL: char = '▝';
-pub const PILL_BOT: char = '▀';
-pub const PILL_BR: char = '▘';
+/// Unicode quadrant/half-block characters for pill borders (ASCII-safe)
+pub const PILL_TL: char = '+';
+pub const PILL_TOP: char = '-';
+pub const PILL_TR: char = '+';
+pub const PILL_LEFT: char = '[';
+pub const PILL_RIGHT: char = ']';
+pub const PILL_BL: char = '+';
+pub const PILL_BOT: char = '-';
+pub const PILL_BR: char = '+';
 
-/// Unicode "Symbols for Legacy Computing" slope characters for sparklines
-pub const SPARK_RISE_SMALL: char = '\u{1fb48}';
-pub const SPARK_FALL_SMALL: char = '\u{1fb3d}';
-pub const SPARK_RISE_MED: char = '\u{1fb4a}';
-pub const SPARK_FALL_MED: char = '\u{1fb3f}';
-pub const SPARK_RISE_TALL: char = '\u{1fb45}';
-pub const SPARK_FALL_TALL: char = '\u{1fb50}';
-pub const SPARK_RISE_TOP: char = '\u{1fb4b}';
-pub const SPARK_FALL_TOP: char = '\u{1fb40}';
+/// ASCII sparkline characters for two-row half-block sparklines
+pub const SPARK_RISE_SMALL: char = '^';
+pub const SPARK_FALL_SMALL: char = 'v';
+pub const SPARK_RISE_MED: char = '^';
+pub const SPARK_FALL_MED: char = 'v';
+pub const SPARK_RISE_TALL: char = '^';
+pub const SPARK_FALL_TALL: char = 'v';
+pub const SPARK_RISE_TOP: char = '^';
+pub const SPARK_FALL_TOP: char = 'v';
 
 // ---------------------------------------------------------------------------
 // ANSI helpers
@@ -87,26 +87,24 @@ pub fn rainbow_at(step: usize, offset: usize) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Nerd Font glyph constants (item 2.10)
-// ---------------------------------------------------------------------------
-
-pub const GLYPH_FOLDER: &str = "\u{ef85}"; //  folder icon
-pub const GLYPH_SUBAGENT: &str = "\u{25b6}"; // ▶ play
-pub const GLYPH_CONTINUATION: &str = "\u{2514}"; // └ continuation
-pub const GLYPH_ARROW_DOWN: &str = "\u{1f847}"; // ⇁ active down arrow
-pub const GLYPH_ARROW_UP: &str = "\u{1f845}"; // ⇃ active up arrow
-pub const GLYPH_VSEP: &str = "\u{2502}"; // │ vertical separator
-pub const GLYPH_MEMBER: &str = "\u{2208}"; // ∈ element of
-pub const GLYPH_HELPER: &str = "\u{f4cd}"; // star_circle
-pub const GLYPH_THINKING: &str = "\u{1f53}"; // brain
-pub const GLYPH_MODEL: &str = "\u{f08b9}"; // monitor-dashboard
-pub const GLYPH_TASKS: &str = "\u{f0755}"; // format-list-checks
-pub const GLYPH_SKILLS: &str = "\u{f07df}"; // skills
-pub const GLYPH_PLUGINS: &str = "\u{f1e6}"; // plug
-pub const GLYPH_COST: &str = "\u{efc8}"; // currency-usd
-pub const GLYPH_TOK_RATE: &str = "\u{f18a7}"; // gauge
-pub const GLYPH_BURN_FAST: &str = "\u{ef76}"; // nf-cod-zap (over-burn)
-pub const GLYPH_BURN_SLOW: &str = "\u{f490}"; // nf-oct-flame (under-burn)
+// Nerd Font glyph constants — ASCII fallbacks for universal terminal compatibility
+pub const GLYPH_FOLDER: &str = ">"; //  folder icon
+pub const GLYPH_SUBAGENT: &str = ">"; // ▶ play
+pub const GLYPH_CONTINUATION: &str = "`"; // └ continuation
+pub const GLYPH_ARROW_DOWN: &str = "v"; // ⇁ active down arrow
+pub const GLYPH_ARROW_UP: &str = "^"; // ⇃ active up arrow
+pub const GLYPH_VSEP: &str = "|"; // │ vertical separator
+pub const GLYPH_MEMBER: &str = "@"; // ∈ element of
+pub const GLYPH_HELPER: &str = "*"; // star_circle
+pub const GLYPH_THINKING: &str = "?"; // brain
+pub const GLYPH_MODEL: &str = "#"; // monitor-dashboard
+pub const GLYPH_TASKS: &str = "#"; // format-list-checks
+pub const GLYPH_SKILLS: &str = "$"; // skills
+pub const GLYPH_PLUGINS: &str = "+"; // plug
+pub const GLYPH_COST: &str = "$"; // currency-usd
+pub const GLYPH_TOK_RATE: &str = "~"; // gauge
+pub const GLYPH_BURN_FAST: &str = "!"; // nf-cod-zap (over-burn)
+pub const GLYPH_BURN_SLOW: &str = ","; // nf-oct-flame (under-burn)
 
 // ---------------------------------------------------------------------------
 // GradientEngine
@@ -243,7 +241,7 @@ impl GradientEngine {
             return (String::new(), String::new());
         }
         let max_val = *history.iter().max().unwrap_or(&1).max(&1);
-        let spark_chars = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+        let spark_chars = ['_', '_', '_', '_', '_', '_', '_', '*'];
 
         let indices: Vec<usize> = history
             .iter()
