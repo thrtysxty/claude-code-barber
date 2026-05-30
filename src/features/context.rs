@@ -94,11 +94,16 @@ fn apply_gap_suggestion(gap_id: i64, gaps: &[feedback::GapReport]) -> anyhow::Re
         }
         feedback::GapSuggestion::PromoteWeight { node_id } => {
             println!("Promoting weight for node {}...", node_id);
-            let conn = feedback::db()?;
-            conn.execute(
-                "UPDATE context_nodes SET weight = 0.5 WHERE id = ?",
-                rusqlite::params![node_id],
-            )?;
+            #[cfg(feature = "context")]
+            {
+                let conn = feedback::db()?;
+                conn.execute(
+                    "UPDATE context_nodes SET weight = 0.5 WHERE id = ?",
+                    rusqlite::params![node_id],
+                )?;
+            }
+            #[cfg(not(feature = "context"))]
+            println!("(context feature not enabled — run with --features context)");
             println!("Weight reset to 0.5");
         }
         feedback::GapSuggestion::BuildExpert { domain } => {

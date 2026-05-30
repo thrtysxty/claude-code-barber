@@ -11,6 +11,7 @@ pub mod features {
     pub mod buzz;
     #[cfg(feature = "classify")]
     pub mod classify;
+    #[cfg(feature = "context")]
     pub mod context;
     pub mod cut;
     #[cfg(feature = "expert")]

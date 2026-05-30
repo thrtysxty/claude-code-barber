@@ -11,6 +11,7 @@ pub mod features {
     pub mod buzz;
     #[cfg(feature = "classify")]
     pub mod classify;
+    #[cfg(feature = "context")]
     pub mod context;
     pub mod cut;
     #[cfg(feature = "expert")]
@@ -56,6 +57,7 @@ fn main() -> anyhow::Result<()> {
         Command::Cut => features::cut::run(),
         Command::Lineup => features::lineup::run(),
         Command::Style(s) => style_cmd(s.cmd),
+        #[cfg(feature = "context")]
         Command::Context(c) => features::context::run(c.cmd),
         Command::Buzz => features::buzz::run(),
         Command::Gain(args) => {

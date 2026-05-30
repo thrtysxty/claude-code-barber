@@ -1,12 +1,16 @@
 //! cut — run all active features at maximum compression
 
+#[cfg(feature = "context")]
 use crate::cli::ContextCmd;
 
 pub fn run() -> anyhow::Result<()> {
     println!("─── ccb cut: maximum compression ───");
 
     // 1. Context check (compact at 50%)
-    let _ = crate::features::context::run(ContextCmd::Compact { threshold: 50 });
+    #[cfg(feature = "context")]
+    {
+        let _ = crate::features::context::run(ContextCmd::Compact { threshold: 50 });
+    }
 
     // 2. Show lineup
     println!();
