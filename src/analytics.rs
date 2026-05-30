@@ -19,6 +19,7 @@ pub enum GainMode {
 
 #[cfg(not(feature = "bench"))]
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub enum GainMode {
     Default,
     AbTest,

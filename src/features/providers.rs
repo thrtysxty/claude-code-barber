@@ -204,7 +204,7 @@ pub struct ResolvedModel {
 
 /// Tier routing configuration — maps each tier to an ordered list of model IDs.
 /// The router walks this list in order and routes to the first resolvable model.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TierRouting {
     /// Ordered model IDs for each tier. First resolvable model wins.
     pub opus: Vec<String>,
@@ -213,17 +213,6 @@ pub struct TierRouting {
     /// Override: route ALL tier requests to this single model (for cost optimization).
     /// When set, tier_routing arrays are ignored.
     pub override_all: Option<String>,
-}
-
-impl Default for TierRouting {
-    fn default() -> Self {
-        Self {
-            opus: vec![],
-            sonnet: vec![],
-            haiku: vec![],
-            override_all: None,
-        }
-    }
 }
 
 impl TierRouting {
@@ -293,7 +282,7 @@ impl ProviderConfig {
                 tier_routing: TomlTierRouting,
             }
 
-            if let Ok(root) = toml::from_str::<FullRoot>(&toml_str) {
+            if let Ok(root) = toml::from_str::<FullRoot>(toml_str) {
                 let tier_routing = TierRouting {
                     opus: root.tier_routing.opus,
                     sonnet: root.tier_routing.sonnet,
@@ -307,7 +296,7 @@ impl ProviderConfig {
             }
 
             // Fallback: try parsing without tier_routing (for backwards compat)
-            if let Ok(root) = toml::from_str::<TomlRoot>(&toml_str) {
+            if let Ok(root) = toml::from_str::<TomlRoot>(toml_str) {
                 return Self {
                     providers: root.providers,
                     tier_routing: TierRouting::default(),
