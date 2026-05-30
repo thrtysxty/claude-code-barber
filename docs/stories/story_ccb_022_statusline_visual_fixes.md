@@ -1,6 +1,6 @@
 # CCB Story 022: Statusline — Visual Bug Fixes & Feature Re-wire
 
-**Status:** IN PROGRESS
+**Status:** SHIPPED — PR #15 merged
 **Priority:** P1 — code is written, just needs finishing
 **PR:** https://github.com/thrtysxty/claude-code-barber/pull/8
 **Sprint:** CCB-4 (can run parallel with graph work)
