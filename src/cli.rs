@@ -18,6 +18,7 @@ pub enum Command {
     /// Lazy-load a skill, persona, or MCP resource on demand
     Fade(FadeArgs),
     /// Monitor context window usage, suggest /clear or /compact
+    #[cfg(feature = "context")]
     Context(ContextArgs),
     /// Run all active features at maximum compression
     Cut,
@@ -427,6 +428,7 @@ pub struct StatusArgs {
     pub cmd: Option<StatusCmd>,
 }
 
+#[cfg(feature = "status")]
 impl Default for StatusArgs {
     fn default() -> Self {
         Self { cmd: None }

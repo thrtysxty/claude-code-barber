@@ -5,15 +5,19 @@
 //!
 //! Build: cargo test --test plugins_integration --features full
 
+#[cfg(feature = "plugins")]
+#[allow(unused_imports)]
 use assert_cmd::Command;
 
-fn run_plugins_check() -> assert_cmd::Command {
+#[cfg(feature = "plugins")]
+fn run_plugins_check() -> Command {
     let mut cmd = Command::cargo_bin("ccb").unwrap();
     cmd.env("HOME", std::env::var("HOME").unwrap_or_default());
     cmd.arg("plugins");
     cmd
 }
 
+#[cfg(feature = "plugins")]
 #[test]
 fn plugins_command_runs() {
     let mut cmd = run_plugins_check();
@@ -26,6 +30,7 @@ fn plugins_command_runs() {
     );
 }
 
+#[cfg(feature = "plugins")]
 #[test]
 fn plugins_command_produces_output() {
     let mut cmd = run_plugins_check();
@@ -41,6 +46,8 @@ fn plugins_command_produces_output() {
     // Either way, should not panic or segfault — that's the test
 }
 
+#[cfg(feature = "plugins")]
+#[cfg(feature = "plugins")]
 #[test]
 fn github_pat_env_var_is_read() {
     // When GITHUB_PERSONAL_ACCESS_TOKEN is set, plugins should detect it
@@ -60,6 +67,7 @@ fn github_pat_env_var_is_read() {
     );
 }
 
+#[cfg(feature = "plugins")]
 #[test]
 fn cloudflare_auth_cache_detected() {
     // Create a temp home with a cloudflare auth cache
@@ -99,6 +107,7 @@ fn cloudflare_auth_cache_detected() {
     );
 }
 
+#[cfg(feature = "plugins")]
 #[test]
 fn settings_mcpservers_parsed() {
     // Test that mcpServers format is correctly read
