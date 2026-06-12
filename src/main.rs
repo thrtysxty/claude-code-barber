@@ -34,6 +34,8 @@ pub mod features {
     pub mod rates;
     #[cfg(feature = "route")]
     pub mod route;
+    #[cfg(feature = "loop")]
+    pub mod loop_cmd;
     #[cfg(feature = "status")]
     pub mod status;
     #[cfg(feature = "trim")]
@@ -84,6 +86,8 @@ fn main() -> anyhow::Result<()> {
         Command::Classify => features::classify::run(),
         #[cfg(feature = "factory")]
         Command::Factory(args) => factory_cmd(args),
+        #[cfg(feature = "loop")]
+        Command::Loop(args) => loop_cmd(args),
         #[cfg(feature = "status")]
         Command::Status(args) => status_cmd(args.cmd.unwrap_or(cli::StatusCmd::Show)),
     }
@@ -281,6 +285,24 @@ fn factory_cmd(_args: cli::FactoryArgs) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(feature = "loop")]
+fn loop_cmd(args: cli::LoopArgs) -> anyhow::Result<()> {
+    use cli::LoopCmd;
+    match args.cmd {
+        LoopCmd::Detect { format } => features::loop_cmd::cmd_detect(cli::DetectArgs { format }),
+        LoopCmd::Plan { story_file, save } => {
+            features::loop_cmd::cmd_plan(cli::PlanArgs { story_file, save })
+        }
+        LoopCmd::Build { plan, story } => {
+            features::loop_cmd::cmd_build(cli::BuildArgs { plan, story })
+        }
+        LoopCmd::Lesson { description } => {
+            features::loop_cmd::cmd_lesson(cli::LessonArgs { description })
+        }
+        LoopCmd::Gates { run } => features::loop_cmd::cmd_gates(cli::GatesArgs { run }),
+    }
 }
 
 #[cfg(feature = "status")]

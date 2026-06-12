@@ -55,6 +55,9 @@ pub enum Command {
     /// Run deterministic story loops through planning and implementation phases
     #[cfg(feature = "factory")]
     Factory(FactoryArgs),
+    /// Plan, build, and verify story implementation
+    #[cfg(feature = "loop")]
+    Loop(LoopArgs),
 }
 
 #[derive(Args)]
@@ -398,6 +401,113 @@ pub enum FactoryCmd {
 pub struct FactoryArgs {
     #[command(subcommand)]
     pub cmd: FactoryCmd,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Loop / story implementation commands
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Loop subcommands — plan, build, and verify story implementation
+#[cfg(feature = "loop")]
+#[derive(Subcommand)]
+pub enum LoopCmd {
+    /// Detect repo type from CWD
+    Detect {
+        #[arg(long, value_enum, default_value = "human")]
+        format: DetectFormat,
+    },
+    /// Parse story file, extract ACs, output phased JSON plan
+    Plan {
+        /// Path to the story markdown file
+        story_file: std::path::PathBuf,
+        /// Save plan to ~/.cache/ccb/plans/
+        #[arg(long)]
+        save: bool,
+    },
+    /// Implement story phases with gate checks
+    Build {
+        /// Path to a plan JSON file (omits LLM call, uses saved plan)
+        #[arg(long)]
+        plan: Option<std::path::PathBuf>,
+        /// Story file path (extracts plan inline)
+        #[arg(long)]
+        story: Option<std::path::PathBuf>,
+    },
+    /// Capture a lesson to the cache for future recall
+    Lesson {
+        /// What was learned
+        description: String,
+    },
+    /// Show gate sequence for detected repo type
+    Gates {
+        /// Actually run the gates instead of just listing
+        #[arg(long)]
+        run: bool,
+    },
+}
+
+/// Output format for detect command
+#[cfg(feature = "loop")]
+#[derive(clap::ValueEnum, Clone)]
+pub enum DetectFormat {
+    Human,
+    Json,
+}
+
+/// Loop args (requires --features loop)
+#[cfg(feature = "loop")]
+#[derive(Args)]
+pub struct LoopArgs {
+    #[command(subcommand)]
+    pub cmd: LoopCmd,
+}
+
+/// Detect args
+#[cfg(feature = "loop")]
+#[derive(Args)]
+pub struct DetectArgs {
+    #[arg(long, value_enum, default_value = "human")]
+    pub format: DetectFormat,
+}
+
+/// Plan args
+#[cfg(feature = "loop")]
+#[derive(Args)]
+pub struct PlanArgs {
+    /// Path to the story markdown file
+    pub story_file: std::path::PathBuf,
+    /// Save plan to ~/.cache/ccb/plans/
+    #[arg(long)]
+    pub save: bool,
+}
+
+/// Build args
+#[cfg(feature = "loop")]
+#[derive(Args)]
+pub struct BuildArgs {
+    /// Path to a plan JSON file (omits LLM call, uses saved plan)
+    #[arg(long)]
+    pub plan: Option<std::path::PathBuf>,
+    /// Story file path (extracts plan inline)
+    #[arg(long)]
+    pub story: Option<std::path::PathBuf>,
+}
+
+/// Lesson args
+#[cfg(feature = "loop")]
+#[derive(Args)]
+pub struct LessonArgs {
+    /// What was learned
+    pub description: String,
+}
+
+/// Gates args
+#[cfg(feature = "loop")]
+#[derive(Args)]
+pub struct GatesArgs {
+    /// Actually run the gates instead of just listing
+    #[arg(long)]
+    pub run: bool,
 }
 
 /// Status subcommands

@@ -50,13 +50,11 @@ required-features = ["route"]
 default = ["trim", "fade", "route"]
 trim    = []
 fade    = []
-sandbox = []
-terse   = []
 graph   = ["dep:tree-sitter", "dep:tree-sitter-rust", "dep:tree-sitter-python",
            "dep:tree-sitter-typescript", "dep:tree-sitter-javascript",
            "dep:rusqlite", "dep:walkdir", "dep:ignore"]
 route   = ["dep:tokio", "dep:axum", "dep:reqwest", "dep:bytes", "dep:futures-util", "dep:uuid"]
-full    = ["trim", "fade", "sandbox", "terse", "graph", "route", "expert", "classify", "factory", "hooks", "context", "status", "plugins"]
+full    = ["trim", "fade", "graph", "route", "expert", "classify", "factory", "hooks", "context", "status", "plugins", "loop"]
 expert  = ["dep:rusqlite", "dep:serde_yaml"]
 memory  = ["dep:rusqlite"]
 classify = ["dep:reqwest", "dep:regex-lite"]
@@ -66,7 +64,7 @@ status  = ["dep:notify", "dep:shellexpand", "dep:regex-lite", "dep:libc"]
 hooks   = ["dep:rusqlite"]
 context = ["dep:rusqlite", "hooks"]
 bench   = []
-loop    = []
+loop    = ["dep:walkdir"]
 
 [dependencies]
 clap               = { version = "4", features = ["derive", "color"] }
