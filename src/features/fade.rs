@@ -66,11 +66,10 @@ pub fn load_resource(name: &str) -> anyhow::Result<()> {
             Ok(())
         }
         None => {
-            eprintln!(
+            anyhow::bail!(
                 "ccb fade: '{}' not found in INDEX.md — run `ccb style index-build` to rebuild",
                 name
             );
-            std::process::exit(1);
         }
     }
 }

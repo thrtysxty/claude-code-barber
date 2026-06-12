@@ -410,7 +410,7 @@ pub fn run() -> Result<()> {
     print_summary(&summary);
 
     if !summary.all_ok {
-        std::process::exit(1);
+        anyhow::bail!("plugin check failed");
     }
     Ok(())
 }

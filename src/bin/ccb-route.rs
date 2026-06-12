@@ -83,6 +83,13 @@ fn evar_u16(k: &str, default: u16) -> u16 {
         .unwrap_or(default)
 }
 
+fn rand_id() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64
+}
+
 // ── Usage / rate-limit cache ────────────────────────────────────────────────────
 
 fn cache_dir() -> PathBuf {
@@ -398,19 +405,9 @@ async fn pick(model: &str, cfg: &Cfg, _original_headers: &HeaderMap) -> Route {
         model
     };
 
-    // 1. Check explicit prefix override (e.g. "ollama:gemma4:31b-cloud")
-    for prefix in &["qwopus", "minimax", "ollama", "anthropic"] {
-        if model.to_lowercase().starts_with(&format!("{}:", prefix)) {
-            let remainder = &model[prefix.len() + 1..];
-            if let Some(provider) = pcfg.provider(prefix) {
-                eprintln!("  explicit: {} [{remainder}]", prefix);
-                return route_from_provider(prefix, provider, remainder);
-            }
-        }
-    }
-
-    // 2. Resolve through provider catalog (exact match → case-insensitive → tier fallback).
-    //    Direct model requests bypass tier routing entirely.
+    // 1. Resolve through provider catalog first (exact match → case-insensitive).
+    //    This catches nim: prefixed model IDs which are catalog entries, not
+    //    explicit backend overrides. Direct model requests bypass tier routing.
     if let Some((provider_name, provider, entry)) = pcfg.resolve_model(model) {
         let backend_model = entry.backend_model();
         eprintln!(
@@ -475,7 +472,21 @@ async fn pick(model: &str, cfg: &Cfg, _original_headers: &HeaderMap) -> Route {
         }
     }
 
-    // 4. Fallback: default to Anthropic with OAuth passthrough
+    // 4. Explicit prefix override (e.g. "ollama:gemma4:31b-cloud", "nim:some-model")
+    //    Sends the remainder directly as the backend model name — use this when
+    //    you know the exact backend model ID.
+    for prefix in &["nim", "nvidia", "qwopus", "minimax", "ollama", "anthropic"] {
+        if model.to_lowercase().starts_with(&format!("{}:", prefix)) {
+            let remainder = &model[prefix.len() + 1..];
+            let provider_name = if *prefix == "nim" { "nvidia" } else { prefix };
+            if let Some(provider) = pcfg.provider(provider_name) {
+                eprintln!("  explicit: {} [{remainder}]", provider_name);
+                return route_from_provider(provider_name, provider, remainder);
+            }
+        }
+    }
+
+    // 5. Fallback: default to Anthropic with OAuth passthrough
     eprintln!("  fallback → anthropic [{model}] (not in any provider catalog)");
     Route {
         kind: BackendKind::Anthropic,
@@ -545,10 +556,30 @@ fn route_from_provider(
 /// Per https://docs.ollama.com/api/anthropic-compatibility:
 ///   Unsupported: tool_choice, metadata, cache_control, document blocks,
 ///   URL images (base64 only), citations, batches, /count_tokens
+/// Also: Ollama rejects "system" role messages mid-conversation (e.g. after "tool").
 fn strip_ollama_unsupported(body: &mut Value) {
     if let Some(obj) = body.as_object_mut() {
         obj.remove("tool_choice");
         obj.remove("metadata");
+    }
+
+    strip_cache_control(body);
+    strip_unsupported_content_types(body, &["document"]);
+    sanitize_system_messages(body);
+}
+
+/// Remove fields unsupported by NVIDIA NIM Anthropic-compat before forwarding.
+/// Per https://docs.nvidia.com/nim/large-language-models/latest/ai-assistant-integrations/claude-code.html:
+///   Supported: messages, system, stream, temperature, top_p, top_k, stop_sequences, tools, thinking
+///   Unsupported: tool_choice, metadata, cache_control, citations, document blocks, URL images
+fn strip_nvidia_unsupported(body: &mut Value) {
+    if let Some(obj) = body.as_object_mut() {
+        obj.remove("tool_choice");
+        obj.remove("metadata");
+        obj.remove("service_tier");
+        obj.remove("mcp_servers");
+        obj.remove("context_management");
+        obj.remove("container");
     }
 
     strip_cache_control(body);
@@ -678,82 +709,303 @@ fn strip_unsupported_content_types(body: &mut Value, types: &[&str]) {
     }
 }
 
-// ── Format conversion (Anthropic → OpenAI) ────────────────────────────────────
-// Kept for future OpenAI-compat backends (Together, Groq, vLLM, etc.)
+// ── Format conversion (Anthropic ↔ OpenAI) ──────────────────────────────────
+// Full bidirectional conversion for OpenAI-compat backends (NVIDIA NIM, Together, Groq, etc.)
 
-#[allow(dead_code)]
-fn to_openai(body: &Value, model: &str) -> Value {
-    let mut messages: Vec<Value> = vec![];
-    if let Some(sys) = body.get("system").and_then(|s| s.as_str()) {
-        messages.push(json!({"role": "system", "content": sys}));
-    }
-    if let Some(msgs) = body.get("messages").and_then(|m| m.as_array()) {
-        for msg in msgs {
-            let role = msg["role"].as_str().unwrap_or("user");
-            let content = match &msg["content"] {
-                Value::String(s) => s.clone(),
-                Value::Array(blocks) => blocks
-                    .iter()
-                    .filter(|b| b["type"] == "text")
-                    .filter_map(|b| b["text"].as_str())
-                    .collect::<Vec<_>>()
-                    .join(""),
-                _ => String::new(),
-            };
-            messages.push(json!({"role": role, "content": content}));
-        }
-    }
-    json!({
-        "model":       model,
-        "messages":    messages,
-        "max_tokens":  body.get("max_tokens").cloned().unwrap_or(json!(4096)),
-        "temperature": body.get("temperature").cloned().unwrap_or(json!(1.0)),
-        "stream":      body.get("stream").cloned().unwrap_or(json!(false)),
-    })
-}
-
-#[allow(dead_code)]
-fn preamble(model: &str, id: &str) -> Vec<Bytes> {
-    let start = json!({"type":"message_start","message":{
-        "id": id, "type":"message","role":"assistant","content":[],
-        "model": model,"stop_reason":null,"stop_sequence":null,
-        "usage":{"input_tokens":0,"output_tokens":0}
-    }});
-    let bstart = json!({"type":"content_block_start","index":0,
-                        "content_block":{"type":"text","text":""}});
-    vec![
-        fmt_event("message_start", &start.to_string()),
-        fmt_event("content_block_start", &bstart.to_string()),
-        fmt_event("ping", r#"{"type":"ping"}"#),
-    ]
-}
-
-#[allow(dead_code)]
 fn fmt_event(event: &str, data: &str) -> Bytes {
     Bytes::from(format!("event: {event}\ndata: {data}\n\n"))
 }
 
-#[allow(dead_code)]
-fn oai_chunk_to_ant(chunk: &str) -> Option<Bytes> {
-    let data = chunk.strip_prefix("data: ")?.trim();
+/// Convert Anthropic Messages API request → OpenAI Chat Completions request.
+/// Handles: system, messages (text/tool_use/tool_result/thinking), tools, streaming.
+fn to_openai(body: &Value, model: &str) -> Value {
+    let mut messages: Vec<Value> = vec![];
+
+    // System: Anthropic top-level field → OpenAI system role message
+    if let Some(sys) = body.get("system") {
+        let text = if let Some(s) = sys.as_str() {
+            s.to_string()
+        } else if let Some(arr) = sys.as_array() {
+            arr.iter()
+                .filter(|b| b["type"] == "text")
+                .filter_map(|b| b["text"].as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
+        } else {
+            String::new()
+        };
+        if !text.is_empty() {
+            messages.push(json!({"role": "system", "content": text}));
+        }
+    }
+
+    // Messages
+    if let Some(msgs) = body.get("messages").and_then(|m| m.as_array()) {
+        for msg in msgs {
+            let role = msg["role"].as_str().unwrap_or("user");
+            match &msg["content"] {
+                Value::String(s) => {
+                    messages.push(json!({"role": role, "content": s}));
+                }
+                Value::Array(blocks) => {
+                    convert_anthropic_blocks_to_openai(role, blocks, &mut messages);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Tools: Anthropic format → OpenAI function format
+    let mut result = json!({
+        "model":       model,
+        "messages":    messages,
+        "max_tokens":  body.get("max_tokens").cloned().unwrap_or(json!(4096)),
+        "stream":      body.get("stream").cloned().unwrap_or(json!(false)),
+    });
+
+    if let Some(temp) = body.get("temperature") {
+        result["temperature"] = temp.clone();
+    }
+    if let Some(top_p) = body.get("top_p") {
+        result["top_p"] = top_p.clone();
+    }
+
+    if let Some(tools) = body.get("tools").and_then(|t| t.as_array()) {
+        let oai_tools: Vec<Value> = tools
+            .iter()
+            .map(|t| {
+                json!({
+                    "type": "function",
+                    "function": {
+                        "name": t["name"],
+                        "description": t.get("description").cloned().unwrap_or(json!("")),
+                        "parameters": t.get("input_schema").cloned().unwrap_or(json!({"type": "object"})),
+                    }
+                })
+            })
+            .collect();
+        result["tools"] = json!(oai_tools);
+    }
+
+    result
+}
+
+/// Convert Anthropic content blocks into OpenAI messages.
+/// - text → content string
+/// - tool_use → assistant message with tool_calls
+/// - tool_result → tool role message
+/// - thinking → skipped (not supported by OpenAI)
+fn convert_anthropic_blocks_to_openai(role: &str, blocks: &[Value], out: &mut Vec<Value>) {
+    let mut text_parts: Vec<String> = Vec::new();
+    let mut tool_calls: Vec<Value> = Vec::new();
+    let mut tool_results: Vec<(String, String)> = Vec::new();
+
+    for block in blocks {
+        let btype = block["type"].as_str().unwrap_or("");
+        match btype {
+            "text" => {
+                if let Some(t) = block["text"].as_str() {
+                    text_parts.push(t.to_string());
+                }
+            }
+            "tool_use" => {
+                let id = block["id"].as_str().unwrap_or("").to_string();
+                let name = block["name"].as_str().unwrap_or("").to_string();
+                let input = block.get("input").cloned().unwrap_or(json!({}));
+                tool_calls.push(json!({
+                    "id": id,
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "arguments": input.to_string(),
+                    }
+                }));
+            }
+            "tool_result" => {
+                let tool_use_id = block["tool_use_id"].as_str().unwrap_or("").to_string();
+                let content = if let Some(s) = block["content"].as_str() {
+                    s.to_string()
+                } else if let Some(arr) = block["content"].as_array() {
+                    arr.iter()
+                        .filter(|b| b["type"] == "text")
+                        .filter_map(|b| b["text"].as_str())
+                        .collect::<Vec<_>>()
+                        .join("")
+                } else {
+                    String::new()
+                };
+                tool_results.push((tool_use_id, content));
+            }
+            "thinking" => {} // Skip thinking blocks
+            _ => {}
+        }
+    }
+
+    // Emit assistant message with text and/or tool_calls
+    if role == "assistant" {
+        let mut msg = json!({"role": "assistant"});
+        let text = text_parts.join("");
+        if !text.is_empty() {
+            msg["content"] = json!(text);
+        }
+        if !tool_calls.is_empty() {
+            msg["tool_calls"] = json!(tool_calls);
+            if text.is_empty() {
+                msg["content"] = Value::Null;
+            }
+        }
+        out.push(msg);
+    } else if role == "user" {
+        // User messages: emit text content, then tool_result as separate tool messages
+        let text = text_parts.join("");
+        if !text.is_empty() {
+            out.push(json!({"role": "user", "content": text}));
+        }
+        for (tool_use_id, content) in &tool_results {
+            out.push(json!({
+                "role": "tool",
+                "tool_call_id": tool_use_id,
+                "content": content,
+            }));
+        }
+        if text.is_empty() && tool_results.is_empty() {
+            out.push(json!({"role": "user", "content": ""}));
+        }
+    } else {
+        let text = text_parts.join("");
+        out.push(json!({"role": role, "content": text}));
+    }
+}
+
+/// Convert OpenAI Chat Completions response → Anthropic Messages response.
+fn from_openai_response(oai: &Value, requested_model: &str) -> Value {
+    let choice = &oai["choices"][0];
+    let msg = &choice["message"];
+    let finish = choice["finish_reason"].as_str().unwrap_or("stop");
+
+    let mut content: Vec<Value> = Vec::new();
+
+    // Text content
+    if let Some(text) = msg["content"].as_str() {
+        if !text.is_empty() {
+            content.push(json!({"type": "text", "text": text}));
+        }
+    }
+
+    // Tool calls → tool_use blocks
+    if let Some(calls) = msg["tool_calls"].as_array() {
+        for call in calls {
+            let id = call["id"].as_str().unwrap_or("toolu_unknown");
+            let name = call["function"]["name"].as_str().unwrap_or("");
+            let args_str = call["function"]["arguments"].as_str().unwrap_or("{}");
+            let input: Value = serde_json::from_str(args_str).unwrap_or(json!({}));
+            content.push(json!({
+                "type": "tool_use",
+                "id": id,
+                "name": name,
+                "input": input,
+            }));
+        }
+    }
+
+    if content.is_empty() {
+        content.push(json!({"type": "text", "text": ""}));
+    }
+
+    let stop_reason = match finish {
+        "tool_calls" | "function_call" => "tool_use",
+        "length" => "max_tokens",
+        _ => "end_turn",
+    };
+
+    let usage = &oai["usage"];
+    json!({
+        "id": oai.get("id").and_then(|v| v.as_str()).unwrap_or("msg_openai"),
+        "type": "message",
+        "role": "assistant",
+        "content": content,
+        "model": requested_model,
+        "stop_reason": stop_reason,
+        "stop_sequence": null,
+        "usage": {
+            "input_tokens": usage["prompt_tokens"].as_u64().unwrap_or(0),
+            "output_tokens": usage["completion_tokens"].as_u64().unwrap_or(0),
+        }
+    })
+}
+
+/// Convert a single OpenAI streaming chunk → Anthropic SSE events.
+fn oai_chunk_to_ant_events(chunk: &str, block_index: &mut usize) -> Vec<Bytes> {
+    let mut events = Vec::new();
+    let data = match chunk.strip_prefix("data: ") {
+        Some(d) => d.trim(),
+        None => return events,
+    };
+
     if data == "[DONE]" {
-        let stop = concat!(
-            "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
-            "event: message_delta\ndata: {\"type\":\"message_delta\",",
-            "\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},",
-            "\"usage\":{\"output_tokens\":0}}\n\n",
-            "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
-        );
-        return Some(Bytes::from(stop));
+        events.push(fmt_event(
+            "content_block_stop",
+            &json!({"type": "content_block_stop", "index": *block_index}).to_string(),
+        ));
+        events.push(fmt_event(
+            "message_delta",
+            &json!({"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":0}}).to_string(),
+        ));
+        events.push(fmt_event("message_stop", r#"{"type":"message_stop"}"#));
+        return events;
     }
-    let v: Value = serde_json::from_str(data).ok()?;
-    let text = v["choices"][0]["delta"]["content"].as_str()?;
-    if text.is_empty() {
-        return None;
+
+    let v: Value = match serde_json::from_str(data) {
+        Ok(v) => v,
+        Err(_) => return events,
+    };
+    let delta = &v["choices"][0]["delta"];
+
+    // Text content
+    if let Some(text) = delta["content"].as_str() {
+        if !text.is_empty() {
+            let d = json!({"type":"content_block_delta","index":*block_index,
+                           "delta":{"type":"text_delta","text": text}});
+            events.push(fmt_event("content_block_delta", &d.to_string()));
+        }
     }
-    let delta = json!({"type":"content_block_delta","index":0,
-                       "delta":{"type":"text_delta","text": text}});
-    Some(fmt_event("content_block_delta", &delta.to_string()))
+
+    // Tool calls in streaming
+    if let Some(calls) = delta["tool_calls"].as_array() {
+        for call in calls {
+            if call.get("function").and_then(|f| f.get("name")).is_some() {
+                // New tool call — close previous block, open new one
+                if *block_index > 0 {
+                    events.push(fmt_event(
+                        "content_block_stop",
+                        &json!({"type":"content_block_stop","index":*block_index}).to_string(),
+                    ));
+                }
+                *block_index += 1;
+                let id = call["id"].as_str().unwrap_or("toolu_unknown");
+                let name = call["function"]["name"].as_str().unwrap_or("");
+                events.push(fmt_event(
+                    "content_block_start",
+                    &json!({"type":"content_block_start","index":*block_index,
+                            "content_block":{"type":"tool_use","id":id,"name":name,"input":{}}})
+                        .to_string(),
+                ));
+            }
+            // Argument fragment
+            if let Some(args) = call["function"]["arguments"].as_str() {
+                if !args.is_empty() {
+                    events.push(fmt_event(
+                        "content_block_delta",
+                        &json!({"type":"content_block_delta","index":*block_index,
+                                "delta":{"type":"input_json_delta","partial_json":args}})
+                            .to_string(),
+                    ));
+                }
+            }
+        }
+    }
+
+    events
 }
 
 // ── Auto-pull for missing Ollama models ────────────────────────────────────────
@@ -764,45 +1016,26 @@ async fn try_ollama_pull_and_retry(
     url: &str,
     headers: &reqwest::header::HeaderMap,
     body: &Value,
-) -> reqwest::Response {
+) -> anyhow::Result<reqwest::Response> {
     eprintln!("  model {model} not found locally — pulling");
     let pull_output = Command::new("ollama").arg("pull").arg(model).output();
 
     match pull_output {
         Ok(output) if output.status.success() => {
             eprintln!("  pull complete — retrying request");
-            // Rebuild the request with the same params
             let req = client.post(url).headers(headers.clone()).json(body);
-            match req.send().await {
-                Ok(resp) => resp,
-                Err(e) => {
-                    eprintln!("  retry failed: {e}");
-                    // Return a synthetic error response
-                    let client = Client::new();
-                    client
-                        .post("http://localhost:1/__ccb_error")
-                        .json(&json!({"error": format!("retry failed: {e}")}))
-                        .send()
-                        .await
-                        .unwrap_or_else(|_| panic!("failed to create error response"))
-                }
-            }
+            req.send().await.map_err(|e| anyhow::anyhow!("retry failed after pull: {e}"))
         }
         Ok(output) => {
             let stderr = String::from_utf8_lossy(&output.stderr);
             eprintln!("  pull failed: {}", stderr.trim());
-            // Return the original 404 — we can't easily replay it, so make a new request
             let req = client.post(url).headers(headers.clone()).json(body);
-            req.send()
-                .await
-                .unwrap_or_else(|e| panic!("request failed after failed pull: {e}"))
+            req.send().await.map_err(|e| anyhow::anyhow!("request failed: {e}"))
         }
         Err(e) => {
             eprintln!("  pull exception: {e}");
             let req = client.post(url).headers(headers.clone()).json(body);
-            req.send()
-                .await
-                .unwrap_or_else(|e| panic!("request failed after pull exception: {e}"))
+            req.send().await.map_err(|e| anyhow::anyhow!("pull exception: {e}"))
         }
     }
 }
@@ -815,22 +1048,42 @@ async fn models_handler(
     headers: HeaderMap,
 ) -> impl IntoResponse {
     let full_path = path.0.path();
-    let query = path.0.query().unwrap_or("");
+    let query_str = path.0.query().unwrap_or("");
     let has_auth = headers.get("authorization").is_some() || headers.get("x-api-key").is_some();
-    eprintln!("  GET {full_path}?{query}  auth={has_auth}");
+    eprintln!("  GET {full_path}?{query_str}  auth={has_auth}");
+
+    // Simple query parsing for pagination
+    let mut params = std::collections::HashMap::new();
+    for pair in query_str.split('&').filter(|s| !s.is_empty()) {
+        let mut s = pair.splitn(2, '=');
+        if let Some(k) = s.next() {
+            let v = s.next().unwrap_or("");
+            params.insert(k.to_string(), v.to_string());
+        }
+    }
+
+    let after_id = params.get("after_id").or_else(|| params.get("after")).cloned();
+    let before_id = params.get("before_id").or_else(|| params.get("before")).cloned();
+    let limit = params.get("limit").and_then(|l| l.parse::<usize>().ok());
+
     // /v1/models → list all, /v1/models/<id> → single lookup
     if full_path == "/v1/models" {
-        return list_models_inner(cfg).await.into_response();
+        return list_models_inner(cfg, after_id, before_id, limit).await.into_response();
     }
     // Extract model_id from path: everything after /v1/models/
     let model_id = full_path.strip_prefix("/v1/models/").unwrap_or("");
     if model_id.is_empty() {
-        return list_models_inner(cfg).await.into_response();
+        return list_models_inner(cfg, after_id, before_id, limit).await.into_response();
     }
     get_model_inner(cfg, model_id).await.into_response()
 }
 
-async fn list_models_inner(cfg: Arc<Cfg>) -> axum::Json<Value> {
+async fn list_models_inner(
+    cfg: Arc<Cfg>,
+    after_id: Option<String>,
+    before_id: Option<String>,
+    limit: Option<usize>,
+) -> axum::Json<Value> {
     use ccb::features::providers::{ProviderConfig, Tier};
 
     let pcfg = ProviderConfig::get();
@@ -984,38 +1237,69 @@ async fn list_models_inner(cfg: Arc<Cfg>) -> axum::Json<Value> {
     // with "claude" or "anthropic". We prefix non-Claude IDs with "claude-"
     // so they pass the filter and appear in the /model picker. The router
     // strips this prefix on incoming requests (see pick()).
-    let mut models = Vec::new();
+    let all_models: Vec<Value> = entries
+        .iter()
+        .map(|e| {
+            let wire_id = if e.id.starts_with("claude") || e.id.starts_with("anthropic") {
+                e.id.clone()
+            } else {
+                format!("claude-{}", e.id)
+            };
+            json!({
+                "type": "model",
+                "id": wire_id,
+                "display_name": format!("{} ({})", e.display, e.provider_name),
+                "context_window": cfg.context_window_for(&e.id),
+                "created_at": e.created_at,
+            })
+        })
+        .collect();
 
-    for e in &entries {
-        // Prefix non-Claude model IDs so they pass the gateway discovery filter
-        let wire_id = if e.id.starts_with("claude") || e.id.starts_with("anthropic") {
-            e.id.clone()
-        } else {
-            format!("claude-{}", e.id)
-        };
-        models.push(json!({
-            "type": "model",
-            "id": wire_id,
-            "display_name": format!("{} ({})", e.display, e.provider_name),
-            "context_window": cfg.context_window_for(&e.id),
-            "created_at": e.created_at,
-        }));
+    let total_len = all_models.len();
+    let mut start_idx = 0;
+    let mut end_idx = total_len;
+
+    if let Some(ref after) = after_id {
+        if let Some(idx) = all_models.iter().position(|m| m["id"].as_str() == Some(after.as_str())) {
+            start_idx = idx + 1;
+        }
     }
 
-    let first_id = models
+    if let Some(ref before) = before_id {
+        if let Some(idx) = all_models.iter().position(|m| m["id"].as_str() == Some(before.as_str())) {
+            end_idx = idx;
+        }
+    }
+
+    // Clamp range
+    start_idx = start_idx.min(total_len);
+    end_idx = end_idx.clamp(start_idx, total_len);
+
+    let mut page_models = all_models[start_idx..end_idx].to_vec();
+
+    // Apply limit
+    let limit_val = limit.unwrap_or(20);
+    if page_models.len() > limit_val {
+        page_models.truncate(limit_val);
+        end_idx = start_idx + limit_val;
+    }
+
+    let has_more = end_idx < total_len;
+
+    let first_id = page_models
         .first()
         .and_then(|m| m["id"].as_str())
         .unwrap_or("")
         .to_string();
-    let last_id = models
+    let last_id = page_models
         .last()
         .and_then(|m| m["id"].as_str())
         .unwrap_or("")
         .to_string();
 
     axum::Json(json!({
-        "data": models,
-        "has_more": false,
+        "data": page_models,
+        "has_more": has_more,
         "first_id": first_id,
         "last_id": last_id,
     }))
@@ -1257,6 +1541,13 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                 let resp =
                     try_ollama_pull_and_retry(&client, &route.model, &url, &req_headers, &body_val)
                         .await;
+                let resp = match resp {
+                    Ok(r) => r,
+                    Err(e) => {
+                        eprintln!("  auto-pull failed: {e}");
+                        return (StatusCode::BAD_GATEWAY, format!("auto-pull failed: {e}")).into_response();
+                    }
+                };
                 let status = StatusCode::from_u16(resp.status().as_u16())
                     .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
                 let ct = resp
@@ -1372,6 +1663,8 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
         BackendKind::Anthropic => {
             if route.backend_name == "minimax" {
                 strip_minimax_unsupported(&mut body_val);
+            } else if route.backend_name == "nvidia" {
+                strip_nvidia_unsupported(&mut body_val);
             }
 
             let ant_ver = headers
@@ -1521,16 +1814,149 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
             }
         }
 
-        // ── OpenAI-compat backend (future: Together, Groq, vLLM, etc.) ──────
-        #[allow(unreachable_patterns)]
+        // ── OpenAI-compat backend (NVIDIA NIM, Together, Groq, vLLM, etc.) ──
         BackendKind::OpenAiCompat => {
-            // Placeholder for future OpenAI-format backends
-            // Would use to_openai() and oai_chunk_to_ant() conversion
-            (
-                StatusCode::NOT_IMPLEMENTED,
-                "OpenAI-compat backends not yet supported",
-            )
-                .into_response()
+            let oai_body = to_openai(&body_val, &route.model);
+            let url = format!("{}/v1/chat/completions", route.url.trim_end_matches('/'));
+
+            let mut req = client
+                .post(&url)
+                .header("content-type", "application/json");
+
+            req = match &route.auth {
+                RouteAuth::Bearer(token) => {
+                    req.header("authorization", format!("Bearer {}", token))
+                }
+                RouteAuth::Header(name, value) => req.header(name.as_str(), value.as_str()),
+                RouteAuth::Static(key) => req.header("authorization", format!("Bearer {}", key)),
+                RouteAuth::None => req,
+                RouteAuth::OauthPassthrough => req,
+            };
+
+            req = req.json(&oai_body);
+
+            match req.send().await {
+                Ok(resp) => {
+                    let status = StatusCode::from_u16(resp.status().as_u16())
+                        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+
+                    if !streaming {
+                        let full_body = resp.bytes().await.unwrap_or_default();
+                        if let Ok(oai_resp) = serde_json::from_slice::<Value>(&full_body) {
+                            // Check for error response from backend
+                            if oai_resp.get("error").is_some() {
+                                let err_msg = oai_resp["error"]["message"]
+                                    .as_str()
+                                    .unwrap_or("unknown error");
+                                let ant_err = json!({
+                                    "type": "error",
+                                    "error": {
+                                        "type": "api_error",
+                                        "message": err_msg,
+                                    }
+                                });
+                                let stream = futures_util::stream::once(async move {
+                                    Ok::<_, std::io::Error>(Bytes::from(ant_err.to_string()))
+                                });
+                                return Response::builder()
+                                    .status(status)
+                                    .header("content-type", "application/json")
+                                    .body(Body::from_stream(stream))
+                                    .unwrap();
+                            }
+
+                            let in_toks = oai_resp["usage"]["prompt_tokens"]
+                                .as_u64()
+                                .unwrap_or(0);
+                            let out_toks = oai_resp["usage"]["completion_tokens"]
+                                .as_u64()
+                                .unwrap_or(0);
+                            write_usage_line(in_toks, out_toks, &model, &route.backend_name);
+                            spawn_rate_fetch(route.api_key.clone(), &route.backend_name);
+
+                            let ant_resp = from_openai_response(&oai_resp, &model);
+                            let resp_bytes = Bytes::from(ant_resp.to_string());
+                            let stream = futures_util::stream::once(async move {
+                                Ok::<_, std::io::Error>(resp_bytes)
+                            });
+                            return Response::builder()
+                                .status(StatusCode::OK)
+                                .header("content-type", "application/json")
+                                .header("cache-control", "no-cache")
+                                .body(Body::from_stream(stream))
+                                .unwrap();
+                        }
+                        // Couldn't parse — forward raw
+                        let stream = futures_util::stream::once(async move {
+                            Ok::<_, std::io::Error>(full_body)
+                        });
+                        return Response::builder()
+                            .status(status)
+                            .header("content-type", "application/json")
+                            .body(Body::from_stream(stream))
+                            .unwrap();
+                    }
+
+                    // Streaming: collect full response, convert, replay as Anthropic SSE
+                    let model_for_usage = model.clone();
+                    let backend_for_usage = route.backend_name.clone();
+                    let key_for_limits = route.api_key.clone();
+                    let backend_for_limits = route.backend_name.clone();
+                    let full_bytes = resp.bytes().await.unwrap_or_default();
+                    let body_str = String::from_utf8_lossy(&full_bytes).to_string();
+
+                    // Build Anthropic SSE from OpenAI chunks
+                    let msg_id = format!("msg_{:x}", rand_id());
+                    let start = json!({"type":"message_start","message":{
+                        "id": &msg_id, "type":"message","role":"assistant","content":[],
+                        "model": &model,"stop_reason":null,"stop_sequence":null,
+                        "usage":{"input_tokens":0,"output_tokens":0}
+                    }});
+                    let bstart = json!({"type":"content_block_start","index":0,
+                                        "content_block":{"type":"text","text":""}});
+
+                    let mut ant_events: Vec<u8> = Vec::new();
+                    ant_events.extend_from_slice(&fmt_event("message_start", &start.to_string()));
+                    ant_events
+                        .extend_from_slice(&fmt_event("content_block_start", &bstart.to_string()));
+                    ant_events.extend_from_slice(&fmt_event("ping", r#"{"type":"ping"}"#));
+
+                    let mut block_index: usize = 0;
+                    let mut total_out: u64 = 0;
+                    for line in body_str.lines() {
+                        if line.starts_with("data: ") {
+                            // Track usage from final chunk
+                            if let Some(data) = line.strip_prefix("data: ") {
+                                if let Ok(v) = serde_json::from_str::<Value>(data) {
+                                    if let Some(usage) = v.get("usage") {
+                                        if let Some(out) = usage["completion_tokens"].as_u64() {
+                                            total_out = out;
+                                        }
+                                    }
+                                }
+                            }
+                            for ev in oai_chunk_to_ant_events(line, &mut block_index) {
+                                ant_events.extend_from_slice(&ev);
+                            }
+                        }
+                    }
+
+                    write_usage_line(0, total_out, &model_for_usage, &backend_for_usage);
+                    spawn_rate_fetch(key_for_limits, &backend_for_limits);
+
+                    let ant_bytes = Bytes::from(ant_events);
+                    let stream = futures_util::stream::once(async move {
+                        Ok::<_, std::io::Error>(ant_bytes)
+                    });
+                    Response::builder()
+                        .status(StatusCode::OK)
+                        .header("content-type", "text/event-stream")
+                        .header("cache-control", "no-cache")
+                        .body(Body::from_stream(stream))
+                        .unwrap()
+                }
+                Err(e) => (StatusCode::BAD_GATEWAY, e.to_string()).into_response(),
+            }
         }
     }
 }

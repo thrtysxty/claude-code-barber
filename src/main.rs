@@ -114,9 +114,7 @@ fn models_cmd() -> anyhow::Result<()> {
             Ok(())
         }
         _ => {
-            eprintln!("ccb-route not reachable at {}", endpoint);
-            eprintln!("Start it with: ccb-route &");
-            std::process::exit(1);
+            anyhow::bail!("ccb-route not reachable at {endpoint}\nStart it with: ccb-route &");
         }
     }
 }

@@ -240,16 +240,16 @@ fn retrieve_tier2(topic_signals: &[&str], budget: usize) -> Vec<Tier2Node> {
     result
 }
 
-fn session_start_signals() -> Vec<&'static str> {
-    let mut signals: Vec<&'static str> = Vec::new();
+fn session_start_signals() -> Vec<String> {
+    let mut signals: Vec<String> = Vec::new();
 
     if let Ok(proj) = std::env::var("CCB_PROJECT") {
-        signals.push(Box::leak(proj.into_boxed_str()));
+        signals.push(proj);
     }
 
     if let Ok(cwd) = std::env::current_dir() {
         if let Some(name) = cwd.file_name().and_then(|n| n.to_str()) {
-            signals.push(Box::leak(name.to_string().into_boxed_str()));
+            signals.push(name.to_string());
         }
     }
 
@@ -260,7 +260,7 @@ fn session_start_signals() -> Vec<&'static str> {
         if let Ok(branch) = std::str::from_utf8(&branch.stdout) {
             let branch = branch.trim();
             if !branch.is_empty() {
-                signals.push(Box::leak(branch.to_string().into_boxed_str()));
+                signals.push(branch.to_string());
             }
         }
     }
@@ -341,7 +341,8 @@ fn inject_session_start() -> Result<()> {
 
     let tier1 = build_tier1();
     let signals = session_start_signals();
-    let tier2 = retrieve_tier2(&signals, budget);
+    let signal_refs: Vec<&str> = signals.iter().map(|s| s.as_str()).collect();
+    let tier2 = retrieve_tier2(&signal_refs, budget);
 
     let payload = ContextPayload {
         tokens_saved: Some(3200),

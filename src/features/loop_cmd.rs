@@ -632,8 +632,7 @@ pub fn cmd_build(args: cli::BuildArgs) -> Result<()> {
     if result.overall_success {
         println!("Build succeeded. Branch: {}", result.branch);
     } else {
-        println!("Build failed. Check ~/.cache/ccb/failures/");
-        std::process::exit(1);
+        anyhow::bail!("Build failed. Check ~/.cache/ccb/failures/");
     }
     Ok(())
 }

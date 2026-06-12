@@ -12,6 +12,49 @@ use std::process::{Command, Stdio};
 const ROUTER_PID_FILE: &str = ".cache/ccb/router.pid";
 const DEFAULT_PORT: u16 = 9001;
 
+/// Locate the ccb-route binary: companion next to ccb → PATH → dev build dirs
+fn find_ccb_route() -> Result<PathBuf> {
+    // 1. Same directory as the current executable (e.g. ~/.local/bin/ccb-route)
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let companion = dir.join("ccb-route");
+            if companion.exists() {
+                return Ok(companion);
+            }
+        }
+    }
+
+    // 2. Which / PATH lookup
+    if let Ok(output) = Command::new("which").arg("ccb-route").output() {
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let p = PathBuf::from(&path);
+            if p.exists() {
+                return Ok(p);
+            }
+        }
+    }
+
+    // 3. Dev build paths (release then debug)
+    if let Some(home) = dirs::home_dir() {
+        for profile in &["release", "debug"] {
+            let dev_path = home
+                .join("Projects")
+                .join("claude-code-barber")
+                .join("target")
+                .join(profile)
+                .join("ccb-route");
+            if dev_path.exists() {
+                return Ok(dev_path);
+            }
+        }
+    }
+
+    Err(anyhow::anyhow!(
+        "ccb-route binary not found. Install to PATH or run: cargo build --features route"
+    ))
+}
+
 /// Default routing configuration
 #[derive(Debug, serde::Serialize)]
 struct DefaultConfig {
@@ -136,33 +179,8 @@ impl Config {
             }
         }
 
-        // Find the ccb-route binary
-        let router_exe = dirs::home_dir()
-            .unwrap_or_default()
-            .join("Projects")
-            .join("claude-code-barber")
-            .join("target")
-            .join("release")
-            .join("ccb-route");
-
-        let router_exe = if router_exe.exists() {
-            router_exe
-        } else {
-            let debug_exe = dirs::home_dir()
-                .unwrap_or_default()
-                .join("Projects")
-                .join("claude-code-barber")
-                .join("target")
-                .join("debug")
-                .join("ccb-route");
-            if debug_exe.exists() {
-                debug_exe
-            } else {
-                return Err(anyhow::anyhow!(
-                    "ccb-route binary not found. Run: cargo build --features route"
-                ));
-            }
-        };
+        // Find the ccb-route binary: prefer companion next to ccb, then PATH, then dev paths
+        let router_exe = find_ccb_route()?;
 
         let mut cmd = Command::new(&router_exe);
         cmd.env("CCB_ROUTE_PORT", self.port.to_string());
@@ -206,12 +224,36 @@ impl Config {
         let pid_str = fs::read_to_string(ROUTER_PID_FILE)
             .with_context(|| format!("reading PID file at {}", ROUTER_PID_FILE))?;
 
-        if let Ok(_pid) = pid_str.trim().parse::<u32>() {
-            let _ = Command::new("kill").args(["-9", &pid_str]).output();
+        let pid: u32 = pid_str.trim().parse().with_context(|| {
+            format!("invalid PID in {}: {:?}", ROUTER_PID_FILE, pid_str.trim())
+        })?;
 
-            fs::remove_file(ROUTER_PID_FILE)
-                .with_context(|| format!("removing PID file at {}", ROUTER_PID_FILE))?;
+        // Verify the process is actually ccb-route before sending kill
+        let ps_output = Command::new("ps")
+            .args(["-p", &pid.to_string(), "-o", "comm="])
+            .output();
+        match ps_output {
+            Ok(out) if out.status.success() => {
+                let comm = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !comm.contains("ccb-route") {
+                    return Err(anyhow::anyhow!(
+                        "PID {} is '{}' not ccb-route — refusing to kill",
+                        pid,
+                        comm
+                    ));
+                }
+            }
+            _ => {
+                // Process doesn't exist or ps failed — clean up stale PID file
+                let _ = fs::remove_file(&pid_file);
+                return Ok(());
+            }
         }
+
+        let _ = Command::new("kill").args(["-9", &pid.to_string()]).output();
+
+        fs::remove_file(ROUTER_PID_FILE)
+            .with_context(|| format!("removing PID file at {}", ROUTER_PID_FILE))?;
 
         Ok(())
     }
