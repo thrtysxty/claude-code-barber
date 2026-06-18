@@ -720,7 +720,14 @@ pub fn run() -> Result<()> {
     let mut input = String::new();
     std::io::Read::read_to_string(&mut std::io::stdin(), &mut input)?;
 
-    let payload: HookPayload = match serde_json::from_str(&input) {
+    // If stdin doesn't start with '{', it's not hook JSON — allow silently.
+    // This handles system-reminder injections, empty input, and other noise.
+    let trimmed = input.trim_start();
+    if !trimmed.starts_with('{') {
+        return Ok(());
+    }
+
+    let payload: HookPayload = match serde_json::from_str(trimmed) {
         Ok(p) => p,
         Err(_) => return Ok(()),
     };
