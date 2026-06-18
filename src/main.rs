@@ -307,9 +307,13 @@ fn loop_cmd(args: cli::LoopArgs) -> anyhow::Result<()> {
 
 #[cfg(feature = "status")]
 fn status_cmd(cmd: cli::StatusCmd) -> anyhow::Result<()> {
-    use features::status::gradient::terminal_width;
+    use features::status::gradient::{set_nerd_font, terminal_width};
     use features::status::session::SessionInfo;
     use features::status::{build_session_info, resolve_theme, StatusInput};
+
+    // Initialize Nerd Font mode from config
+    let cfg = config::load().unwrap_or_default();
+    set_nerd_font(cfg.nerd_font);
 
     // Use max of detected terminal width and 80 to ensure consistent layout
     // even in narrow terminals (MIN_WIDTH for statusline is 40, so 80 is safe)
@@ -333,7 +337,7 @@ fn status_cmd(cmd: cli::StatusCmd) -> anyhow::Result<()> {
                     let ccb = StatusInput::load();
                     let session = enrich_from_ccb(session, &ccb);
                     update_session_env(&session.session_id, &session.model.id);
-                    let output = features::status::render(&session, &theme, width, "wide");
+                    let output = features::status::render(&session, &theme, width);
                     println!("{}", output);
                     return Ok(());
                 }
@@ -342,7 +346,7 @@ fn status_cmd(cmd: cli::StatusCmd) -> anyhow::Result<()> {
             // Fallback: use CCB-only data (route usage, session env)
             let input = StatusInput::load();
             let session_info = build_session_info(&input);
-            let output = features::status::render(&session_info, &theme, width, "wide");
+            let output = features::status::render(&session_info, &theme, width);
             println!("{}", output);
             Ok(())
         }

@@ -12,6 +12,14 @@ const HOOK_SCRIPTS: &[(&str, &str)] = &[
         "skill_loader.sh",
         include_str!("../../hooks/skill_loader.sh"),
     ),
+    (
+        "expert_pretooluse.sh",
+        include_str!("../../hooks/expert_pretooluse.sh"),
+    ),
+    (
+        "classifier.sh",
+        include_str!("../../hooks/classifier.sh"),
+    ),
 ];
 
 // Minimal JSON patch: add context_monitor PostToolUse hook + skill_loader PreToolUse hook.
@@ -67,9 +75,19 @@ pub fn run(auto: bool, dry_run: bool) -> Result<()> {
         "matcher": "Skill",
         "hooks": [{"type": "command", "command": format!("{}/skill_loader.sh", hooks_dir_str)}]
     });
+    let expert_hook = serde_json::json!({
+        "matcher": ".*",
+        "hooks": [{"type": "command", "command": format!("{}/expert_pretooluse.sh", hooks_dir_str)}]
+    });
+    let classifier_hook = serde_json::json!({
+        "matcher": ".*",
+        "hooks": [{"type": "command", "command": format!("{}/classifier.sh", hooks_dir_str)}]
+    });
 
     let already_has_context = hook_already_present(&settings, "PostToolUse", "context_monitor");
     let already_has_skill = hook_already_present(&settings, "PreToolUse", "skill_loader");
+    let already_has_expert = hook_already_present(&settings, "PreToolUse", "expert_pretooluse");
+    let already_has_classifier = hook_already_present(&settings, "PreToolUse", "classifier");
 
     if already_has_context {
         println!("  context_monitor hook [already wired]");
@@ -81,13 +99,23 @@ pub fn run(auto: bool, dry_run: bool) -> Result<()> {
     } else {
         println!("  skill_loader hook [will add → PreToolUse / Skill]");
     }
+    if already_has_expert {
+        println!("  expert_pretooluse hook [already wired]");
+    } else {
+        println!("  expert_pretooluse hook [will add → PreToolUse / .*]");
+    }
+    if already_has_classifier {
+        println!("  classifier hook [already wired]");
+    } else {
+        println!("  classifier hook [will add → PreToolUse / .*]");
+    }
 
     if dry_run {
         println!("\nDry run complete. Run without --dry-run to apply.");
         return Ok(());
     }
 
-    if !auto && (!already_has_context || !already_has_skill) {
+    if !auto && (!already_has_context || !already_has_skill || !already_has_expert || !already_has_classifier) {
         print!("\nApply changes to settings.json? [y/N] ");
         io::stdout().flush()?;
         let mut answer = String::new();
@@ -110,8 +138,20 @@ pub fn run(auto: bool, dry_run: bool) -> Result<()> {
             .context("PreToolUse is not an array")?
             .push(skill_hook);
     }
+    if !already_has_expert {
+        settings["hooks"]["PreToolUse"]
+            .as_array_mut()
+            .context("PreToolUse is not an array")?
+            .push(expert_hook);
+    }
+    if !already_has_classifier {
+        settings["hooks"]["PreToolUse"]
+            .as_array_mut()
+            .context("PreToolUse is not an array")?
+            .push(classifier_hook);
+    }
 
-    if !already_has_context || !already_has_skill {
+    if !already_has_context || !already_has_skill || !already_has_expert || !already_has_classifier {
         let patched = serde_json::to_string_pretty(&settings)?;
         fs::write(&settings_path, patched)?;
         println!("\n✓ settings.json updated");
@@ -121,6 +161,8 @@ pub fn run(auto: bool, dry_run: bool) -> Result<()> {
 
     println!("✓ context monitoring: warns at >70% (compact) and >85% (clear)");
     println!("✓ skill loading: /skill commands lazy-load via ccb fade");
+    println!("✓ expert personas: domain knowledge injected on tool use");
+    println!("✓ classifier: two-tier safety classification on all tool calls");
     Ok(())
 }
 

@@ -3,29 +3,8 @@
 //! Ported from YAS's BorderRenderer class. Produces per-column gradient-colored
 //! border lines with pill overlays, T-junction connectors, and dim separators.
 
-use super::gradient::{GradientEngine, Pill, PILL_TL, RESET};
+use super::gradient::{visible_width, GradientEngine, Pill, PILL_TL, RESET};
 use super::themes::Theme;
-
-// ---------------------------------------------------------------------------
-// Visible-width helper (strips ANSI escapes)
-// ---------------------------------------------------------------------------
-
-fn visible_width(s: &str) -> usize {
-    let mut width = 0usize;
-    let mut in_escape = false;
-    for ch in s.chars() {
-        if in_escape {
-            if ch.is_ascii_alphabetic() {
-                in_escape = false;
-            }
-        } else if ch == '\x1b' {
-            in_escape = true;
-        } else {
-            width += 1;
-        }
-    }
-    width
-}
 
 // ---------------------------------------------------------------------------
 // BorderRenderer

@@ -1,10 +1,10 @@
 //! Monitor mode — watches a directory of session JSON files and renders
-//! an aggregated statusline per session
+//! an aggregated statusline per session.
 //!
-//! NOTE: This module is not yet wired into the `ccb status` command. The TUI
-//! monitor will be activated once the statusline renderer is stable.
+//! Usage: `ccb status mon [--directory <path>]`
+//! Defaults to watching `~/.claude/` for session JSON files.
 
-#![allow(dead_code, unused_variables)]
+#![allow(dead_code)]
 
 use std::fs;
 use std::io::{self, Write};
@@ -81,6 +81,7 @@ fn find_sessions(claude_dir: &Path) -> Vec<SessionFile> {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)]
 struct MiniSession {
     session_id: String,
     model: ModelMini,
@@ -362,7 +363,8 @@ fn render_session_box(s: &MiniSession, width: usize, theme: &Theme) -> Option<St
     // Tokens + fill bar
     let total = s.total_tokens();
     let fill = s.context_fill();
-    let grad_color = gradient_color_hex(theme, fill);
+    let (r, g, b) = super::themes::gradient_color(theme, fill);
+    let grad_color = format!("\x1b[38;2;{r};{g};{b}m");
     let bar_width = 15.min((width / 3).max(8));
     let filled = (fill * bar_width as f64).round() as usize;
 
@@ -492,37 +494,6 @@ fn render_session_box(s: &MiniSession, width: usize, theme: &Theme) -> Option<St
     }
 
     Some(out)
-}
-
-fn gradient_color_hex(theme: &Theme, ratio: f64) -> String {
-    let ratio = ratio.clamp(0.0, 1.0);
-    let stops = &theme.grad_stops;
-    if stops.is_empty() {
-        return "\x1b[38;5;240m".to_string();
-    }
-
-    // Find surrounding stops
-    let mut lower = stops[0];
-    let mut upper = stops[stops.len() - 1];
-
-    for i in 0..stops.len() - 1 {
-        if ratio >= stops[i].0 && ratio <= stops[i + 1].0 {
-            lower = stops[i];
-            upper = stops[i + 1];
-            break;
-        }
-    }
-
-    let t = if upper.0 > lower.0 {
-        (ratio - lower.0) / (upper.0 - lower.0)
-    } else {
-        0.0
-    };
-
-    let r = (lower.1 .0 as f64 + t * (upper.1 .0 as f64 - lower.1 .0 as f64)) as u8;
-    let g = (lower.1 .1 as f64 + t * (upper.1 .1 as f64 - lower.1 .1 as f64)) as u8;
-    let b = (lower.1 .2 as f64 + t * (upper.1 .2 as f64 - lower.1 .2 as f64)) as u8;
-    format!("\x1b[38;2;{r};{g};{b}m")
 }
 
 // ---------------------------------------------------------------------------

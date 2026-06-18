@@ -7,6 +7,7 @@ pub struct Config {
     pub terse: bool,
     pub conversation_style: bool,
     pub index_path: Option<PathBuf>,
+    pub nerd_font: bool,
     pub features: FeatureConfig,
 }
 

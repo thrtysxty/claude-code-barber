@@ -9,10 +9,12 @@ use std::fmt::Write as FmtWrite;
 use super::border::BorderRenderer;
 use super::gradient::{
     self, empty_fade_colors, pill_gradient_fg, rainbow_at, rainbow_step, spec_gradient_bar,
-    GradientEngine, Pill, GLYPH_ARROW_DOWN, GLYPH_ARROW_UP, GLYPH_BURN_FAST, GLYPH_BURN_SLOW,
-    GLYPH_CONTINUATION, GLYPH_COST, GLYPH_FOLDER, GLYPH_HELPER, GLYPH_MEMBER, GLYPH_MODEL,
-    GLYPH_PLUGINS, GLYPH_SKILLS, GLYPH_SUBAGENT, GLYPH_TASKS, GLYPH_THINKING, GLYPH_TOK_RATE,
-    GLYPH_VSEP, MEDIUM_WIDTH, NARROW_WIDTH, RESET,
+    visible_width, GradientEngine, Pill,
+    glyph_arrow_down, glyph_arrow_up, glyph_burn_fast, glyph_burn_slow,
+    glyph_continuation, glyph_cost, glyph_folder, glyph_helper, glyph_member,
+    glyph_model, glyph_plugins, glyph_skills, glyph_subagent, glyph_tasks,
+    glyph_thinking, glyph_tok_rate, glyph_vsep,
+    BOLD, ITALIC, MEDIUM_WIDTH, NARROW_WIDTH, RESET,
 };
 use super::session::{
     self, discover_openspec, fmt_tok, GitInfo, LoadedSkills, SessionInfo, TaskList,
@@ -66,9 +68,6 @@ pub struct LayoutSpec {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const BOLD: &str = "\x1b[1m";
-const ITALIC: &str = "\x1b[3m";
 
 // Default spec gradient palettes (12 palettes, 3 RGB stops each)
 const DEFAULT_SPEC_GRADIENTS: &[(RGB, RGB, RGB); 12] = &[
@@ -169,9 +168,9 @@ fn burndown_trend(fh_pct: f64, resets_at: Option<u64>, ge: &GradientEngine) -> S
     let t = (0.5 + delta / 50.0).clamp(0.0, 1.0);
     let colour = ge.gradient_color(t, 1.0);
     let glyph = if delta > 0.0 {
-        GLYPH_BURN_FAST
+        glyph_burn_fast()
     } else {
-        GLYPH_BURN_SLOW
+        glyph_burn_slow()
     };
     let sign = if delta < 0.0 { '-' } else { '+' };
     format!("{}{} {}{:05.2}%{}", colour, glyph, sign, abs_delta, RESET)
@@ -181,7 +180,7 @@ fn burndown_trend(fh_pct: f64, resets_at: Option<u64>, ge: &GradientEngine) -> S
 // Public API
 // ---------------------------------------------------------------------------
 
-pub fn render(session: &SessionInfo, theme: &Theme, columns: usize, _layout_str: &str) -> String {
+pub fn render(session: &SessionInfo, theme: &Theme, columns: usize) -> String {
     // Require minimum viable width; if terminal is too narrow fall back to empty
     if columns < 20 {
         return String::new();
@@ -336,7 +335,7 @@ fn render_wide(
         write!(
             helper,
             " {}{}{}{}{} thinking {}",
-            theme.label, BOLD, GLYPH_THINKING, RESET, ITALIC, RESET
+            theme.label, BOLD, glyph_thinking(), RESET, ITALIC, RESET
         )
         .unwrap();
     }
@@ -345,7 +344,7 @@ fn render_wide(
         write!(
             helper,
             " {}{}{}{}{} {}",
-            theme.label, BOLD, GLYPH_MODEL, RESET, theme.model, model_think
+            theme.label, BOLD, glyph_model(), RESET, theme.model, model_think
         )
         .unwrap();
     }
@@ -357,7 +356,7 @@ fn render_wide(
     write!(
         right,
         "{}{}{}{}  {}",
-        c_helper, BOLD, GLYPH_HELPER, RESET, theme.white_brt
+        c_helper, BOLD, glyph_helper(), RESET, theme.white_brt
     )
     .unwrap();
     write!(
@@ -387,7 +386,39 @@ fn render_wide(
             .is_some()
     {
         let sd_color = rate_color(sd);
-        write!(right, " {}| {}{:.0}%{}", theme.label, sd_color, sd, RESET).unwrap();
+        let sd_reset = s
+            .rate_limits
+            .as_ref()
+            .and_then(|r| r.seven_day.resets_at)
+            .and_then(|resets| {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                if resets > now {
+                    let delta = resets - now;
+                    let d = delta / 86400;
+                    let h = (delta % 86400) / 3600;
+                    Some(if d > 0 {
+                        format!("{}d{}h", d, h)
+                    } else {
+                        format!("{}h", h)
+                    })
+                } else {
+                    None
+                }
+            });
+        if let Some(t) = sd_reset {
+            write!(
+                right,
+                " {}| {}{:.0}%{} {}T-{}",
+                theme.label, sd_color, sd, RESET, theme.commit, t
+            )
+            .unwrap();
+        } else {
+            write!(right, " {}| {}{:.0}%{}", theme.label, sd_color, sd, RESET)
+                .unwrap();
+        }
     }
     let right_w = visible_width(&right);
 
@@ -466,8 +497,8 @@ fn render_wide(
     let (spark_top, spark_bot) = ge.sparkline(&spark_history, true);
 
     // Active arrow glyphs
-    let down_arrow = if down_active { GLYPH_ARROW_DOWN } else { "↓" };
-    let up_arrow = if up_active { GLYPH_ARROW_UP } else { "↑" };
+    let down_arrow = if down_active { glyph_arrow_down() } else { "↓" };
+    let up_arrow = if up_active { glyph_arrow_up() } else { "↑" };
 
     // Build sections separately for alignment
     let in_tok = s.billed_in();
@@ -547,7 +578,7 @@ fn render_wide(
         write!(
             sect_b1,
             " {}{}{}${:.2}/d{}",
-            dc_col, GLYPH_COST, BOLD, day_cost, RESET
+            dc_col, glyph_cost(), BOLD, day_cost, RESET
         )
         .unwrap();
     }
@@ -557,7 +588,7 @@ fn render_wide(
         write!(
             sect_b2,
             " {}{}{}${:.2}{}",
-            theme.cost, GLYPH_COST, BOLD, sess_cost, RESET
+            theme.cost, glyph_cost(), BOLD, sess_cost, RESET
         )
         .unwrap();
     } else if let Some(ref cost) = s.cost {
@@ -566,7 +597,7 @@ fn render_wide(
                 write!(
                     sect_b2,
                     " {}{}{}${:.2}{}",
-                    theme.cost, GLYPH_COST, BOLD, c, RESET
+                    theme.cost, glyph_cost(), BOLD, c, RESET
                 )
                 .unwrap();
             }
@@ -583,7 +614,7 @@ fn render_wide(
             sect_c1,
             " {}{}{}{}{}/m{}",
             theme.tok,
-            GLYPH_TOK_RATE,
+            glyph_tok_rate(),
             RESET,
             theme.tok,
             fmt_tok(tok_rate),
@@ -619,7 +650,7 @@ fn render_wide(
     }
 
     // Assemble rows with aligned VSEPs
-    let vsep = format!(" {}{}{}", theme.label, GLYPH_VSEP, RESET);
+    let vsep = format!(" {}{}{}", theme.label, glyph_vsep(), RESET);
 
     let tok_row1 = format!("{}{}{}{}{}", sect_a1, vsep, sect_b1, vsep, sect_c1);
     let tok_row2 = if !sect_a2.is_empty() {
@@ -726,7 +757,7 @@ fn render_wide(
                 "{}{}{}{}{} ",
                 rainbow_at(step, 14),
                 BOLD,
-                GLYPH_SKILLS,
+                glyph_skills(),
                 RESET,
                 theme.skills
             )
@@ -743,7 +774,7 @@ fn render_wide(
                 "{}{}{}{}{} ",
                 rainbow_at(step, 7),
                 BOLD,
-                GLYPH_PLUGINS,
+                glyph_plugins(),
                 RESET,
                 theme.label
             )
@@ -787,7 +818,7 @@ fn render_wide(
             "{}{}{}{} {}✓{}/{}{}",
             rainbow_at(step, 9),
             BOLD,
-            GLYPH_TASKS,
+            glyph_tasks(),
             RESET,
             theme.safe,
             completed,
@@ -839,7 +870,7 @@ fn render_wide(
                     "{}{}{}{}{}  {}{}{} · {}",
                     marker_color,
                     BOLD,
-                    GLYPH_SUBAGENT,
+                    glyph_subagent(),
                     RESET,
                     theme.white_brt,
                     BOLD,
@@ -856,7 +887,7 @@ fn render_wide(
 
                 // Line 2: metrics cluster
                 let mut line2 = String::new();
-                write!(line2, "   {}{}{}", theme.label, GLYPH_CONTINUATION, RESET).unwrap();
+                write!(line2, "   {}{}{}", theme.label, glyph_continuation(), RESET).unwrap();
                 // Activity
                 match &sub.last_activity {
                     session::SubagentActivity::ToolUse {
@@ -911,7 +942,7 @@ fn render_wide(
                         line2,
                         " {}{}{}/m{}",
                         theme.tok,
-                        GLYPH_TOK_RATE,
+                        glyph_tok_rate(),
                         fmt_tok(tok_rate / subagents.len() as u64),
                         RESET
                     )
@@ -936,7 +967,7 @@ fn render_wide(
                     "{}{}{}{}{} {}{}{}",
                     marker_color,
                     BOLD,
-                    GLYPH_SUBAGENT,
+                    glyph_subagent(),
                     RESET,
                     theme.white_brt,
                     theme.label,
@@ -1352,27 +1383,6 @@ fn render_pill(name: &str, model_family: &str, theme: &Theme, effort: &str) -> S
     }
 }
 
-// ---------------------------------------------------------------------------
-// Visible-width helper
-// ---------------------------------------------------------------------------
-
-fn visible_width(s: &str) -> usize {
-    let mut width = 0usize;
-    let mut in_escape = false;
-    for ch in s.chars() {
-        if in_escape {
-            if ch.is_ascii_alphabetic() {
-                in_escape = false;
-            }
-        } else if ch == '\x1b' {
-            in_escape = true;
-        } else {
-            width += 1;
-        }
-    }
-    width
-}
-
 /// Strip ANSI escape sequences from a string, returning only visible characters.
 fn strip_ansi(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
@@ -1415,14 +1425,14 @@ fn path_git_compact(pwd: &str, branch: &str, theme: &Theme) -> String {
     write!(
         s,
         "{}{}{}  {}{}{}",
-        theme.icon_path, GLYPH_FOLDER, RESET, theme.pwd, pwd, RESET
+        theme.icon_path, glyph_folder(), RESET, theme.pwd, pwd, RESET
     )
     .unwrap();
     if !branch.is_empty() {
         write!(
             s,
             " {}{}{}{}{}",
-            theme.label, BOLD, theme.arrow, GLYPH_MEMBER, RESET
+            theme.label, BOLD, theme.arrow, glyph_member(), RESET
         )
         .unwrap();
         write!(s, " {}{}{}", theme.branch, branch, RESET).unwrap();
@@ -1446,14 +1456,14 @@ fn fit_path(
         write!(
             line,
             "{}{}{}  {}{}",
-            theme.icon_path, GLYPH_FOLDER, RESET, theme.pwd, pwd
+            theme.icon_path, glyph_folder(), RESET, theme.pwd, pwd
         )
         .unwrap();
         if !git.branch.is_empty() {
             write!(
                 line,
                 " {}{}{}{}{}",
-                theme.label, BOLD, theme.arrow, GLYPH_MEMBER, RESET
+                theme.label, BOLD, theme.arrow, glyph_member(), RESET
             )
             .unwrap();
             write!(line, " {}{}", theme.branch, git.branch).unwrap();

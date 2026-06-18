@@ -15,19 +15,33 @@ pub const ITALIC: &str = "\x1b[3m";
 
 pub const BG_LUM_THRESHOLD: i32 = 110;
 pub const LIVE_DIM: f64 = 0.5;
-pub const MIN_WIDTH: usize = 40;
 pub const DEFAULT_MAX_WIDTH: usize = 140;
 pub const NARROW_WIDTH: usize = 55;
 pub const MEDIUM_WIDTH: usize = 80;
-pub const SOFT_LIMIT: u64 = 150_000;
+
+/// Strip ANSI escape sequences and return visible character count.
+pub fn visible_width(s: &str) -> usize {
+    let mut width = 0usize;
+    let mut in_escape = false;
+    for ch in s.chars() {
+        if in_escape {
+            if ch.is_ascii_alphabetic() {
+                in_escape = false;
+            }
+        } else if ch == '\x1b' {
+            in_escape = true;
+        } else {
+            width += 1;
+        }
+    }
+    width
+}
 
 /// Unicode block/bar characters for progress bars (ASCII-safe)
 pub struct BarChars;
 impl BarChars {
-    pub const FILLED: char = '*';
     pub const HEAVY: char = '=';
     pub const MID: char = '-';
-    pub const EMPTY: char = '_';
 }
 
 /// Unicode quadrant/half-block characters for pill borders (ASCII-safe)
@@ -88,23 +102,70 @@ pub fn rainbow_at(step: usize, offset: usize) -> String {
 
 // ---------------------------------------------------------------------------
 // Nerd Font glyph constants — ASCII fallbacks for universal terminal compatibility
-pub const GLYPH_FOLDER: &str = ">"; //  folder icon
-pub const GLYPH_SUBAGENT: &str = ">"; // ▶ play
-pub const GLYPH_CONTINUATION: &str = "`"; // └ continuation
-pub const GLYPH_ARROW_DOWN: &str = "v"; // ⇁ active down arrow
-pub const GLYPH_ARROW_UP: &str = "^"; // ⇃ active up arrow
-pub const GLYPH_VSEP: &str = "|"; // │ vertical separator
-pub const GLYPH_MEMBER: &str = "@"; // ∈ element of
-pub const GLYPH_HELPER: &str = "*"; // star_circle
-pub const GLYPH_THINKING: &str = "?"; // brain
-pub const GLYPH_MODEL: &str = "#"; // monitor-dashboard
-pub const GLYPH_TASKS: &str = "#"; // format-list-checks
-pub const GLYPH_SKILLS: &str = "$"; // skills
-pub const GLYPH_PLUGINS: &str = "+"; // plug
-pub const GLYPH_COST: &str = "$"; // currency-usd
-pub const GLYPH_TOK_RATE: &str = "~"; // gauge
-pub const GLYPH_BURN_FAST: &str = "!"; // nf-cod-zap (over-burn)
-pub const GLYPH_BURN_SLOW: &str = ","; // nf-oct-flame (under-burn)
+// ---------------------------------------------------------------------------
+// Glyphs — runtime selection via NERD_FONT static
+// ---------------------------------------------------------------------------
+
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static NERD_FONT: AtomicBool = AtomicBool::new(false);
+
+/// Initialize Nerd Font mode from config. Called once at startup.
+pub fn set_nerd_font(enabled: bool) {
+    NERD_FONT.store(enabled, Ordering::Relaxed);
+}
+
+pub fn glyph_folder() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{e5ff}" } else { ">" }
+}
+pub fn glyph_subagent() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb44}" } else { ">" }
+}
+pub fn glyph_continuation() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{e0b1}" } else { "`" }
+}
+pub fn glyph_arrow_down() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb62}" } else { "v" }
+}
+pub fn glyph_arrow_up() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb61}" } else { "^" }
+}
+pub fn glyph_vsep() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{e0b0}" } else { "|" }
+}
+pub fn glyph_member() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb9f}" } else { "@" }
+}
+pub fn glyph_helper() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb99}" } else { "*" }
+}
+pub fn glyph_thinking() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{f444}" } else { "?" }
+}
+pub fn glyph_model() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{e795}" } else { "#" }
+}
+pub fn glyph_tasks() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb97}" } else { "#" }
+}
+pub fn glyph_skills() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb96}" } else { "$" }
+}
+pub fn glyph_plugins() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb63}" } else { "+" }
+}
+pub fn glyph_cost() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{e79e}" } else { "$" }
+}
+pub fn glyph_tok_rate() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{e7a4}" } else { "~" }
+}
+pub fn glyph_burn_fast() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb6a}" } else { "!" }
+}
+pub fn glyph_burn_slow() -> &'static str {
+    if NERD_FONT.load(Ordering::Relaxed) { "\u{e798}" } else { "," }
+}
 
 // ---------------------------------------------------------------------------
 // GradientEngine

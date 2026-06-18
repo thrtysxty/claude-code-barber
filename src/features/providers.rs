@@ -644,6 +644,7 @@ mod tests {
             .provider("minimax")
             .expect("minimax provider should exist");
         let ids: Vec<&str> = provider.models.iter().map(|m| m.id.as_str()).collect();
+        assert!(ids.contains(&"MiniMax-M3"), "should have M3");
         assert!(ids.contains(&"MiniMax-M2.7"), "should have M2.7");
         assert!(
             ids.contains(&"MiniMax-M2.7-highspeed"),
@@ -652,8 +653,8 @@ mod tests {
         assert!(ids.contains(&"MiniMax-M2.5"), "should have M2.5");
         assert!(ids.contains(&"MiniMax-M2"), "should have M2");
         assert!(
-            ids.len() >= 7,
-            "should have at least 7 MiniMax models, got {}",
+            ids.len() >= 8,
+            "should have at least 8 MiniMax models, got {}",
             ids.len()
         );
     }
@@ -725,7 +726,7 @@ mod tests {
         let (_, _, entry, pos, total) = result.unwrap();
         // First choice in sonnet list: MiniMax-M2.5
         assert_eq!(pos, 1);
-        assert_eq!(total, 3, "sonnet tier has 3 models in tier_routing config");
+        assert_eq!(total, 4, "sonnet tier has 4 models in tier_routing config");
         assert_eq!(
             entry.id, "MiniMax-M2.5",
             "first sonnet choice should be MiniMax-M2.5"

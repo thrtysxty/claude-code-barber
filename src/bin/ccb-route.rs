@@ -274,6 +274,155 @@ async fn fetch_ollama_models(ollama_url: &str) -> Vec<OllamaModel> {
     }
 }
 
+// ── NVIDIA NIM model discovery ─────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct NvidiaModelEntry {
+    id: String,
+    #[serde(default)]
+    owned_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct NvidiaModelsResponse {
+    data: Vec<NvidiaModelEntry>,
+}
+
+/// Fetch available models from NVIDIA NIM (OpenAI-compatible /v1/models, no auth required).
+async fn fetch_nvidia_models(nvidia_url: &str) -> Vec<OllamaModel> {
+    let url = format!("{nvidia_url}/v1/models");
+    let client = Client::new();
+    match client
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+    {
+        Ok(resp) => match resp.json::<NvidiaModelsResponse>().await {
+            Ok(list) => {
+                // Convert to OllamaModel format for unified handling.
+                // NIM models are plain IDs (e.g. "deepseek-ai/deepseek-v4-pro")
+                // with no parameter_size or family metadata.
+                list.data
+                    .into_iter()
+                    .filter(|m| !m.id.contains("embed") && !m.id.contains("rerank") && !m.id.contains("safety") && !m.id.contains("parse") && !m.id.contains("translate") && !m.id.contains("guard") && !m.id.contains("clip") && !m.id.contains("detect") && !m.id.contains("reward") && !m.id.contains("pii") && !m.id.contains("vila") && !m.id.contains("calibration") && !m.id.contains("retriever"))
+                    .map(|m| OllamaModel {
+                        name: m.id.clone(),
+                        model: m.id.clone(),
+                        modified_at: String::new(),
+                        remote_host: String::new(),
+                        details: OllamaModelDetails {
+                            family: m.owned_by.clone(),
+                            parameter_size: String::new(),
+                        },
+                    })
+                    .collect()
+            }
+            Err(e) => {
+                eprintln!("  nvidia /v1/models parse error: {e}");
+                vec![]
+            }
+        },
+        Err(e) => {
+            eprintln!("  nvidia /v1/models fetch error: {e}");
+            vec![]
+        }
+    }
+}
+
+// ── MiniMax model discovery ────────────────────────────────────────────────
+
+/// Fetch available models from MiniMax (Anthropic-compatible /anthropic/v1/models).
+async fn fetch_minimax_models(minimax_url: &str, api_key: &str) -> Vec<OllamaModel> {
+    let url = format!("{minimax_url}/v1/models");
+    let client = Client::new();
+    match client
+        .get(&url)
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+    {
+        Ok(resp) => match resp.json::<Value>().await {
+            Ok(val) => {
+                let empty = vec![];
+                let data = val["data"].as_array().unwrap_or(&empty);
+                data.iter()
+                    .filter_map(|m| {
+                        let id = m["id"].as_str()?;
+                        Some(OllamaModel {
+                            name: id.to_string(),
+                            model: id.to_string(),
+                            modified_at: m["created_at"].as_str().unwrap_or("").to_string(),
+                            remote_host: String::new(),
+                            details: OllamaModelDetails {
+                                family: "minimax".to_string(),
+                                parameter_size: String::new(),
+                            },
+                        })
+                    })
+                    .collect()
+            }
+            Err(e) => {
+                eprintln!("  minimax /v1/models parse error: {e}");
+                vec![]
+            }
+        },
+        Err(e) => {
+            eprintln!("  minimax /v1/models fetch error: {e}");
+            vec![]
+        }
+    }
+}
+
+// ── Anthropic model discovery ──────────────────────────────────────────────
+
+/// Fetch available models from Anthropic (GET /v1/models with capabilities).
+async fn fetch_anthropic_models(anthropic_url: &str, api_key: &str) -> Vec<OllamaModel> {
+    let url = format!("{anthropic_url}/v1/models");
+    let client = Client::new();
+    match client
+        .get(&url)
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+    {
+        Ok(resp) => match resp.json::<Value>().await {
+            Ok(val) => {
+                let empty = vec![];
+                let data = val["data"].as_array().unwrap_or(&empty);
+                data.iter()
+                    .filter_map(|m| {
+                        let id = m["id"].as_str()?;
+                        let display = m["display_name"].as_str().unwrap_or(id);
+                        Some(OllamaModel {
+                            name: id.to_string(),
+                            model: id.to_string(),
+                            modified_at: m["created_at"].as_str().unwrap_or("").to_string(),
+                            remote_host: String::new(),
+                            details: OllamaModelDetails {
+                                family: display.to_string(),
+                                parameter_size: String::new(),
+                            },
+                        })
+                    })
+                    .collect()
+            }
+            Err(e) => {
+                eprintln!("  anthropic /v1/models parse error: {e}");
+                vec![]
+            }
+        },
+        Err(e) => {
+            eprintln!("  anthropic /v1/models fetch error: {e}");
+            vec![]
+        }
+    }
+}
+
 fn humanize_param(raw: &str) -> String {
     if raw.is_empty() {
         return String::new();
@@ -444,7 +593,24 @@ async fn pick(model: &str, cfg: &Cfg, _original_headers: &HeaderMap) -> Route {
         if !provider.discover {
             continue;
         }
-        let discovered = fetch_ollama_models(&provider.url).await;
+        let discovered = match provider.api_format {
+            ccb::features::providers::ApiFormat::OllamaCompat => {
+                fetch_ollama_models(&provider.url).await
+            }
+            ccb::features::providers::ApiFormat::OpenaiCompat => {
+                fetch_nvidia_models(&provider.url).await
+            }
+            ccb::features::providers::ApiFormat::Anthropic => {
+                let cred = provider.resolve_credential().unwrap_or_default();
+                if cred.is_empty() {
+                    vec![]
+                } else if pname == "minimax" {
+                    fetch_minimax_models(&provider.url, &cred).await
+                } else {
+                    fetch_anthropic_models(&provider.url, &cred).await
+                }
+            }
+        };
         let model_lower = model.to_lowercase();
         let stripped_lower = stripped_model.to_lowercase();
         for m in &discovered {
@@ -756,10 +922,12 @@ fn to_openai(body: &Value, model: &str) -> Value {
     }
 
     // Tools: Anthropic format → OpenAI function format
+    let max_tok = body.get("max_tokens").cloned().unwrap_or(json!(4096));
     let mut result = json!({
         "model":       model,
         "messages":    messages,
-        "max_tokens":  body.get("max_tokens").cloned().unwrap_or(json!(4096)),
+        "max_tokens":  max_tok.clone(),
+        "max_completion_tokens": max_tok,
         "stream":      body.get("stream").cloned().unwrap_or(json!(false)),
     });
 
@@ -785,6 +953,26 @@ fn to_openai(body: &Value, model: &str) -> Value {
             })
             .collect();
         result["tools"] = json!(oai_tools);
+
+        // tool_choice: Anthropic → OpenAI conversion
+        // Anthropic: {"type": "auto"} | {"type": "any"} | {"type": "tool", "name": "..."}
+        // OpenAI:    "auto" | "required" | {"type": "function", "function": {"name": "..."}}
+        if let Some(tc) = body.get("tool_choice") {
+            if let Some(tc_type) = tc.get("type").and_then(|t| t.as_str()) {
+                result["tool_choice"] = match tc_type {
+                    "auto" => json!("auto"),
+                    "any" => json!("required"),
+                    "tool" => {
+                        if let Some(name) = tc.get("name").and_then(|n| n.as_str()) {
+                            json!({"type": "function", "function": {"name": name}})
+                        } else {
+                            json!("auto")
+                        }
+                    }
+                    _ => json!("auto"),
+                };
+            }
+        }
     }
 
     result
@@ -980,6 +1168,24 @@ fn oai_chunk_to_ant_events(chunk: &str, block_index: &mut usize) -> Vec<Bytes> {
                         "content_block_stop",
                         &json!({"type":"content_block_stop","index":*block_index}).to_string(),
                     ));
+                } else {
+                    // First content is a tool call — emit empty text block at index 0
+                    // so the tool_use block lands at index 1 (matching Anthropic's convention)
+                    events.push(fmt_event(
+                        "content_block_start",
+                        &json!({"type":"content_block_start","index":0,
+                                "content_block":{"type":"text","text":""}}).to_string(),
+                    ));
+                    events.push(fmt_event(
+                        "content_block_delta",
+                        &json!({"type":"content_block_delta","index":0,
+                                "delta":{"type":"text_delta","text":""}}).to_string(),
+                    ));
+                    events.push(fmt_event(
+                        "content_block_stop",
+                        &json!({"type":"content_block_stop","index":0}).to_string(),
+                    ));
+                    *block_index = 0;
                 }
                 *block_index += 1;
                 let id = call["id"].as_str().unwrap_or("toolu_unknown");
@@ -1112,7 +1318,25 @@ async fn list_models_inner(
     for (pname, provider) in &pcfg.providers {
         if provider.discover {
             // Discovery-first: fetch what the backend actually has
-            let discovered = fetch_ollama_models(&provider.url).await;
+            let discovered = match provider.api_format {
+                ccb::features::providers::ApiFormat::OllamaCompat => {
+                    fetch_ollama_models(&provider.url).await
+                }
+                ccb::features::providers::ApiFormat::OpenaiCompat => {
+                    fetch_nvidia_models(&provider.url).await
+                }
+                ccb::features::providers::ApiFormat::Anthropic => {
+                    let cred = provider.resolve_credential().unwrap_or_default();
+                    if cred.is_empty() {
+                        eprintln!("  {pname}: discover=true but no API key — using static list");
+                        vec![]
+                    } else if pname == "minimax" {
+                        fetch_minimax_models(&provider.url, &cred).await
+                    } else {
+                        fetch_anthropic_models(&provider.url, &cred).await
+                    }
+                }
+            };
 
             // Build backend_id → static entry lookup for overrides
             let mut bid_to_static: std::collections::HashMap<

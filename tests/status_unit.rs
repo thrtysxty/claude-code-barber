@@ -555,7 +555,7 @@ mod tests {
     fn render_produces_output() {
         let s = make_session();
         let theme = themes::resolve_theme("claude-dark");
-        let output = renderer::render(&s, &theme, 120, "wide");
+        let output = renderer::render(&s, &theme, 120);
         assert!(!output.is_empty(), "render should produce output");
         assert!(
             output.contains("\x1b["),
@@ -567,7 +567,7 @@ mod tests {
     fn render_wide_contains_model() {
         let s = make_session();
         let theme = themes::resolve_theme("claude-dark");
-        let output = renderer::render(&s, &theme, 120, "wide");
+        let output = renderer::render(&s, &theme, 120);
         assert!(
             output.contains("Sonnet"),
             "wide render should contain model name"
@@ -578,7 +578,7 @@ mod tests {
     fn render_wide_contains_rate_limits() {
         let s = make_session();
         let theme = themes::resolve_theme("claude-dark");
-        let output = renderer::render(&s, &theme, 120, "wide");
+        let output = renderer::render(&s, &theme, 120);
         assert!(output.contains("5h"), "should contain 5h rate limit");
         assert!(output.contains("7d"), "should contain 7d rate limit");
     }
@@ -587,7 +587,7 @@ mod tests {
     fn render_narrow_produces_output() {
         let s = make_session();
         let theme = themes::resolve_theme("claude-dark");
-        let output = renderer::render(&s, &theme, 40, "narrow");
+        let output = renderer::render(&s, &theme, 40);
         assert!(!output.is_empty(), "narrow render should produce output");
     }
 
@@ -595,7 +595,7 @@ mod tests {
     fn render_too_narrow_returns_empty() {
         let s = make_session();
         let theme = themes::resolve_theme("claude-dark");
-        let output = renderer::render(&s, &theme, 10, "narrow");
+        let output = renderer::render(&s, &theme, 10);
         assert!(
             output.is_empty(),
             "render below MIN_WIDTH should return empty"

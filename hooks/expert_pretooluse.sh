@@ -8,7 +8,7 @@
 # Install in ~/.claude/settings.json:
 #   "hooks": {
 #     "PreToolUse": [{
-#       "matcher": { "tool_name": ".*" },
+#       "matcher": ".*",
 #       "hooks": [{ "type": "command", "command": "~/.local/bin/ccb expert query --format json" }]
 #     }]
 #   }

@@ -24,7 +24,7 @@ pub fn run(scenario: Option<&str>, theme: &Theme, columns: usize) -> anyhow::Res
 
     for sc in &to_run {
         print!("\n\n=== {} ===\n\n", sc.name);
-        let output = super::renderer::render(&sc.session, theme, columns, "wide");
+        let output = super::renderer::render(&sc.session, theme, columns);
         print!("{output}");
     }
 

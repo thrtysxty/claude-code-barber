@@ -66,12 +66,12 @@ ccb sits between your shell and Claude Code. It filters, compresses, and monitor
 git clone https://github.com/thrtysxty/claude-code-barber
 cd claude-code-barber
 cargo build --release
-cp target/release/ccb ~/.local/bin/
+cp target/release/ccb target/release/ccb-route ~/.local/bin/
 
 # macOS only: ad-hoc codesign required for Cargo-compiled binaries
-codesign --sign - ~/.local/bin/ccb
+codesign --sign - ~/.local/bin/ccb ~/.local/bin/ccb-route
 
-# Wire hooks into Claude Code (context monitor + skill loader)
+# Wire hooks into Claude Code (context monitor + skill loader + expert)
 ccb install
 ```
 
@@ -109,6 +109,22 @@ cargo build --release --no-default-features --features trim,fade
 | `ccb install --auto` | Same, no interactive prompt |
 | `ccb install --dry-run` | Show what would be installed without writing anything |
 | `ccb-route` | Start the model router on `:9001` — routes to all configured providers |
+| `ccb route start [port]` | Start the router as a background process |
+| `ccb route stop` | Stop the running router |
+| `ccb route status` | Show router status, PID, and route table |
+| `ccb route tiers` | Show tier routing table (opus/sonnet/haiku → provider mappings) |
+| `ccb models` | List all available models from the running router |
+| `ccb expert build <name> --dataset <file>` | Build a knowledge graph from a YAML dataset |
+| `ccb expert activate <name>` | Set the active expert persona |
+| `ccb expert list` | List registered experts and active status |
+| `ccb expert walk "<task>"` | Traverse graph for matched knowledge nodes |
+| `ccb graph index [path]` | Index a directory into the code symbol graph |
+| `ccb graph search <pattern>` | Search symbols by name |
+| `ccb graph show <file>` | Show all symbols in a file |
+| `ccb graph stats` | Print aggregate symbol counts by language |
+| `ccb status` | Render the statusline (reads session JSON from stdin) |
+| `ccb status demo [scenario]` | Render with mock data — no live session needed |
+| `ccb status mon [directory]` | Multi-session monitor TUI (watches `~/.claude/`) |
 
 ---
 
@@ -271,7 +287,7 @@ Wire ccb into Claude Code via `~/.claude/settings.json`. A reference config is i
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": { "tool_name": "Skill" },
+        "matcher": "Skill",
         "hooks": [
           { "type": "command", "command": "~/.claude/hooks/skill_loader.sh" }
         ]
@@ -631,7 +647,6 @@ Every operation is also logged to `~/.claude/ccb_log.jsonl`:
 - [x] tree-sitter AST-based symbol extraction (Rust, Python, TypeScript, JavaScript)
 - [x] Model router — multi-provider routing with gateway discovery, `/model` picker integration, auto-discovery
 - [x] Infra metadata in graph — operational knowledge (GitHub auth routing, deployment configs)
-- [ ] Atlas Context Engine integration (MCP server, smart Read targeting)
 
 ---
 
@@ -691,6 +706,7 @@ datasets/
 ```toml
 terse = false
 conversation_style = false
+nerd_font = false    # true = Nerd Font icons in statusline (falls back to ASCII)
 
 [features]
 trim = true
