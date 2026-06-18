@@ -305,7 +305,7 @@ async fn fetch_nvidia_models(nvidia_url: &str) -> Vec<OllamaModel> {
                 // with no parameter_size or family metadata.
                 list.data
                     .into_iter()
-                    .filter(|m| !m.id.contains("embed") && !m.id.contains("rerank") && !m.id.contains("safety") && !m.id.contains("parse") && !m.id.contains("translate") && !m.id.contains("guard") && !m.id.contains("clip") && !m.id.contains("detect") && !m.id.contains("reward") && !m.id.contains("pii") && !m.id.contains("vila") && !m.id.contains("calibration") && !m.id.contains("retriever"))
+                    .filter(|m| !m.id.contains("embed") && !m.id.contains("rerank"))
                     .map(|m| OllamaModel {
                         name: m.id.clone(),
                         model: m.id.clone(),
@@ -1502,7 +1502,7 @@ async fn list_models_inner(
     let mut page_models = all_models[start_idx..end_idx].to_vec();
 
     // Apply limit
-    let limit_val = limit.unwrap_or(20);
+    let limit_val = limit.unwrap_or(500);
     if page_models.len() > limit_val {
         page_models.truncate(limit_val);
         end_idx = start_idx + limit_val;
