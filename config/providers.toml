@@ -32,11 +32,11 @@ api_format = "anthropic"
 auth_method = "oauth_passthrough"
 tier = "opus"
 models = [
-    { id = "claude-opus-4-7",              display = "Claude Opus 4.7",    tier = "opus" },
-    { id = "claude-opus-4-6",              display = "Claude Opus 4.6",    tier = "opus" },
-    { id = "claude-sonnet-4-6",            display = "Claude Sonnet 4.6",  tier = "sonnet" },
-    { id = "claude-sonnet-4-5-20241022",   display = "Claude Sonnet 4.5",  tier = "sonnet" },
-    { id = "claude-haiku-4-5-20251001",    display = "Claude Haiku 4.5",   tier = "haiku" },
+    { id = "claude-opus-4-7",              display = "Claude Opus 4.7",    tier = "opus",  tools = true, vision = true, thinking = true },
+    { id = "claude-opus-4-6",              display = "Claude Opus 4.6",    tier = "opus",  tools = true, vision = true, thinking = true },
+    { id = "claude-sonnet-4-6",            display = "Claude Sonnet 4.6",  tier = "sonnet", tools = true, vision = true, thinking = true },
+    { id = "claude-sonnet-4-5-20241022",   display = "Claude Sonnet 4.5",  tier = "sonnet", tools = true, vision = true, thinking = true },
+    { id = "claude-haiku-4-5-20251001",    display = "Claude Haiku 4.5",   tier = "haiku", tools = true, vision = true, thinking = true },
 ]
 
 [providers.ollama]
@@ -45,31 +45,26 @@ api_format = "ollama_compat"
 auth_method = "none"
 tier = "sonnet"
 discover = true
-# Static entries for known cloud & local models; discover=true adds any others.
-# backend_id = the actual model name sent to Ollama (cloud models need :cloud suffix).
-# id = the user-facing name (what you type in claude --model <id>).
-# Capabilities per model (from Ollama docs):
-#   V=vision  T=tools  K=thinking  A=audio
 models = [
-    # Cloud — Opus tier (frontier reasoning)
-    { id = "deepseek-v3.2",          backend_id = "deepseek-v3.2:cloud",         display = "DeepSeek V3.2",          tier = "opus" },     # T,K
-    { id = "deepseek-v4-pro",        backend_id = "deepseek-v4-pro:cloud",       display = "DeepSeek V4 Pro",        tier = "opus" },     # T,K
-    { id = "nemotron-3-super:120b",  backend_id = "nemotron-3-super:120b-cloud", display = "Nemotron 3 Super 120B",  tier = "opus" },     # T,K
-    # Cloud — Sonnet tier (strong all-rounders)
-    { id = "kimi-k2.6",              backend_id = "kimi-k2.6:cloud",             display = "Kimi K2.6",              tier = "sonnet" },    # V,T,K
-    { id = "qwen3.5",                backend_id = "qwen3.5:cloud",               display = "Qwen 3.5",              tier = "sonnet" },    # V,T,K
-    { id = "glm-5.1",                backend_id = "glm-5.1:cloud",               display = "GLM 5.1",               tier = "sonnet" },    # T,K
-    { id = "glm-5",                  backend_id = "glm-5:cloud",                 display = "GLM 5",                  tier = "sonnet" },    # T,K
-    { id = "qwen3-next:80b",         backend_id = "qwen3-next:80b-cloud",        display = "Qwen 3 Next 80B",       tier = "sonnet" },    # T,K
-    { id = "deepseek-v4-flash",      backend_id = "deepseek-v4-flash:cloud",     display = "DeepSeek V4 Flash",     tier = "sonnet" },    # T,K
-    # Cloud — Haiku tier (fast / small)
-    { id = "gemma4:31b",             backend_id = "gemma4:31b-cloud",            display = "Gemma4 31B",             tier = "haiku" },     # V,T,K,A
-    { id = "gemma3:27b",             backend_id = "gemma3:27b-cloud",            display = "Gemma3 27B",             tier = "haiku" },     # V
-    { id = "nemotron-3-nano:30b",    backend_id = "nemotron-3-nano:30b-cloud",   display = "Nemotron 3 Nano 30B",   tier = "haiku" },     # T,K
-    { id = "qwen3-coder-next",       backend_id = "qwen3-coder-next:cloud",      display = "Qwen 3 Coder Next",     tier = "haiku" },     # T
-    # Local — small models for offline / low-latency (no backend_id needed, names match)
-    { id = "devstral-small-2:24b",   backend_id = "devstral-small-2:24b-cloud",  display = "Devstral Small 24B",    tier = "local" },     # V,T
-    { id = "ministral-3:14b",        backend_id = "ministral-3:14b-cloud",       display = "Ministral 3 14B",       tier = "local" },     # V,T
+    # Cloud — Opus tier
+    { id = "deepseek-v3.2",          backend_id = "deepseek-v3.2:cloud",         display = "DeepSeek V3.2",          tier = "opus",  tools = true, thinking = true },
+    { id = "deepseek-v4-pro",        backend_id = "deepseek-v4-pro:cloud",       display = "DeepSeek V4 Pro",        tier = "opus",  tools = true, thinking = true },
+    { id = "nemotron-3-super:120b",  backend_id = "nemotron-3-super:120b-cloud", display = "Nemotron 3 Super 120B",  tier = "opus",  tools = true, thinking = true },
+    # Cloud — Sonnet tier
+    { id = "kimi-k2.6",              backend_id = "kimi-k2.6:cloud",             display = "Kimi K2.6",              tier = "sonnet", tools = true, vision = true, thinking = true },
+    { id = "qwen3.5",                backend_id = "qwen3.5:cloud",               display = "Qwen 3.5",              tier = "sonnet", tools = true, vision = true, thinking = true },
+    { id = "glm-5.1",                backend_id = "glm-5.1:cloud",               display = "GLM 5.1",               tier = "sonnet", tools = true, thinking = true },
+    { id = "glm-5",                  backend_id = "glm-5:cloud",                 display = "GLM 5",                  tier = "sonnet", tools = true, thinking = true },
+    { id = "qwen3-next:80b",         backend_id = "qwen3-next:80b-cloud",        display = "Qwen 3 Next 80B",       tier = "sonnet", tools = true, thinking = true },
+    { id = "deepseek-v4-flash",      backend_id = "deepseek-v4-flash:cloud",     display = "DeepSeek V4 Flash",     tier = "sonnet", tools = true, thinking = true },
+    # Cloud — Haiku tier
+    { id = "gemma4:31b",             backend_id = "gemma4:31b-cloud",            display = "Gemma4 31B",             tier = "haiku", tools = true, vision = true, thinking = true },
+    { id = "gemma3:27b",             backend_id = "gemma3:27b-cloud",            display = "Gemma3 27B",             tier = "haiku", vision = true },
+    { id = "nemotron-3-nano:30b",    backend_id = "nemotron-3-nano:30b-cloud",   display = "Nemotron 3 Nano 30B",   tier = "haiku", tools = true, thinking = true },
+    { id = "qwen3-coder-next",       backend_id = "qwen3-coder-next:cloud",      display = "Qwen 3 Coder Next",     tier = "haiku", tools = true },
+    # Local
+    { id = "devstral-small-2:24b",   backend_id = "devstral-small-2:24b-cloud",  display = "Devstral Small 24B",    tier = "local", tools = true, vision = true },
+    { id = "ministral-3:14b",        backend_id = "ministral-3:14b-cloud",       display = "Ministral 3 14B",       tier = "local", tools = true, vision = true },
 ]
 
 [providers.aibox]
@@ -78,7 +73,7 @@ api_format = "ollama_compat"
 auth_method = "none"
 tier = "haiku"
 models = [
-    { id = "qwopus3.5-9b-v3", display = "Qwopus 3.5 9B", tier = "haiku" },
+    { id = "qwopus3.5-9b-v3", display = "Qwopus 3.5 9B", tier = "haiku", tools = true },
 ]
 
 [providers.minimax]
@@ -89,7 +84,7 @@ auth_value_env = "MINIMAX_API_KEY"
 tier = "opus"
 discover = true
 models = [
-    { id = "MiniMax-M3",             display = "MiniMax M3",             tier = "opus" },
+    { id = "MiniMax-M3",             display = "MiniMax M3",             tier = "opus",  vision = true },
     { id = "MiniMax-M2.7",           display = "MiniMax M2.7",           tier = "opus" },
     { id = "MiniMax-M2.7-highspeed", display = "MiniMax M2.7 Fast",     tier = "opus" },
     { id = "MiniMax-M2.5",           display = "MiniMax M2.5",           tier = "sonnet" },
@@ -107,23 +102,23 @@ auth_value_env = "NVIDIA_API_KEY"
 tier = "opus"
 discover = true
 models = [
-    # ── Opus tier (frontier reasoning / MoE) ──
-    { id = "nvidia/nemotron-3-ultra-550b-a55b",             display = "Nemotron 3 Ultra 550B",     tier = "opus" },
-    { id = "nvidia/nemotron-3-super-120b-a12b",            display = "Nemotron 3 Super 120B",     tier = "opus" },
-    { id = "deepseek-ai/deepseek-v4-pro",                  display = "DeepSeek V4 Pro",            tier = "opus" },
-    { id = "z-ai/glm-5.1",                                 display = "GLM 5.1",                   tier = "opus" },
-    { id = "qwen/qwen3.5-397b-a17b",                       display = "Qwen 3.5 397B",             tier = "opus" },
-    { id = "moonshotai/kimi-k2.6",                         display = "Kimi K2.6",                 tier = "opus" },
+    # ── Opus tier ──
+    { id = "nvidia/nemotron-3-ultra-550b-a55b",             display = "Nemotron 3 Ultra 550B",     tier = "opus",  tools = true, thinking = true },
+    { id = "nvidia/nemotron-3-super-120b-a12b",            display = "Nemotron 3 Super 120B",     tier = "opus",  tools = true, thinking = true },
+    { id = "deepseek-ai/deepseek-v4-pro",                  display = "DeepSeek V4 Pro",            tier = "opus",  thinking = true },
+    { id = "z-ai/glm-5.1",                                 display = "GLM 5.1",                   tier = "opus",  tools = true, thinking = true },
+    { id = "qwen/qwen3.5-397b-a17b",                       display = "Qwen 3.5 397B",             tier = "opus",  vision = true },
+    { id = "moonshotai/kimi-k2.6",                         display = "Kimi K2.6",                 tier = "opus",  vision = true },
     { id = "minimaxai/minimax-m2.7",                       display = "MiniMax M2.7",              tier = "opus" },
-    { id = "mistralai/mistral-medium-3.5-128b",            display = "Mistral Medium 3.5 128B",   tier = "opus" },
-    # ── Sonnet tier (strong all-rounders) ──
-    { id = "deepseek-ai/deepseek-v4-flash",                display = "DeepSeek V4 Flash",         tier = "sonnet" },
-    { id = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", display = "Nemotron 3 Nano Omni 30B", tier = "sonnet" },
+    { id = "mistralai/mistral-medium-3.5-128b",            display = "Mistral Medium 3.5 128B",   tier = "opus",  vision = true },
+    # ── Sonnet tier ──
+    { id = "deepseek-ai/deepseek-v4-flash",                display = "DeepSeek V4 Flash",         tier = "sonnet", tools = true, thinking = true },
+    { id = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", display = "Nemotron 3 Nano Omni 30B", tier = "sonnet", thinking = true },
     { id = "qwen/qwen3.5-122b-a10b",                       display = "Qwen 3.5 122B",             tier = "sonnet" },
     { id = "stepfun-ai/step-3.7-flash",                    display = "Step 3.7 Flash",            tier = "sonnet" },
-    # ── Haiku tier (fast / small) ──
-    { id = "google/gemma-4-31b-it",                        display = "Gemma 4 31B",               tier = "haiku" },
-    { id = "nvidia/nemotron-3-nano-30b-a3b",               display = "Nemotron 3 Nano 30B",       tier = "haiku" },
+    # ── Haiku tier ──
+    { id = "google/gemma-4-31b-it",                        display = "Gemma 4 31B",               tier = "haiku", vision = true },
+    { id = "nvidia/nemotron-3-nano-30b-a3b",               display = "Nemotron 3 Nano 30B",       tier = "haiku", tools = true },
     { id = "nvidia/llama-3.1-nemotron-nano-8b-v1",         display = "Llama 3.1 Nemotron Nano 8B", tier = "haiku" },
 ]
 

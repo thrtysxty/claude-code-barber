@@ -112,6 +112,15 @@ pub struct ModelEntry {
     pub display: String,
     #[serde(default)]
     pub tier: Option<Tier>,
+    /// Whether the model supports tool/function calling.
+    #[serde(default)]
+    pub tools: Option<bool>,
+    /// Whether the model supports image/vision input.
+    #[serde(default)]
+    pub vision: Option<bool>,
+    /// Whether the model supports extended thinking/reasoning.
+    #[serde(default)]
+    pub thinking: Option<bool>,
 }
 
 impl ModelEntry {
@@ -198,6 +207,9 @@ pub struct ResolvedModel {
     pub auth_method: AuthMethod,
     pub auth_header: Option<String>,
     pub auth_value_env: Option<String>,
+    pub tools: bool,
+    pub vision: bool,
+    pub thinking: bool,
 }
 
 // ── Provider Config (the full loaded state) ──────────────────────────────────
@@ -424,6 +436,9 @@ impl ProviderConfig {
                     auth_method: provider.auth_method.clone(),
                     auth_header: provider.auth_header.clone(),
                     auth_value_env: provider.auth_value_env.clone(),
+                    tools: entry.tools.unwrap_or(false),
+                    vision: entry.vision.unwrap_or(false),
+                    thinking: entry.thinking.unwrap_or(false),
                 });
             }
         }

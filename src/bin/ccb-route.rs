@@ -1311,6 +1311,18 @@ async fn list_models_inner(
         tier: Tier,
         provider_name: String,
         created_at: String,
+        tools: bool,
+        vision: bool,
+        thinking: bool,
+    }
+
+    impl ListEntry {
+        fn capability_tag(&self) -> &'static str {
+            if self.tools && self.vision { "tool+vision" }
+            else if self.tools { "tool-use" }
+            else if self.vision { "vision" }
+            else { "text" }
+        }
     }
 
     let mut entries: Vec<ListEntry> = Vec::new();
@@ -1384,6 +1396,9 @@ async fn list_models_inner(
                         tier,
                         provider_name: pname.clone(),
                         created_at: m.modified_at.clone(),
+                        tools: entry.tools.unwrap_or(false),
+                        vision: entry.vision.unwrap_or(false),
+                        thinking: entry.thinking.unwrap_or(false),
                     });
                 } else {
                     // No static override — auto-generate from discovery metadata
@@ -1405,6 +1420,9 @@ async fn list_models_inner(
                         tier,
                         provider_name: pname.clone(),
                         created_at: m.modified_at.clone(),
+                        tools: false,
+                        vision: false,
+                        thinking: false,
                     });
                 }
             }
@@ -1425,6 +1443,9 @@ async fn list_models_inner(
                         tier,
                         provider_name: pname.clone(),
                         created_at: String::new(),
+                        tools: me.tools.unwrap_or(false),
+                        vision: me.vision.unwrap_or(false),
+                        thinking: me.thinking.unwrap_or(false),
                     });
                 }
             }
@@ -1443,16 +1464,25 @@ async fn list_models_inner(
                     tier,
                     provider_name: pname.clone(),
                     created_at: String::new(),
+                    tools: entry.tools.unwrap_or(false),
+                    vision: entry.vision.unwrap_or(false),
+                    thinking: entry.thinking.unwrap_or(false),
                 });
             }
         }
     }
 
-    // Sort: tier (opus first) then alphabetical within tier
+    // Sort: capability group (tool-use first) then tier (opus first) then alphabetical
     entries.sort_by(|a, b| {
-        a.tier
-            .sort_key()
-            .cmp(&b.tier.sort_key())
+        let cap_ord = |e: &ListEntry| -> u8 {
+            if e.tools && e.vision { 0 }
+            else if e.tools { 1 }
+            else if e.vision { 2 }
+            else { 3 }
+        };
+        cap_ord(a)
+            .cmp(&cap_ord(b))
+            .then_with(|| a.tier.sort_key().cmp(&b.tier.sort_key()))
             .then_with(|| a.display.to_lowercase().cmp(&b.display.to_lowercase()))
     });
 
@@ -1469,12 +1499,23 @@ async fn list_models_inner(
             } else {
                 format!("claude-{}", e.id)
             };
+            let cap = e.capability_tag();
+            let display = if cap == "text" {
+                format!("{} ({}) [{}]", e.display, e.provider_name, cap)
+            } else {
+                format!("{} ({}) [{}]", e.display, e.provider_name, cap)
+            };
             json!({
                 "type": "model",
                 "id": wire_id,
-                "display_name": format!("{} ({})", e.display, e.provider_name),
+                "display_name": display,
                 "context_window": cfg.context_window_for(&e.id),
                 "created_at": e.created_at,
+                "capabilities": {
+                    "tools": e.tools,
+                    "vision": e.vision,
+                    "thinking": e.thinking,
+                },
             })
         })
         .collect();
@@ -2209,9 +2250,13 @@ async fn main() {
             AuthMethod::ApiKey => "api-key",
             AuthMethod::None => "none",
         };
+        let cap_tag = if rm.tools && rm.vision { " [tool+vision]" }
+            else if rm.tools { " [tool]" }
+            else if rm.vision { " [vision]" }
+            else { "" };
         eprintln!(
-            "    {} ({} via {} [{}])",
-            rm.display_name, rm.id, rm.provider_name, auth_tag
+            "    {} ({} via {} [{}]{} )",
+            rm.display_name, rm.id, rm.provider_name, auth_tag, cap_tag
         );
     }
 
