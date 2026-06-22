@@ -116,55 +116,123 @@ pub fn set_nerd_font(enabled: bool) {
 }
 
 pub fn glyph_folder() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{e5ff}" } else { ">" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{e5ff}"
+    } else {
+        ">"
+    }
 }
 pub fn glyph_subagent() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb44}" } else { ">" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{eb44}"
+    } else {
+        ">"
+    }
 }
 pub fn glyph_continuation() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{e0b1}" } else { "`" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{e0b1}"
+    } else {
+        "`"
+    }
 }
 pub fn glyph_arrow_down() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb62}" } else { "v" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{eb62}"
+    } else {
+        "v"
+    }
 }
 pub fn glyph_arrow_up() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb61}" } else { "^" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{eb61}"
+    } else {
+        "^"
+    }
 }
 pub fn glyph_vsep() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{e0b0}" } else { "|" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{e0b0}"
+    } else {
+        "|"
+    }
 }
 pub fn glyph_member() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb9f}" } else { "@" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{eb9f}"
+    } else {
+        "@"
+    }
 }
 pub fn glyph_helper() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb99}" } else { "*" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{eb99}"
+    } else {
+        "*"
+    }
 }
 pub fn glyph_thinking() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{f444}" } else { "?" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{f444}"
+    } else {
+        "?"
+    }
 }
 pub fn glyph_model() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{e795}" } else { "#" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{e795}"
+    } else {
+        "#"
+    }
 }
 pub fn glyph_tasks() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb97}" } else { "#" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{eb97}"
+    } else {
+        "#"
+    }
 }
 pub fn glyph_skills() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb96}" } else { "$" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{eb96}"
+    } else {
+        "$"
+    }
 }
 pub fn glyph_plugins() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb63}" } else { "+" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{eb63}"
+    } else {
+        "+"
+    }
 }
 pub fn glyph_cost() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{e79e}" } else { "$" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{e79e}"
+    } else {
+        "$"
+    }
 }
 pub fn glyph_tok_rate() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{e7a4}" } else { "~" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{e7a4}"
+    } else {
+        "~"
+    }
 }
 pub fn glyph_burn_fast() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{eb6a}" } else { "!" }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{eb6a}"
+    } else {
+        "!"
+    }
 }
 pub fn glyph_burn_slow() -> &'static str {
-    if NERD_FONT.load(Ordering::Relaxed) { "\u{e798}" } else { "," }
+    if NERD_FONT.load(Ordering::Relaxed) {
+        "\u{e798}"
+    } else {
+        ","
+    }
 }
 
 // ---------------------------------------------------------------------------

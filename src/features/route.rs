@@ -224,9 +224,10 @@ impl Config {
         let pid_str = fs::read_to_string(ROUTER_PID_FILE)
             .with_context(|| format!("reading PID file at {}", ROUTER_PID_FILE))?;
 
-        let pid: u32 = pid_str.trim().parse().with_context(|| {
-            format!("invalid PID in {}: {:?}", ROUTER_PID_FILE, pid_str.trim())
-        })?;
+        let pid: u32 = pid_str
+            .trim()
+            .parse()
+            .with_context(|| format!("invalid PID in {}: {:?}", ROUTER_PID_FILE, pid_str.trim()))?;
 
         // Verify the process is actually ccb-route before sending kill
         let ps_output = Command::new("ps")

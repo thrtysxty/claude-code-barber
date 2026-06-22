@@ -49,10 +49,11 @@ use axum::{
 use bytes::Bytes;
 use ccb::features::providers::{AuthMethod, ProviderConfig, Tier};
 use chrono::Utc;
+use futures_util::StreamExt;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{env, path::PathBuf, process::Command, sync::Arc};
+use std::{env, path::PathBuf, process::Command, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -61,13 +62,20 @@ use tokio::net::TcpListener;
 struct Cfg {
     port: u16,
     anthropic_url: String,
+    http: Client,
 }
 
 impl Cfg {
     fn load() -> Self {
+        let http = Client::builder()
+            .timeout(Duration::from_secs(180))
+            .connect_timeout(Duration::from_secs(10))
+            .build()
+            .expect("failed to create HTTP client");
         Cfg {
             port: evar_u16("CCB_ROUTE_PORT", 9001),
             anthropic_url: "https://api.anthropic.com".into(),
+            http,
         }
     }
 
@@ -926,8 +934,7 @@ fn to_openai(body: &Value, model: &str) -> Value {
     let mut result = json!({
         "model":       model,
         "messages":    messages,
-        "max_tokens":  max_tok.clone(),
-        "max_completion_tokens": max_tok,
+        "max_tokens":  max_tok,
         "stream":      body.get("stream").cloned().unwrap_or(json!(false)),
     });
 
@@ -1174,12 +1181,14 @@ fn oai_chunk_to_ant_events(chunk: &str, block_index: &mut usize) -> Vec<Bytes> {
                     events.push(fmt_event(
                         "content_block_start",
                         &json!({"type":"content_block_start","index":0,
-                                "content_block":{"type":"text","text":""}}).to_string(),
+                                "content_block":{"type":"text","text":""}})
+                        .to_string(),
                     ));
                     events.push(fmt_event(
                         "content_block_delta",
                         &json!({"type":"content_block_delta","index":0,
-                                "delta":{"type":"text_delta","text":""}}).to_string(),
+                                "delta":{"type":"text_delta","text":""}})
+                        .to_string(),
                     ));
                     events.push(fmt_event(
                         "content_block_stop",
@@ -1194,7 +1203,7 @@ fn oai_chunk_to_ant_events(chunk: &str, block_index: &mut usize) -> Vec<Bytes> {
                     "content_block_start",
                     &json!({"type":"content_block_start","index":*block_index,
                             "content_block":{"type":"tool_use","id":id,"name":name,"input":{}}})
-                        .to_string(),
+                    .to_string(),
                 ));
             }
             // Argument fragment
@@ -1204,7 +1213,7 @@ fn oai_chunk_to_ant_events(chunk: &str, block_index: &mut usize) -> Vec<Bytes> {
                         "content_block_delta",
                         &json!({"type":"content_block_delta","index":*block_index,
                                 "delta":{"type":"input_json_delta","partial_json":args}})
-                            .to_string(),
+                        .to_string(),
                     ));
                 }
             }
@@ -1230,18 +1239,24 @@ async fn try_ollama_pull_and_retry(
         Ok(output) if output.status.success() => {
             eprintln!("  pull complete — retrying request");
             let req = client.post(url).headers(headers.clone()).json(body);
-            req.send().await.map_err(|e| anyhow::anyhow!("retry failed after pull: {e}"))
+            req.send()
+                .await
+                .map_err(|e| anyhow::anyhow!("retry failed after pull: {e}"))
         }
         Ok(output) => {
             let stderr = String::from_utf8_lossy(&output.stderr);
             eprintln!("  pull failed: {}", stderr.trim());
             let req = client.post(url).headers(headers.clone()).json(body);
-            req.send().await.map_err(|e| anyhow::anyhow!("request failed: {e}"))
+            req.send()
+                .await
+                .map_err(|e| anyhow::anyhow!("request failed: {e}"))
         }
         Err(e) => {
             eprintln!("  pull exception: {e}");
             let req = client.post(url).headers(headers.clone()).json(body);
-            req.send().await.map_err(|e| anyhow::anyhow!("pull exception: {e}"))
+            req.send()
+                .await
+                .map_err(|e| anyhow::anyhow!("pull exception: {e}"))
         }
     }
 }
@@ -1268,18 +1283,28 @@ async fn models_handler(
         }
     }
 
-    let after_id = params.get("after_id").or_else(|| params.get("after")).cloned();
-    let before_id = params.get("before_id").or_else(|| params.get("before")).cloned();
+    let after_id = params
+        .get("after_id")
+        .or_else(|| params.get("after"))
+        .cloned();
+    let before_id = params
+        .get("before_id")
+        .or_else(|| params.get("before"))
+        .cloned();
     let limit = params.get("limit").and_then(|l| l.parse::<usize>().ok());
 
     // /v1/models → list all, /v1/models/<id> → single lookup
     if full_path == "/v1/models" {
-        return list_models_inner(cfg, after_id, before_id, limit).await.into_response();
+        return list_models_inner(cfg, after_id, before_id, limit)
+            .await
+            .into_response();
     }
     // Extract model_id from path: everything after /v1/models/
     let model_id = full_path.strip_prefix("/v1/models/").unwrap_or("");
     if model_id.is_empty() {
-        return list_models_inner(cfg, after_id, before_id, limit).await.into_response();
+        return list_models_inner(cfg, after_id, before_id, limit)
+            .await
+            .into_response();
     }
     get_model_inner(cfg, model_id).await.into_response()
 }
@@ -1318,10 +1343,15 @@ async fn list_models_inner(
 
     impl ListEntry {
         fn capability_tag(&self) -> &'static str {
-            if self.tools && self.vision { "tool+vision" }
-            else if self.tools { "tool-use" }
-            else if self.vision { "vision" }
-            else { "text" }
+            if self.tools && self.vision {
+                "tool+vision"
+            } else if self.tools {
+                "tool-use"
+            } else if self.vision {
+                "vision"
+            } else {
+                "text"
+            }
         }
     }
 
@@ -1475,10 +1505,15 @@ async fn list_models_inner(
     // Sort: capability group (tool-use first) then tier (opus first) then alphabetical
     entries.sort_by(|a, b| {
         let cap_ord = |e: &ListEntry| -> u8 {
-            if e.tools && e.vision { 0 }
-            else if e.tools { 1 }
-            else if e.vision { 2 }
-            else { 3 }
+            if e.tools && e.vision {
+                0
+            } else if e.tools {
+                1
+            } else if e.vision {
+                2
+            } else {
+                3
+            }
         };
         cap_ord(a)
             .cmp(&cap_ord(b))
@@ -1500,11 +1535,7 @@ async fn list_models_inner(
                 format!("claude-{}", e.id)
             };
             let cap = e.capability_tag();
-            let display = if cap == "text" {
-                format!("{} ({}) [{}]", e.display, e.provider_name, cap)
-            } else {
-                format!("{} ({}) [{}]", e.display, e.provider_name, cap)
-            };
+            let display = format!("{} ({}) [{}]", e.display, e.provider_name, cap);
             json!({
                 "type": "model",
                 "id": wire_id,
@@ -1525,13 +1556,19 @@ async fn list_models_inner(
     let mut end_idx = total_len;
 
     if let Some(ref after) = after_id {
-        if let Some(idx) = all_models.iter().position(|m| m["id"].as_str() == Some(after.as_str())) {
+        if let Some(idx) = all_models
+            .iter()
+            .position(|m| m["id"].as_str() == Some(after.as_str()))
+        {
             start_idx = idx + 1;
         }
     }
 
     if let Some(ref before) = before_id {
-        if let Some(idx) = all_models.iter().position(|m| m["id"].as_str() == Some(before.as_str())) {
+        if let Some(idx) = all_models
+            .iter()
+            .position(|m| m["id"].as_str() == Some(before.as_str()))
+        {
             end_idx = idx;
         }
     }
@@ -1747,7 +1784,7 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
 
     eprintln!("← {model}  stream={streaming}");
 
-    let client = Client::new();
+    let client = cfg.http.clone();
     let url = format!("{}/v1/messages", route.url.trim_end_matches('/'));
     body_val["model"] = json!(route.model);
 
@@ -1810,7 +1847,8 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                     Ok(r) => r,
                     Err(e) => {
                         eprintln!("  auto-pull failed: {e}");
-                        return (StatusCode::BAD_GATEWAY, format!("auto-pull failed: {e}")).into_response();
+                        return (StatusCode::BAD_GATEWAY, format!("auto-pull failed: {e}"))
+                            .into_response();
                     }
                 };
                 let status = StatusCode::from_u16(resp.status().as_u16())
@@ -1879,43 +1917,29 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                     .unwrap();
             }
 
-            // Streaming: collect full response to parse usage, then replay
-            let model_for_usage = model.clone();
-            let backend_for_usage = route.backend_name.clone();
-            let key_for_limits = route.api_key.clone();
-            let backend_for_limits = route.backend_name.clone();
-            let full_bytes = resp.bytes().await.unwrap_or_default();
-            let body_str = String::from_utf8_lossy(&full_bytes).to_string();
-
-            let mut in_toks: u64 = 0;
-            let mut out_toks: u64 = 0;
-            for block in body_str.split("\n\n") {
-                for line in block.lines() {
-                    if let Some(data) = line.strip_prefix("data: ") {
-                        if let Ok(v) = serde_json::from_str::<Value>(data) {
-                            if v["type"] == "message_start" {
-                                if let Some(usage) = v.get("message").and_then(|m| m.get("usage")) {
-                                    in_toks = usage["input_tokens"].as_u64().unwrap_or(0);
-                                    out_toks = usage["output_tokens"].as_u64().unwrap_or(0);
-                                }
+            // Streaming: forward SSE events in real-time
+            // Ollama returns Anthropic-format SSE — pass through directly.
+            let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(16);
+            let byte_stream = resp.bytes_stream();
+            tokio::spawn(async move {
+                let mut stream = byte_stream;
+                while let Some(chunk) = stream.next().await {
+                    match chunk {
+                        Ok(bytes) => {
+                            if tx.send(Ok(bytes)).await.is_err() {
+                                break;
                             }
-                            if v["type"] == "message_delta" {
-                                if let Some(usage) = v.get("usage") {
-                                    if let Some(out) = usage["output_tokens"].as_u64() {
-                                        out_toks = out;
-                                    }
-                                }
-                            }
+                        }
+                        Err(e) => {
+                            eprintln!("  ollama stream error: {e}");
+                            let _ = tx.send(Err(std::io::Error::other(e.to_string()))).await;
+                            break;
                         }
                     }
                 }
-            }
+            });
 
-            write_usage_line(in_toks, out_toks, &model_for_usage, &backend_for_usage);
-            spawn_rate_fetch(key_for_limits, &backend_for_limits);
-
-            let stream =
-                futures_util::stream::once(async move { Ok::<_, std::io::Error>(full_bytes) });
+            let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
             Response::builder()
                 .status(status)
                 .header("content-type", ct)
@@ -2027,47 +2051,29 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                             .unwrap();
                     }
 
-                    // Streaming: collect, parse usage, replay
-                    let model_for_usage = model.clone();
-                    let backend_for_usage = route.backend_name.clone();
-                    let key_for_limits = route.api_key.clone();
-                    let backend_for_limits = route.backend_name.clone();
-                    let full_bytes = resp.bytes().await.unwrap_or_default();
-                    let body_str = String::from_utf8_lossy(&full_bytes).to_string();
-
-                    let mut in_toks: u64 = 0;
-                    let mut out_toks: u64 = 0;
-                    for block in body_str.split("\n\n") {
-                        for line in block.lines() {
-                            if let Some(data) = line.strip_prefix("data: ") {
-                                if let Ok(v) = serde_json::from_str::<Value>(data) {
-                                    if v["type"] == "message_start" {
-                                        if let Some(usage) =
-                                            v.get("message").and_then(|m| m.get("usage"))
-                                        {
-                                            in_toks = usage["input_tokens"].as_u64().unwrap_or(0);
-                                            out_toks = usage["output_tokens"].as_u64().unwrap_or(0);
-                                        }
+                    // Streaming: forward SSE events in real-time
+                    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(16);
+                    let byte_stream = resp.bytes_stream();
+                    tokio::spawn(async move {
+                        let mut stream = byte_stream;
+                        while let Some(chunk) = stream.next().await {
+                            match chunk {
+                                Ok(bytes) => {
+                                    if tx.send(Ok(bytes)).await.is_err() {
+                                        break;
                                     }
-                                    if v["type"] == "message_delta" {
-                                        if let Some(usage) = v.get("usage") {
-                                            if let Some(out) = usage["output_tokens"].as_u64() {
-                                                out_toks = out;
-                                            }
-                                        }
-                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("  anthropic stream error: {e}");
+                                    let _ =
+                                        tx.send(Err(std::io::Error::other(e.to_string()))).await;
+                                    break;
                                 }
                             }
                         }
-                    }
+                    });
 
-                    write_usage_line(in_toks, out_toks, &model_for_usage, &backend_for_usage);
-                    spawn_rate_fetch(key_for_limits, &backend_for_limits);
-
-                    let stream =
-                        futures_util::stream::once(
-                            async move { Ok::<_, std::io::Error>(full_bytes) },
-                        );
+                    let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
                     Response::builder()
                         .status(status)
                         .header("content-type", ct)
@@ -2084,9 +2090,7 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
             let oai_body = to_openai(&body_val, &route.model);
             let url = format!("{}/v1/chat/completions", route.url.trim_end_matches('/'));
 
-            let mut req = client
-                .post(&url)
-                .header("content-type", "application/json");
+            let mut req = client.post(&url).header("content-type", "application/json");
 
             req = match &route.auth {
                 RouteAuth::Bearer(token) => {
@@ -2130,12 +2134,9 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                                     .unwrap();
                             }
 
-                            let in_toks = oai_resp["usage"]["prompt_tokens"]
-                                .as_u64()
-                                .unwrap_or(0);
-                            let out_toks = oai_resp["usage"]["completion_tokens"]
-                                .as_u64()
-                                .unwrap_or(0);
+                            let in_toks = oai_resp["usage"]["prompt_tokens"].as_u64().unwrap_or(0);
+                            let out_toks =
+                                oai_resp["usage"]["completion_tokens"].as_u64().unwrap_or(0);
                             write_usage_line(in_toks, out_toks, &model, &route.backend_name);
                             spawn_rate_fetch(route.api_key.clone(), &route.backend_name);
 
@@ -2162,15 +2163,13 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                             .unwrap();
                     }
 
-                    // Streaming: collect full response, convert, replay as Anthropic SSE
+                    // Streaming: convert OpenAI chunks to Anthropic SSE in real-time
                     let model_for_usage = model.clone();
                     let backend_for_usage = route.backend_name.clone();
                     let key_for_limits = route.api_key.clone();
                     let backend_for_limits = route.backend_name.clone();
-                    let full_bytes = resp.bytes().await.unwrap_or_default();
-                    let body_str = String::from_utf8_lossy(&full_bytes).to_string();
 
-                    // Build Anthropic SSE from OpenAI chunks
+                    // Emit initial Anthropic SSE events
                     let msg_id = format!("msg_{:x}", rand_id());
                     let start = json!({"type":"message_start","message":{
                         "id": &msg_id, "type":"message","role":"assistant","content":[],
@@ -2180,39 +2179,66 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                     let bstart = json!({"type":"content_block_start","index":0,
                                         "content_block":{"type":"text","text":""}});
 
-                    let mut ant_events: Vec<u8> = Vec::new();
-                    ant_events.extend_from_slice(&fmt_event("message_start", &start.to_string()));
-                    ant_events
-                        .extend_from_slice(&fmt_event("content_block_start", &bstart.to_string()));
-                    ant_events.extend_from_slice(&fmt_event("ping", r#"{"type":"ping"}"#));
+                    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(16);
 
-                    let mut block_index: usize = 0;
-                    let mut total_out: u64 = 0;
-                    for line in body_str.lines() {
-                        if line.starts_with("data: ") {
-                            // Track usage from final chunk
-                            if let Some(data) = line.strip_prefix("data: ") {
-                                if let Ok(v) = serde_json::from_str::<Value>(data) {
-                                    if let Some(usage) = v.get("usage") {
-                                        if let Some(out) = usage["completion_tokens"].as_u64() {
-                                            total_out = out;
+                    // Send initial events immediately
+                    let mut init_events = Vec::new();
+                    init_events.extend_from_slice(&fmt_event("message_start", &start.to_string()));
+                    init_events
+                        .extend_from_slice(&fmt_event("content_block_start", &bstart.to_string()));
+                    init_events.extend_from_slice(&fmt_event("ping", r#"{"type":"ping"}"#));
+                    let _ = tx.send(Ok(Bytes::from(init_events))).await;
+
+                    let byte_stream = resp.bytes_stream();
+                    tokio::spawn(async move {
+                        let mut stream = byte_stream;
+                        let mut block_index: usize = 0;
+                        let mut total_out: u64 = 0;
+                        let mut buffer = String::new();
+
+                        while let Some(chunk) = stream.next().await {
+                            match chunk {
+                                Ok(bytes) => {
+                                    buffer.push_str(&String::from_utf8_lossy(&bytes));
+                                    // Process complete lines
+                                    while let Some(newline_pos) = buffer.find('\n') {
+                                        let line = buffer[..newline_pos].to_string();
+                                        buffer = buffer[newline_pos + 1..].to_string();
+
+                                        if let Some(stripped) = line.strip_prefix("data: ") {
+                                            // Track usage from final chunk
+                                            if let Ok(v) = serde_json::from_str::<Value>(stripped) {
+                                                if let Some(usage) = v.get("usage") {
+                                                    if let Some(out) =
+                                                        usage["completion_tokens"].as_u64()
+                                                    {
+                                                        total_out = out;
+                                                    }
+                                                }
+                                            }
+                                            for ev in
+                                                oai_chunk_to_ant_events(&line, &mut block_index)
+                                            {
+                                                if tx.send(Ok(ev)).await.is_err() {
+                                                    return;
+                                                }
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            for ev in oai_chunk_to_ant_events(line, &mut block_index) {
-                                ant_events.extend_from_slice(&ev);
+                                Err(e) => {
+                                    eprintln!("  openai stream error: {e}");
+                                    let _ =
+                                        tx.send(Err(std::io::Error::other(e.to_string()))).await;
+                                    break;
+                                }
                             }
                         }
-                    }
-
-                    write_usage_line(0, total_out, &model_for_usage, &backend_for_usage);
-                    spawn_rate_fetch(key_for_limits, &backend_for_limits);
-
-                    let ant_bytes = Bytes::from(ant_events);
-                    let stream = futures_util::stream::once(async move {
-                        Ok::<_, std::io::Error>(ant_bytes)
+                        write_usage_line(0, total_out, &model_for_usage, &backend_for_usage);
+                        spawn_rate_fetch(key_for_limits, &backend_for_limits);
                     });
+
+                    let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
                     Response::builder()
                         .status(StatusCode::OK)
                         .header("content-type", "text/event-stream")
@@ -2250,10 +2276,15 @@ async fn main() {
             AuthMethod::ApiKey => "api-key",
             AuthMethod::None => "none",
         };
-        let cap_tag = if rm.tools && rm.vision { " [tool+vision]" }
-            else if rm.tools { " [tool]" }
-            else if rm.vision { " [vision]" }
-            else { "" };
+        let cap_tag = if rm.tools && rm.vision {
+            " [tool+vision]"
+        } else if rm.tools {
+            " [tool]"
+        } else if rm.vision {
+            " [vision]"
+        } else {
+            ""
+        };
         eprintln!(
             "    {} ({} via {} [{}]{} )",
             rm.display_name, rm.id, rm.provider_name, auth_tag, cap_tag

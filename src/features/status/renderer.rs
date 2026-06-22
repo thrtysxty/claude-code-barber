@@ -8,13 +8,11 @@ use std::fmt::Write as FmtWrite;
 
 use super::border::BorderRenderer;
 use super::gradient::{
-    self, empty_fade_colors, pill_gradient_fg, rainbow_at, rainbow_step, spec_gradient_bar,
-    visible_width, GradientEngine, Pill,
-    glyph_arrow_down, glyph_arrow_up, glyph_burn_fast, glyph_burn_slow,
-    glyph_continuation, glyph_cost, glyph_folder, glyph_helper, glyph_member,
-    glyph_model, glyph_plugins, glyph_skills, glyph_subagent, glyph_tasks,
-    glyph_thinking, glyph_tok_rate, glyph_vsep,
-    BOLD, ITALIC, MEDIUM_WIDTH, NARROW_WIDTH, RESET,
+    self, empty_fade_colors, glyph_arrow_down, glyph_arrow_up, glyph_burn_fast, glyph_burn_slow,
+    glyph_continuation, glyph_cost, glyph_folder, glyph_helper, glyph_member, glyph_model,
+    glyph_plugins, glyph_skills, glyph_subagent, glyph_tasks, glyph_thinking, glyph_tok_rate,
+    glyph_vsep, pill_gradient_fg, rainbow_at, rainbow_step, spec_gradient_bar, visible_width,
+    GradientEngine, Pill, BOLD, ITALIC, MEDIUM_WIDTH, NARROW_WIDTH, RESET,
 };
 use super::session::{
     self, discover_openspec, fmt_tok, GitInfo, LoadedSkills, SessionInfo, TaskList,
@@ -335,7 +333,12 @@ fn render_wide(
         write!(
             helper,
             " {}{}{}{}{} thinking {}",
-            theme.label, BOLD, glyph_thinking(), RESET, ITALIC, RESET
+            theme.label,
+            BOLD,
+            glyph_thinking(),
+            RESET,
+            ITALIC,
+            RESET
         )
         .unwrap();
     }
@@ -344,7 +347,12 @@ fn render_wide(
         write!(
             helper,
             " {}{}{}{}{} {}",
-            theme.label, BOLD, glyph_model(), RESET, theme.model, model_think
+            theme.label,
+            BOLD,
+            glyph_model(),
+            RESET,
+            theme.model,
+            model_think
         )
         .unwrap();
     }
@@ -356,7 +364,11 @@ fn render_wide(
     write!(
         right,
         "{}{}{}{}  {}",
-        c_helper, BOLD, glyph_helper(), RESET, theme.white_brt
+        c_helper,
+        BOLD,
+        glyph_helper(),
+        RESET,
+        theme.white_brt
     )
     .unwrap();
     write!(
@@ -416,8 +428,7 @@ fn render_wide(
             )
             .unwrap();
         } else {
-            write!(right, " {}| {}{:.0}%{}", theme.label, sd_color, sd, RESET)
-                .unwrap();
+            write!(right, " {}| {}{:.0}%{}", theme.label, sd_color, sd, RESET).unwrap();
         }
     }
     let right_w = visible_width(&right);
@@ -497,7 +508,11 @@ fn render_wide(
     let (spark_top, spark_bot) = ge.sparkline(&spark_history, true);
 
     // Active arrow glyphs
-    let down_arrow = if down_active { glyph_arrow_down() } else { "↓" };
+    let down_arrow = if down_active {
+        glyph_arrow_down()
+    } else {
+        "↓"
+    };
     let up_arrow = if up_active { glyph_arrow_up() } else { "↑" };
 
     // Build sections separately for alignment
@@ -578,7 +593,11 @@ fn render_wide(
         write!(
             sect_b1,
             " {}{}{}${:.2}/d{}",
-            dc_col, glyph_cost(), BOLD, day_cost, RESET
+            dc_col,
+            glyph_cost(),
+            BOLD,
+            day_cost,
+            RESET
         )
         .unwrap();
     }
@@ -588,7 +607,11 @@ fn render_wide(
         write!(
             sect_b2,
             " {}{}{}${:.2}{}",
-            theme.cost, glyph_cost(), BOLD, sess_cost, RESET
+            theme.cost,
+            glyph_cost(),
+            BOLD,
+            sess_cost,
+            RESET
         )
         .unwrap();
     } else if let Some(ref cost) = s.cost {
@@ -597,7 +620,11 @@ fn render_wide(
                 write!(
                     sect_b2,
                     " {}{}{}${:.2}{}",
-                    theme.cost, glyph_cost(), BOLD, c, RESET
+                    theme.cost,
+                    glyph_cost(),
+                    BOLD,
+                    c,
+                    RESET
                 )
                 .unwrap();
             }
@@ -1425,14 +1452,23 @@ fn path_git_compact(pwd: &str, branch: &str, theme: &Theme) -> String {
     write!(
         s,
         "{}{}{}  {}{}{}",
-        theme.icon_path, glyph_folder(), RESET, theme.pwd, pwd, RESET
+        theme.icon_path,
+        glyph_folder(),
+        RESET,
+        theme.pwd,
+        pwd,
+        RESET
     )
     .unwrap();
     if !branch.is_empty() {
         write!(
             s,
             " {}{}{}{}{}",
-            theme.label, BOLD, theme.arrow, glyph_member(), RESET
+            theme.label,
+            BOLD,
+            theme.arrow,
+            glyph_member(),
+            RESET
         )
         .unwrap();
         write!(s, " {}{}{}", theme.branch, branch, RESET).unwrap();
@@ -1456,14 +1492,22 @@ fn fit_path(
         write!(
             line,
             "{}{}{}  {}{}",
-            theme.icon_path, glyph_folder(), RESET, theme.pwd, pwd
+            theme.icon_path,
+            glyph_folder(),
+            RESET,
+            theme.pwd,
+            pwd
         )
         .unwrap();
         if !git.branch.is_empty() {
             write!(
                 line,
                 " {}{}{}{}{}",
-                theme.label, BOLD, theme.arrow, glyph_member(), RESET
+                theme.label,
+                BOLD,
+                theme.arrow,
+                glyph_member(),
+                RESET
             )
             .unwrap();
             write!(line, " {}{}", theme.branch, git.branch).unwrap();

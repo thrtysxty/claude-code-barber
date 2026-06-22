@@ -16,10 +16,7 @@ const HOOK_SCRIPTS: &[(&str, &str)] = &[
         "expert_pretooluse.sh",
         include_str!("../../hooks/expert_pretooluse.sh"),
     ),
-    (
-        "classifier.sh",
-        include_str!("../../hooks/classifier.sh"),
-    ),
+    ("classifier.sh", include_str!("../../hooks/classifier.sh")),
 ];
 
 // Minimal JSON patch: add context_monitor PostToolUse hook + skill_loader PreToolUse hook.
@@ -115,7 +112,12 @@ pub fn run(auto: bool, dry_run: bool) -> Result<()> {
         return Ok(());
     }
 
-    if !auto && (!already_has_context || !already_has_skill || !already_has_expert || !already_has_classifier) {
+    if !auto
+        && (!already_has_context
+            || !already_has_skill
+            || !already_has_expert
+            || !already_has_classifier)
+    {
         print!("\nApply changes to settings.json? [y/N] ");
         io::stdout().flush()?;
         let mut answer = String::new();
@@ -151,7 +153,8 @@ pub fn run(auto: bool, dry_run: bool) -> Result<()> {
             .push(classifier_hook);
     }
 
-    if !already_has_context || !already_has_skill || !already_has_expert || !already_has_classifier {
+    if !already_has_context || !already_has_skill || !already_has_expert || !already_has_classifier
+    {
         let patched = serde_json::to_string_pretty(&settings)?;
         fs::write(&settings_path, patched)?;
         println!("\n✓ settings.json updated");
