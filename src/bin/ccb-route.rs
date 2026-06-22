@@ -726,6 +726,54 @@ fn route_from_provider(
 
 // ── Ollama-compat field stripping ──────────────────────────────────────────────
 
+/// Sanitize tool_use blocks that are missing required fields.
+/// Ollama models sometimes generate tool_use blocks without a `name` field,
+/// which causes Claude Code to reject the response with:
+/// "tool_use block missing required 'name' field"
+fn sanitize_tool_use_blocks(body: &mut Value) {
+    if let Some(msgs) = body.get_mut("messages") {
+        if let Some(arr) = msgs.as_array_mut() {
+            for msg in arr.iter_mut() {
+                if let Some(content) = msg.get_mut("content") {
+                    if let Some(blocks) = content.as_array_mut() {
+                        blocks.retain(|block| {
+                            if block.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
+                                let has_name = block.get("name")
+                                    .and_then(|n| n.as_str())
+                                    .map(|s| !s.is_empty())
+                                    .unwrap_or(false);
+                                if !has_name {
+                                    eprintln!("  sanitize: removing tool_use block missing 'name'");
+                                    return false;
+                                }
+                            }
+                            true
+                        });
+                    }
+                }
+            }
+        }
+    }
+    // Also handle top-level content array (single message response)
+    if let Some(content) = body.get_mut("content") {
+        if let Some(blocks) = content.as_array_mut() {
+            blocks.retain(|block| {
+                if block.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
+                    let has_name = block.get("name")
+                        .and_then(|n| n.as_str())
+                        .map(|s| !s.is_empty())
+                        .unwrap_or(false);
+                    if !has_name {
+                        eprintln!("  sanitize: removing tool_use block missing 'name'");
+                        return false;
+                    }
+                }
+                true
+            });
+        }
+    }
+}
+
 /// Remove fields unsupported by Ollama Anthropic-compat before forwarding.
 /// Per https://docs.ollama.com/api/anthropic-compatibility:
 ///   Unsupported: tool_choice, metadata, cache_control, document blocks,
@@ -1862,10 +1910,21 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
 
                 if !streaming {
                     let full_body = resp.bytes().await.unwrap_or_default();
-                    if let Ok(v) = serde_json::from_slice::<Value>(&full_body) {
+                    if let Ok(mut v) = serde_json::from_slice::<Value>(&full_body) {
                         let in_toks = v["usage"]["input_tokens"].as_u64().unwrap_or(0);
                         let out_toks = v["usage"]["output_tokens"].as_u64().unwrap_or(0);
                         write_usage_line(in_toks, out_toks, &model, &route.backend_name);
+                        sanitize_tool_use_blocks(&mut v);
+                        let sanitized = Bytes::from(v.to_string());
+                        let stream = futures_util::stream::once(async move {
+                            Ok::<_, std::io::Error>(sanitized)
+                        });
+                        return Response::builder()
+                            .status(status)
+                            .header("content-type", &ct)
+                            .header("cache-control", "no-cache")
+                            .body(Body::from_stream(stream))
+                            .unwrap();
                     }
                     let stream =
                         futures_util::stream::once(
@@ -1901,11 +1960,22 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
             // Non-streaming
             if !streaming {
                 let full_body = resp.bytes().await.unwrap_or_default();
-                if let Ok(v) = serde_json::from_slice::<Value>(&full_body) {
+                if let Ok(mut v) = serde_json::from_slice::<Value>(&full_body) {
                     let in_toks = v["usage"]["input_tokens"].as_u64().unwrap_or(0);
                     let out_toks = v["usage"]["output_tokens"].as_u64().unwrap_or(0);
                     write_usage_line(in_toks, out_toks, &model, &route.backend_name);
                     spawn_rate_fetch(route.api_key.clone(), &route.backend_name);
+                    sanitize_tool_use_blocks(&mut v);
+                    let sanitized = Bytes::from(v.to_string());
+                    let stream = futures_util::stream::once(async move {
+                        Ok::<_, std::io::Error>(sanitized)
+                    });
+                    return Response::builder()
+                        .status(status)
+                        .header("content-type", &ct)
+                        .header("cache-control", "no-cache")
+                        .body(Body::from_stream(stream))
+                        .unwrap();
                 }
                 let stream =
                     futures_util::stream::once(async move { Ok::<_, std::io::Error>(full_body) });
@@ -2034,11 +2104,22 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                     // Non-streaming
                     if !streaming {
                         let full_body = resp.bytes().await.unwrap_or_default();
-                        if let Ok(v) = serde_json::from_slice::<Value>(&full_body) {
+                        if let Ok(mut v) = serde_json::from_slice::<Value>(&full_body) {
                             let in_toks = v["usage"]["input_tokens"].as_u64().unwrap_or(0);
                             let out_toks = v["usage"]["output_tokens"].as_u64().unwrap_or(0);
                             write_usage_line(in_toks, out_toks, &model, &route.backend_name);
                             spawn_rate_fetch(route.api_key.clone(), &route.backend_name);
+                            sanitize_tool_use_blocks(&mut v);
+                            let sanitized = Bytes::from(v.to_string());
+                            let stream = futures_util::stream::once(async move {
+                                Ok::<_, std::io::Error>(sanitized)
+                            });
+                            return Response::builder()
+                                .status(status)
+                                .header("content-type", &ct)
+                                .header("cache-control", "no-cache")
+                                .body(Body::from_stream(stream))
+                                .unwrap();
                         }
                         let stream = futures_util::stream::once(async move {
                             Ok::<_, std::io::Error>(full_body)
