@@ -368,7 +368,7 @@ impl SessionInfo {
         let home_str = home.to_string_lossy();
         let p = self.cwd.as_deref().unwrap_or("");
         let p = if p.starts_with(home_str.as_ref()) {
-            format!("~/{}", &p[home_str.len()..].trim_start_matches('/'))
+            format!("~/{}", p[home_str.len()..].trim_start_matches('/'))
         } else {
             p.to_string()
         };

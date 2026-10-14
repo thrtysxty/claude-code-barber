@@ -622,7 +622,7 @@ pub fn format_state_machine(loop_def: &LoopDef) -> String {
     out.push(format!(
         "Loop: {} → {}",
         loop_def.initial,
-        &loop_def.final_states.join("|")
+        loop_def.final_states.join("|")
     ));
 
     for (name, expert, desc) in loop_def.states {
