@@ -13,7 +13,7 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
         let out = Command::new(&args.cmd[0])
             .args(&args.cmd[1..])
             .output()
-            .map_err(|e| anyhow::anyhow!("ccb trim: command not found: {}: {}", &args.cmd[0], e))?;
+            .map_err(|e| anyhow::anyhow!("ccb trim: command not found: {}: {}", args.cmd[0], e))?;
         let combined = String::from_utf8_lossy(&out.stdout).to_string()
             + &String::from_utf8_lossy(&out.stderr);
         let mode = Some("bypass".to_string());
@@ -53,7 +53,7 @@ pub fn run(args: TrimArgs) -> anyhow::Result<()> {
     let out = Command::new(&args.cmd[0])
         .args(&args.cmd[1..])
         .output()
-        .map_err(|e| anyhow::anyhow!("ccb trim: command not found: {}: {}", &args.cmd[0], e))?;
+        .map_err(|e| anyhow::anyhow!("ccb trim: command not found: {}: {}", args.cmd[0], e))?;
 
     // merge stderr — most build tools write noise to stderr
     let stdout = String::from_utf8_lossy(&out.stdout);
