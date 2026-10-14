@@ -738,7 +738,8 @@ fn sanitize_tool_use_blocks(body: &mut Value) {
                     if let Some(blocks) = content.as_array_mut() {
                         blocks.retain(|block| {
                             if block.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
-                                let has_name = block.get("name")
+                                let has_name = block
+                                    .get("name")
                                     .and_then(|n| n.as_str())
                                     .map(|s| !s.is_empty())
                                     .unwrap_or(false);
@@ -759,7 +760,8 @@ fn sanitize_tool_use_blocks(body: &mut Value) {
         if let Some(blocks) = content.as_array_mut() {
             blocks.retain(|block| {
                 if block.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
-                    let has_name = block.get("name")
+                    let has_name = block
+                        .get("name")
                         .and_then(|n| n.as_str())
                         .map(|s| !s.is_empty())
                         .unwrap_or(false);
@@ -1967,9 +1969,10 @@ async fn messages(State(cfg): State<Arc<Cfg>>, headers: HeaderMap, body: Bytes) 
                     spawn_rate_fetch(route.api_key.clone(), &route.backend_name);
                     sanitize_tool_use_blocks(&mut v);
                     let sanitized = Bytes::from(v.to_string());
-                    let stream = futures_util::stream::once(async move {
-                        Ok::<_, std::io::Error>(sanitized)
-                    });
+                    let stream =
+                        futures_util::stream::once(
+                            async move { Ok::<_, std::io::Error>(sanitized) },
+                        );
                     return Response::builder()
                         .status(status)
                         .header("content-type", &ct)
